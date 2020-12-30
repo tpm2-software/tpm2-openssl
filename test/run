@@ -1,0 +1,12 @@
+#!/bin/bash
+export OPENSSL_MODULES="${OPENSSL_MODULES:=$PWD/.libs}"
+export PATH="/home/pi/.root/bin:$PATH"
+
+test_script="$(realpath "$1")"
+
+echo "Starting $test_script"
+$test_script
+# valgrind --leak-check=full --show-leak-kinds=all --trace-children=yes $test_script
+test_status=$?
+
+exit $test_status
