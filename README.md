@@ -51,7 +51,7 @@ openssl pkeyutl -provider tpm2 -inkey handle:0x81000000 -sign -rawin -in testdat
 ```
 
 * Signing using a restricted signing key is possible, e.g. one can sign
-  arbitrary data using the TPM attestation key (AK) created by `tpm2_createak`.
+  arbitrary data using the TPM attestation key (AK) created by `tpm2 createak`.
   Such keys are compatible with e.g. the
   [strongSwan](https://www.strongswan.org/)
   [TPM Plugin](https://wiki.strongswan.org/projects/strongswan/wiki/TpmPlugin).
@@ -70,6 +70,47 @@ Nothing will be stable until the final OpenSSL 3.0 is released.
 * TPM simulator integration
 
 
+## Integration with OpenSSL
+
+In OpenSSL terms,
+[provider](https://www.openssl.org/docs/manmaster/man7/provider.html) is a unit
+of code that provides one or more implementations for various operations for
+diverse algorithms.
+
+List of active providers can be obtained from:
+```
+openssl list -providers
+```
+
+OpenSSL comes with a
+[**default** provider](https://www.openssl.org/docs/manmaster/man7/OSSL_PROVIDER-default.html),
+which supplies the standard algorithm implementations.
+
+This project implements a **tpm2** provider that re-implements some algorithms
+using the TPM 2.0. It does not replace the default provider though-- some
+operations still need the default provider.
+
+The tpm2 provider comes as a single `tpm2.so` module, which needs to be installed
+to OpenSSL's `lib/ossl-modules`. When successfully installed, you should see the
+provider listed when you do:
+```
+openssl list -providers -provider tpm2
+```
+
+You may use other
+[openssl list](https://www.openssl.org/docs/manmaster/man1/openssl-list.html)
+commands to inspect the various algorithms provided, such as the list of encoders,
+by:
+```
+openssl list -encoders -provider tpm2
+```
+
+The provider operations can be invoked either via the `openssl` command line
+tool, or via the
+[EVP library](https://www.openssl.org/docs/manmaster/man7/evp.html) functions
+from any custom application.
+
+
 ## Random Number Generation
 
 The tpm2 provider implements a
@@ -77,7 +118,9 @@ The tpm2 provider implements a
 operation, which retrieves random bytes from the TPM. It is made available to
 applications via the
 [EVP_RAND](https://www.openssl.org/docs/manmaster/man3/EVP_RAND.html) API function
-and the `openssl rand` command.
+and the
+[`openssl rand`](https://www.openssl.org/docs/manmaster/man1/openssl-rand.html)
+command.
 
 For example, to generate 10 bytes:
 ```
@@ -100,10 +143,14 @@ Gettable parameters (API only):
 
 The tpm2 provider implements a
 [OSSL_OP_KEYMGMT](https://www.openssl.org/docs/manmaster/man7/provider-keymgmt.html)
-operation for creation and manipulation of the **RSA** keys.
+operation for creation and manipulation of TPM-based **RSA** keys.
 These can be used via the
 [EVP_PKEY](https://www.openssl.org/docs/manmaster/man7/EVP_PKEY-RSA.html)
-API functions and the `openssl genpkey` and `openssl pkey` commands.
+API functions and the
+[`openssl genpkey`](https://www.openssl.org/docs/manmaster/man1/openssl-genpkey.html)
+and
+[`openssl pkey`](https://www.openssl.org/docs/manmaster/man1/openssl-pkey.html)
+commands.
 
 ### Key Generation
 
@@ -122,16 +169,17 @@ openssl genpkey -provider tpm2 -algorithm RSA -pkeyopt bits:1024 -out testkey.pr
 
 Or, to define a 2048-bit RSA key with password `abc`:
 ```
-openssl genpkey -provider tpm2 -algorithm RSA -pkeyopt bits:2048 -pkeyopt user-auth:abc -out testkey.priv
+openssl genpkey -provider tpm2 -algorithm RSA \
+    -pkeyopt bits:2048 -pkeyopt user-auth:abc -out testkey.priv
 ```
 
 You may also generate the key using standard TPM2 tools and then make the key
-persistent under a given handle using `tpm2_evictcontrol`. For example to create
+persistent under a given handle using `tpm2 evictcontrol`. For example to create
 a new key Attestation Key (AK) with a handle 0x81000000:
 ```
-tpm2_createek -G rsa -c ek_rsa.ctx
-tpm2_createak -C ek_rsa.ctx -G rsa -g sha256 -s rsassa -c ak_rsa.ctx
-tpm2_evictcontrol -c ak_rsa.ctx 0x81000000
+tpm2 createek -G rsa -c ek_rsa.ctx
+tpm2 createak -C ek_rsa.ctx -G rsa -g sha256 -s rsassa -c ak_rsa.ctx
+tpm2 evictcontrol -c ak_rsa.ctx 0x81000000
 ```
 
 ### Exporting a Public Key
@@ -217,10 +265,12 @@ The tpm2 provider implements a
 [OSSL_OP_SIGNATURE](https://www.openssl.org/docs/manmaster/man7/provider-signature.html)
 operation that is made available via the
 [EVP_DigestSign](https://www.openssl.org/docs/manmaster/man3/EVP_DigestSign.html)
-API function and the `openssl pkeyutl -sign -rawin` command.
+API function and the
+[`openssl pkeyutl -sign -rawin`](https://www.openssl.org/docs/manmaster/man1/openssl-pkeyutl.html)
+command.
 
 The `-rawin` argument ensures the digest is calculated by the TPM itself and thus
-restricted signing keys, such as the Attestation Key (from tpm2_createak) can be
+restricted signing keys, such as the Attestation Key (from tpm2 createak) can be
 used.
 
 For example, to sign the "testdata" file using the Attestation Key 0x81000000
@@ -270,7 +320,9 @@ The tpm2 provider implements a
 [OSSL_OP_ASYM_CIPHER](https://www.openssl.org/docs/manmaster/man7/provider-asym_cipher.html)
 operation that is made available via the
 [EVP_PKEY_decrypt](https://www.openssl.org/docs/manmaster/man3/EVP_PKEY_decrypt.html)
-API function and the `openssl pkeyutl -decrypt` command.
+API function and the
+[`openssl pkeyutl -decrypt`](https://www.openssl.org/docs/manmaster/man1/openssl-pkeyutl.html)
+command.
 
 For example, to decrypt the "testdata" file using a decryption private key:
 ```
