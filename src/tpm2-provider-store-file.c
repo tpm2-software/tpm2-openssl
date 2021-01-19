@@ -37,64 +37,51 @@
 #include <openssl/core_object.h>
 #include <openssl/params.h>
 
-#include "tpm2-provider.h"
+#include "tpm2-provider-pkey.h"
 
-typedef struct tpm2_handle_ctx_st TPM2_HANDLE_CTX;
+typedef struct tpm2_file_ctx_st TPM2_FILE_CTX;
 
-struct tpm2_handle_ctx_st {
+struct tpm2_file_ctx_st {
     const OSSL_CORE_HANDLE *core;
     ESYS_CONTEXT *esys_ctx;
-    TPM2_HANDLE handle;
-    int has_pass;
-    int load_done;
+    BIO *bin;
 };
 
 static void *
-tpm2_handle_open(void *provctx, const char *uri)
+tpm2_file_open(void *provctx, const char *uri)
 {
     TPM2_PROVIDER_CTX *cprov = provctx;
-    unsigned long int value;
-    char *end_ptr = NULL;
-    TPM2_HANDLE_CTX *ctx = NULL;
+    TPM2_FILE_CTX *ctx = NULL;
+    BIO *bio;
 
-    DBG("STORE/HANDLE OPEN %s\n", uri);
-    ctx = OPENSSL_zalloc(sizeof(TPM2_HANDLE_CTX));
-    if (ctx == NULL)
+    DBG("STORE/FILE OPEN %s\n", uri);
+    bio = BIO_new_file(uri, "r");
+    if (!bio)
         return NULL;
+
+    ctx = OPENSSL_zalloc(sizeof(TPM2_FILE_CTX));
+    if (ctx == NULL) {
+        BIO_free(bio);
+        return NULL;
+    }
 
     ctx->core = cprov->core;
     ctx->esys_ctx = cprov->esys_ctx;
+    ctx->bin = bio;
 
-    if (!strncmp(uri, "handle:", 7))
-    {
-        value = strtoul(uri+7, &end_ptr, 16);
-        if (*end_ptr == '?') {
-            if (!strncmp(end_ptr+1, "pass", 4))
-                ctx->has_pass = 1;
-            else
-                goto error;
-        }
-        else if (*end_ptr != 0 || value > UINT32_MAX)
-            goto error;
-
-        ctx->handle = value;
-        return ctx;
-    }
-error:
-    OPENSSL_clear_free(ctx, sizeof(TPM2_HANDLE_CTX));
-    return NULL;
+    return ctx;
 }
 
 static void *
-tpm2_handle_attach(void *provctx, OSSL_CORE_BIO *cin)
+tpm2_file_attach(void *provctx, OSSL_CORE_BIO *cin)
 {
-    DBG("STORE/HANDLE ATTACH\n");
+    DBG("STORE/FILE ATTACH\n");
     // attach operation is required, but not supported
     return NULL;
 }
 
 static const OSSL_PARAM *
-tpm2_handle_settable_params(void *provctx)
+tpm2_file_settable_params(void *provctx)
 {
     static const OSSL_PARAM known_settable_ctx_params[] = {
         OSSL_PARAM_END
@@ -103,72 +90,59 @@ tpm2_handle_settable_params(void *provctx)
 }
 
 static int
-tpm2_handle_set_params(void *loaderctx, const OSSL_PARAM params[])
+tpm2_file_set_params(void *loaderctx, const OSSL_PARAM params[])
 {
-    DBG("STORE/HANDLE SET_PARAMS\n");
+    DBG("STORE/FILE SET_PARAMS\n");
     return 1;
 }
 
 static int
-tpm2_handle_load(void *ctx,
+tpm2_file_load(void *ctx,
             OSSL_CALLBACK *object_cb, void *object_cbarg,
             OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
-    TPM2_HANDLE_CTX *csto = ctx;
-    TPM2B_PUBLIC *out_public = NULL;
-    TPM2_PKEY *pkey = NULL;
-    TSS2_RC r;
+    TPM2_FILE_CTX *fctx = ctx;
+    TPM2_PKEY *pkey;
+    OSSL_PARAM params[4];
+    int object_type;
+    int ret;
 
-    DBG("STORE/HANDLE LOAD\n");
+    DBG("STORE/FILE LOAD\n");
     pkey = OPENSSL_zalloc(sizeof(TPM2_PKEY));
     if (pkey == NULL)
         return 0;
 
-    pkey->core = csto->core;
-    pkey->esys_ctx = csto->esys_ctx;
+    pkey->core = fctx->core;
+    pkey->esys_ctx = fctx->esys_ctx;
+    pkey->object = ESYS_TR_NONE;
 
-    r = Esys_TR_FromTPMPublic(csto->esys_ctx, csto->handle,
-                              ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
-                              &pkey->object);
-    TPM2_CHECK_RC(csto, r, TPM2TSS_R_GENERAL_FAILURE, goto error1);
+    ret = tpm2_keydata_read(fctx->bin, &pkey->data);
+    if (ret == 0) {
+        /* no more data */
+        OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
+        return 1;
+    } else if (ret < 0)
+        goto error;
 
-    if (csto->has_pass) {
+    if (!pkey->data.emptyAuth) {
         size_t plen = 0;
         /* request password; this might open an interactive user prompt */
         if (!pw_cb(pkey->userauth.buffer, sizeof(TPMU_HA), &plen, NULL, pw_cbarg)) {
-            TPM2_ERROR_raise(csto, TPM2TSS_R_GENERAL_FAILURE);
-            goto error2;
+            TPM2_ERROR_raise(fctx, TPM2TSS_R_GENERAL_FAILURE);
+            goto error;
         }
         pkey->userauth.size = plen;
+    }
 
-        r = Esys_TR_SetAuth(csto->esys_ctx, pkey->object, &pkey->userauth);
-        TPM2_CHECK_RC(csto, r, TPM2TSS_R_GENERAL_FAILURE, goto error2);
-    } else
-        pkey->data.emptyAuth = 1;
-
-    r = Esys_ReadPublic(csto->esys_ctx, pkey->object,
-                        ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
-                        &out_public, NULL, NULL);
-    TPM2_CHECK_RC(csto, r, TPM2TSS_R_GENERAL_FAILURE, goto error2);
-
-    pkey->data.pub = *out_public;
-    pkey->data.privatetype = KEY_TYPE_HANDLE;
-    pkey->data.handle = csto->handle;
-
-    free(out_public);
-    csto->load_done = 1;
-
-    OSSL_PARAM params[4];
-    int object_type = OSSL_OBJECT_PKEY;
-
+    object_type = OSSL_OBJECT_PKEY;
     params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
 
     if (pkey->data.pub.publicArea.type == TPM2_ALG_RSA)
         params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
                                                      "RSA", 0);
     else {
-        TPM2_ERROR_raise(csto, TPM2TSS_R_GENERAL_FAILURE);
-        goto error2;
+        TPM2_ERROR_raise(fctx, TPM2TSS_R_GENERAL_FAILURE);
+        goto error;
     }
 
     /* The address of the key becomes the octet string */
@@ -177,36 +151,39 @@ tpm2_handle_load(void *ctx,
     params[3] = OSSL_PARAM_construct_end();
 
     return object_cb(params, object_cbarg);
-error2:
-    Esys_TR_Close(csto->esys_ctx, &csto->handle);
-error1:
+error:
     OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
     return 0;
 }
 
 static int
-tpm2_handle_eof(void *ctx)
+tpm2_file_eof(void *ctx)
 {
-    TPM2_HANDLE_CTX *csto = ctx;
-    return csto->load_done;
+    TPM2_FILE_CTX *fctx = ctx;
+
+    return !BIO_pending(fctx->bin) && BIO_eof(fctx->bin);
 }
 
 static int
-tpm2_handle_close(void *ctx)
+tpm2_file_close(void *ctx)
 {
-    DBG("STORE/HANDLE CLOSE\n");
-    OPENSSL_clear_free(ctx, sizeof(TPM2_HANDLE_CTX));
+    TPM2_FILE_CTX *fctx = ctx;
+
+    DBG("STORE/FILE CLOSE\n");
+    BIO_free(fctx->bin);
+    OPENSSL_clear_free(fctx, sizeof(TPM2_FILE_CTX));
+
     return 1;
 }
 
-const OSSL_DISPATCH tpm2_handle_store_functions[] = {
-    { OSSL_FUNC_STORE_OPEN, (void(*)(void))tpm2_handle_open },
-    { OSSL_FUNC_STORE_ATTACH, (void(*)(void))tpm2_handle_attach },
-    { OSSL_FUNC_STORE_SETTABLE_CTX_PARAMS, (void(*)(void))tpm2_handle_settable_params },
-    { OSSL_FUNC_STORE_SET_CTX_PARAMS, (void(*)(void))tpm2_handle_set_params },
-    { OSSL_FUNC_STORE_LOAD, (void(*)(void))tpm2_handle_load },
-    { OSSL_FUNC_STORE_EOF, (void(*)(void))tpm2_handle_eof },
-    { OSSL_FUNC_STORE_CLOSE, (void(*)(void))tpm2_handle_close },
+const OSSL_DISPATCH tpm2_file_store_functions[] = {
+    { OSSL_FUNC_STORE_OPEN, (void(*)(void))tpm2_file_open },
+    { OSSL_FUNC_STORE_ATTACH, (void(*)(void))tpm2_file_attach },
+    { OSSL_FUNC_STORE_SETTABLE_CTX_PARAMS, (void(*)(void))tpm2_file_settable_params },
+    { OSSL_FUNC_STORE_SET_CTX_PARAMS, (void(*)(void))tpm2_file_set_params },
+    { OSSL_FUNC_STORE_LOAD, (void(*)(void))tpm2_file_load },
+    { OSSL_FUNC_STORE_EOF, (void(*)(void))tpm2_file_eof },
+    { OSSL_FUNC_STORE_CLOSE, (void(*)(void))tpm2_file_close },
     { 0, NULL }
 };
 

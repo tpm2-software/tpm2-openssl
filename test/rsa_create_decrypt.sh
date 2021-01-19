@@ -16,10 +16,10 @@ tpm2_load -C primary.ctx -u key.pub -r key.priv -c testkey.ctx
 HANDLE=$(tpm2_evictcontrol --object-context=testkey.ctx | cut -d ' ' -f 2 | head -n 1)
 
 # check the persisted EK
-openssl rsa -modulus -noout -provider tpm2 -in handle:${HANDLE}
+openssl rsa -provider tpm2 -modulus -noout -in handle:${HANDLE}
 
 # export public key
-openssl pkey -provider default -provider tpm2 -propquery ?provider=tpm2 -in handle:${HANDLE} -pubout -out testkey.pub
+openssl pkey -provider tpm2 -in handle:${HANDLE} -pubout -out testkey.pub
 
 # check the exported public key
 openssl rsa -modulus -noout -pubin -in testkey.pub
@@ -28,7 +28,8 @@ openssl rsa -modulus -noout -pubin -in testkey.pub
 openssl pkeyutl -encrypt -pubin -inkey testkey.pub -in testdata -out testdata.crypt
 
 # decrypt data
-openssl pkeyutl -provider default -provider tpm2 -propquery ?provider=tpm2 -inkey handle:${HANDLE} -decrypt -in testdata.crypt -out testdata2
+openssl pkeyutl -provider tpm2 -inkey handle:${HANDLE} \
+    -decrypt -in testdata.crypt -out testdata2
 
 # check the decryption
 test "x$(cat testdata2)" = "xabcde12345abcde12345"

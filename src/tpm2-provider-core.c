@@ -178,17 +178,3 @@ bio_prov_init_bio_method(void)
     return corebiometh;
 }
 
-BIO *
-bio_new_from_core_bio(const BIO_METHOD *corebiometh, OSSL_CORE_BIO *corebio)
-{
-    BIO *outbio = NULL;
-
-    if (corebiometh == NULL)
-        return NULL;
-
-    outbio = BIO_new(corebiometh);
-    if (outbio != NULL)
-        BIO_set_data(outbio, corebio);
-
-    return outbio;
-}

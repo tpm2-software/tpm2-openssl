@@ -1,9 +1,11 @@
+
 #include <openssl/provider.h>
 #include <openssl/params.h>
 #include <openssl/core_dispatch.h>
 #include <openssl/core_names.h>
 
 #include <tss2/tss2_tctildr.h>
+
 #include "tpm2-provider.h"
 
 #define TPM2TSS_PROV_NAME "TPM 2.0 Provider"
@@ -71,10 +73,12 @@ static const OSSL_ALGORITHM tpm2_asymciphers[] = {
     { NULL, NULL, NULL }
 };
 
-extern const OSSL_DISPATCH tpm2_rsa_encoder_functions[];
+extern const OSSL_DISPATCH tpm2_rsa_encoder_pkcs8_pem_functions[];
+extern const OSSL_DISPATCH tpm2_rsa_encoder_pubkey_pem_functions[];
 
 static const OSSL_ALGORITHM tpm2_encoders[] = {
-    { "RSA", "provider=tpm2,output=pem,structure=pkcs8", tpm2_rsa_encoder_functions },
+    { "RSA", "provider=tpm2,output=pem,structure=pkcs8", tpm2_rsa_encoder_pkcs8_pem_functions },
+    { "RSA", "provider=tpm2,output=pem,structure=SubjectPublicKeyInfo", tpm2_rsa_encoder_pubkey_pem_functions },
     { NULL, NULL, NULL }
 };
 
@@ -85,9 +89,11 @@ static const OSSL_ALGORITHM tpm2_decoders[] = {
     { NULL, NULL, NULL }
 };
 
+extern const OSSL_DISPATCH tpm2_file_store_functions[];
 extern const OSSL_DISPATCH tpm2_handle_store_functions[];
 
 static const OSSL_ALGORITHM tpm2_stores[] = {
+    { "file", "provider=tpm2", tpm2_file_store_functions },
     { "handle", "provider=tpm2", tpm2_handle_store_functions },
     { NULL, NULL, NULL }
 };
@@ -120,7 +126,7 @@ static const OSSL_ITEM *
 tpm2_get_reason_strings(void *provctx)
 {
     static const OSSL_ITEM reason_strings[] = {
-        {1, "dummy reason string"},
+        {TPM2TSS_R_GENERAL_FAILURE, "dummy reason string"},
         {0, NULL}
     };
 
@@ -133,6 +139,7 @@ tpm2_self_test(void *provctx)
     TPM2_PROVIDER_CTX *cprov = provctx;
     TSS2_RC r;
 
+    DBG("PROVIDER SELFTEST\n");
     r = Esys_SelfTest(cprov->esys_ctx,
                       ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                       TPM2_YES);
@@ -147,6 +154,7 @@ tpm2_teardown(void *provctx)
     TSS2_TCTI_CONTEXT *tcti_ctx;
     TSS2_RC r;
 
+    DBG("PROVIDER TEARDOWN\n");
     BIO_meth_free(cprov->corebiometh);
 
     r = Esys_GetTcti(cprov->esys_ctx, &tcti_ctx);
@@ -178,6 +186,7 @@ OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
     const char *tcti_nameconf = NULL;
     TSS2_RC r;
 
+    DBG("PROVIDER INIT\n");
     if (cprov == NULL)
         return 0;
 

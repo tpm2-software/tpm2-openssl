@@ -5,6 +5,7 @@ lib_LTLIBRARIES = tpm2.la
 tpm2_la_SOURCES = src/tpm2-provider.c \
                   src/tpm2-provider-core.c \
                   src/tpm2-provider-pkey.c \
+                  src/tpm2-provider-store-file.c \
                   src/tpm2-provider-store-handle.c \
                   src/tpm2-provider-rand.c \
                   src/tpm2-provider-rsa-asymcipher.c \
@@ -26,6 +27,7 @@ TESTS_SHELL = test/list.sh \
               test/rand.sh \
               test/rsa_genrsa_check.sh \
               test/rsa_genpkey_sign.sh \
+              test/rsa_genpkey_sign_auth.sh \
               test/rsa_createak_sign.sh \
               test/rsa_create_decrypt.sh
 

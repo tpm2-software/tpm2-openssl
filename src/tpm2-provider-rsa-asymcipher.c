@@ -37,9 +37,9 @@
 typedef struct tpm2_rsa_asymcipher_ctx_st TPM2_RSA_ASYMCIPHER_CTX;
 
 struct tpm2_rsa_asymcipher_ctx_st {
-    TPM2_PROVIDER_CTX *prov_ctx;
-    TPM2_DATA *tpm2Data;
-    ESYS_TR keyObject;
+    const OSSL_CORE_HANDLE *core;
+    ESYS_CONTEXT *esys_ctx;
+    TPM2_PKEY *pkey;
     TPM2B_PUBLIC_KEY_RSA *message;
 };
 
@@ -52,7 +52,8 @@ static void
     if (actx == NULL)
         return NULL;
 
-    actx->prov_ctx = cprov;
+    actx->core = cprov->core;
+    actx->esys_ctx = cprov->esys_ctx;
     return actx;
 }
 
@@ -62,12 +63,8 @@ rsa_asymcipher_decrypt_init(void *ctx, void *provkey)
     TSS2_RC r;
     TPM2_RSA_ASYMCIPHER_CTX *actx = ctx;
 
-    printf("DECRYPT INIT\n");
-    actx->tpm2Data = provkey;
-
-    r = tpm2_init_key(actx->prov_ctx, actx->tpm2Data, &actx->keyObject);
-    if (r != TSS2_RC_SUCCESS)
-        return 0;
+    DBG("DECRYPT INIT\n");
+    actx->pkey = provkey;
 
     return 1;
 }
@@ -89,14 +86,10 @@ decrypt_message(TPM2_RSA_ASYMCIPHER_CTX *actx,
 
     inScheme.scheme = TPM2_ALG_RSAES;
 
-    r = Esys_RSA_Decrypt(actx->prov_ctx->esys_ctx, actx->keyObject,
+    r = Esys_RSA_Decrypt(actx->esys_ctx, actx->pkey->object,
                          ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                          &cipher, &inScheme, &label, &actx->message);
-
-    if (r != TSS2_RC_SUCCESS) {
-        printf("%s\n", Tss2_RC_Decode(r));
-        return 0;
-    }
+    TPM2_CHECK_RC(actx, r, TPM2TSS_R_GENERAL_FAILURE, return 0);
 
     return 1;
 }
@@ -107,7 +100,7 @@ rsa_asymcipher_decrypt(void *ctx, unsigned char *out, size_t *outlen,
 {
     TPM2_RSA_ASYMCIPHER_CTX *actx = ctx;
 
-    printf("DECRYPT\n");
+    DBG("DECRYPT\n");
     if (!actx->message && !decrypt_message(actx, in, inlen))
         return 0;
 
@@ -126,16 +119,10 @@ rsa_asymcipher_freectx(void *ctx)
 {
     TPM2_RSA_ASYMCIPHER_CTX *actx = ctx;
 
-    printf("ACIPHER FREECTX\n");
+    DBG("ACIPHER FREECTX\n");
+    if (actx->message != NULL)
+        free(actx->message);
 
-    if (actx->keyObject != ESYS_TR_NONE) {
-        if (actx->tpm2Data->privatetype == KEY_TYPE_HANDLE)
-            Esys_TR_Close(actx->prov_ctx->esys_ctx, &actx->keyObject);
-        else
-            Esys_FlushContext(actx->prov_ctx->esys_ctx, actx->keyObject);
-    }
-
-    free(actx->message);
     OPENSSL_clear_free(actx, sizeof(TPM2_RSA_ASYMCIPHER_CTX));
 }
 

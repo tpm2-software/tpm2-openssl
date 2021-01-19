@@ -38,7 +38,9 @@
 typedef struct tpm2_rsa_decoder_ctx_st TPM2_RSA_DECODER_CTX;
 
 struct tpm2_rsa_decoder_ctx_st {
-    TPM2_PROVIDER_CTX *prov_ctx;
+    const OSSL_CORE_HANDLE *core;
+    BIO_METHOD *corebiometh;
+    ESYS_CONTEXT *esys_ctx;
 };
 
 static void *
@@ -47,10 +49,13 @@ text2key_newctx(void *provctx)
     TPM2_PROVIDER_CTX *cprov = provctx;
     TPM2_RSA_DECODER_CTX *dctx = OPENSSL_zalloc(sizeof(TPM2_RSA_DECODER_CTX));
 
+    DBG("ENCODER NEW\n");
     if (dctx == NULL)
         return NULL;
 
-    dctx->prov_ctx = cprov;
+    dctx->core = cprov->core;
+    dctx->corebiometh = cprov->corebiometh;
+    dctx->esys_ctx = cprov->esys_ctx;
     return dctx;
 }
 
@@ -59,6 +64,7 @@ text2key_freectx(void *ctx)
 {
     TPM2_RSA_DECODER_CTX *dctx = ctx;
 
+    DBG("ENCODER FREE\n");
     OPENSSL_clear_free(dctx, sizeof(TPM2_RSA_DECODER_CTX));
 }
 
@@ -95,31 +101,54 @@ text2key_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
                 OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
     TPM2_RSA_DECODER_CTX *dctx = ctx;
+    TPM2_PKEY *pkey;
     BIO *bin;
+    OSSL_PARAM params[4];
+    int object_type;
     int ret;
-    TPM2_DATA *key = NULL;
 
-    bin = bio_new_from_core_bio(dctx->prov_ctx->corebiometh, cin);
-    if (bin == NULL)
+    DBG("DECODER DECODE\n");
+    pkey = OPENSSL_zalloc(sizeof(TPM2_PKEY));
+    if (pkey == NULL)
         return 0;
 
-    ret = tpm2_tpm2data_read(dctx->prov_ctx, bin, &key);
+    pkey->core = dctx->core;
+    pkey->esys_ctx = dctx->esys_ctx;
+    pkey->object = ESYS_TR_NONE;
+
+    bin = bio_new_from_core_bio(dctx->corebiometh, cin);
+    if (bin == NULL)
+        goto error;
+
+    ret = tpm2_keydata_read(bin, &pkey->data);
     BIO_free(bin);
+    if (ret <= 0)
+        goto error;
 
-    if (ret && key != NULL) {
-        OSSL_PARAM params[4];
-        int object_type = OSSL_OBJECT_PKEY;
+    if (!pkey->data.emptyAuth) {
+        size_t plen = 0;
 
-        params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
-        params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
-                                                     "RSA", 0);
-        /* The address of the key becomes the octet string */
-        params[2] = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_REFERENCE,
-                                                      &key, sizeof(key));
-        params[3] = OSSL_PARAM_construct_end();
-
-        ret = data_cb(params, data_cbarg);
+        if (!pw_cb(pkey->userauth.buffer, sizeof(TPM2B_DIGEST), &plen, NULL, pw_cbarg))
+            goto error;
+        pkey->userauth.size = plen;
     }
+
+    object_type = OSSL_OBJECT_PKEY;
+    params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
+
+    params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
+                                                 "RSA", 0);
+    /* The address of the key becomes the octet string */
+    params[2] = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_REFERENCE,
+                                                      &pkey, sizeof(pkey));
+    params[3] = OSSL_PARAM_construct_end();
+
+    ret = data_cb(params, data_cbarg);
+
+error:
+    /* key managers that grabbed the pointer have also set this to NULL */
+    if (pkey != NULL)
+        OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
 
     return ret;
 }

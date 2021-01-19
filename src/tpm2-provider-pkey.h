@@ -39,24 +39,18 @@
 
 #include "tpm2-provider.h"
 
-extern TPM2B_DIGEST ownerauth;
-extern TPM2B_DIGEST parentauth;
+BIO *
+bio_new_from_core_bio(const BIO_METHOD *corebiometh, OSSL_CORE_BIO *corebio);
 
 int
-tpm2_tpm2data_write(TPM2_PROVIDER_CTX *prov,
-                    const TPM2_DATA *tpm2Data, BIO *bio);
+tpm2_keydata_write(const TPM2_KEYDATA *keydata, BIO *bout);
 
 int
-tpm2_tpm2data_read(TPM2_PROVIDER_CTX *prov,
-                   BIO *bio, TPM2_DATA **tpm2Datap);
+tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata);
 
 TSS2_RC
-init_tpm_parent(TPM2_PROVIDER_CTX *prov,
+init_tpm_parent(TPM2_PKEY *pkey,
                 TPM2_HANDLE parentHandle, ESYS_TR *parent);
-
-TSS2_RC
-tpm2_init_key(TPM2_PROVIDER_CTX *prov,
-              TPM2_DATA *tpm2Data, ESYS_TR *keyObject);
 
 #define ENGINE_HASH_ALG TPM2_ALG_SHA256
 
@@ -130,19 +124,5 @@ tpm2_init_key(TPM2_PROVIDER_CTX *prov,
      } \
 }
 
-typedef struct {
-	ASN1_OBJECT *type;
-	ASN1_BOOLEAN emptyAuth;
-	ASN1_INTEGER *parent;
-	ASN1_OCTET_STRING *pubkey;
-	ASN1_OCTET_STRING *privkey;
-} TSSPRIVKEY;
-
-DECLARE_ASN1_FUNCTIONS(TSSPRIVKEY);
-
-DECLARE_PEM_write_bio(TSSPRIVKEY, TSSPRIVKEY);
-DECLARE_PEM_read_bio(TSSPRIVKEY, TSSPRIVKEY);
-
-#define OID_loadableKey "2.23.133.10.1.3"
-
 #endif /* TPM2_TSS_ENGINE_COMMON_H */
+

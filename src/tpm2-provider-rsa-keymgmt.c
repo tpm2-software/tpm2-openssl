@@ -36,15 +36,9 @@
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 
+#include <tss2/tss2_mu.h>
+
 #include "tpm2-provider-pkey.h"
-
-static TPM2B_DATA allOutsideInfo = {
-    .size = 0,
-};
-
-static TPML_PCR_SELECTION allCreationPCR = {
-    .count = 0,
-};
 
 static TPM2B_PUBLIC keyTemplate = {
     .publicArea = {
@@ -78,9 +72,10 @@ static TPM2B_PUBLIC keyTemplate = {
 typedef struct tpm2_rsagen_ctx_st TPM2_RSAGEN_CTX;
 
 struct tpm2_rsagen_ctx_st {
-    TPM2_PROVIDER_CTX *prov_ctx;
+    const OSSL_CORE_HANDLE *core;
+    ESYS_CONTEXT *esys_ctx;
     TPM2_HANDLE parentHandle;
-    char *password;
+    TPM2B_SENSITIVE_CREATE inSensitive;
     size_t bits;
     BIGNUM *e;
 };
@@ -91,18 +86,33 @@ tpm2_rsa_keymgmt_gen_init(void *provctx, int selection)
     TPM2_PROVIDER_CTX *cprov = provctx;
     TPM2_RSAGEN_CTX *gen = OPENSSL_zalloc(sizeof(TPM2_RSAGEN_CTX));
 
+    DBG("KEY GEN INIT\n");
     if (gen == NULL)
         return NULL;
 
-    gen->prov_ctx = cprov;
+    gen->core = cprov->core;
+    gen->esys_ctx = cprov->esys_ctx;
     return gen;
 }
+
+#define TPM2_PKEY_PARAM_USER_AUTH "user-auth"
 
 static int
 tpm2_rsa_keymgmt_gen_set_params(void *ctx, const OSSL_PARAM params[])
 {
     TPM2_RSAGEN_CTX *gen = ctx;
     const OSSL_PARAM *p;
+
+    p = OSSL_PARAM_locate_const(params, TPM2_PKEY_PARAM_USER_AUTH);
+    if (p != NULL) {
+        if (p->data_type != OSSL_PARAM_UTF8_STRING
+                || p->data_size > sizeof(TPMU_HA))
+            return 0;
+
+        gen->inSensitive.sensitive.userAuth.size = p->data_size;
+        memcpy(&gen->inSensitive.sensitive.userAuth.buffer, p->data,
+               p->data_size);
+    }
 
     p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_BITS);
     if (p != NULL && !OSSL_PARAM_get_size_t(p, &gen->bits))
@@ -119,6 +129,7 @@ static const OSSL_PARAM *
 tpm2_rsa_keymgmt_gen_settable_params(void *provctx)
 {
     static OSSL_PARAM settable[] = {
+        OSSL_PARAM_utf8_string(TPM2_PKEY_PARAM_USER_AUTH, NULL, 0),
         OSSL_PARAM_size_t(OSSL_PKEY_PARAM_RSA_BITS, NULL),
         OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_E, NULL, 0),
         OSSL_PARAM_END
@@ -135,77 +146,63 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
     TPM2B_PUBLIC inPublic = keyTemplate;
     TPM2B_PUBLIC *keyPublic = NULL;
     TPM2B_PRIVATE *keyPrivate = NULL;
-    TPM2_DATA *tpm2Data = NULL;
+    TPM2_PKEY *pkey = NULL;
     TSS2_RC r = TSS2_RC_SUCCESS;
-    TPM2B_SENSITIVE_CREATE inSensitive = {
-        .sensitive = {
-            .userAuth = {
-                 .size = 0,
-             },
-            .data = {
-                 .size = 0,
-             }
-        }
-    };
 
-    tpm2Data = OPENSSL_zalloc(sizeof(TPM2_DATA));
-    if (tpm2Data == NULL) {
-        TPM2_ERROR_raise(gen->prov_ctx, TPM2TSS_R_GENERAL_FAILURE);
+    DBG("KEY GEN%s %i bits\n",
+        gen->inSensitive.sensitive.userAuth.size > 0 ? " with user-auth" : "",
+        gen->bits);
+    pkey = OPENSSL_zalloc(sizeof(TPM2_PKEY));
+    if (pkey == NULL) {
+        TPM2_ERROR_raise(gen, TPM2TSS_R_GENERAL_FAILURE);
         goto error;
     }
+
+    pkey->core = gen->core;
+    pkey->esys_ctx = gen->esys_ctx;
 
     inPublic.publicArea.parameters.rsaDetail.keyBits = gen->bits;
     if (gen->e)
         inPublic.publicArea.parameters.rsaDetail.exponent = BN_get_word(gen->e);
 
-    if (gen->password) {
-        DBG("Setting a password for the created key.\n");
-        if (strlen(gen->password) > sizeof(tpm2Data->userauth.buffer) - 1) {
-            goto error;
-        }
-        tpm2Data->userauth.size = strlen(gen->password);
-        memcpy(&tpm2Data->userauth.buffer[0], gen->password,
-               tpm2Data->userauth.size);
+    if (gen->inSensitive.sensitive.userAuth.size == 0)
+        pkey->data.emptyAuth = 1;
 
-        inSensitive.sensitive.userAuth.size = strlen(gen->password);
-        memcpy(&inSensitive.sensitive.userAuth.buffer[0], gen->password,
-               strlen(gen->password));
-    } else
-        tpm2Data->emptyAuth = 1;
+    r = init_tpm_parent(pkey, gen->parentHandle, &parent);
+    TPM2_CHECK_RC(gen, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
 
-    r = init_tpm_parent(gen->prov_ctx, gen->parentHandle, &parent);
-    TPM2_CHECK_RC(gen->prov_ctx, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
+    pkey->data.parent = gen->parentHandle;
 
-    tpm2Data->parent = gen->parentHandle;
+    size_t offset = 0;
+    TPM2B_TEMPLATE template = { .size = 0 };
+    r = Tss2_MU_TPMT_PUBLIC_Marshal(&inPublic.publicArea,
+                                    template.buffer, sizeof(TPMT_PUBLIC), &offset);
+    TPM2_CHECK_RC(gen, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
+    template.size = offset;
 
-    DBG("Generating RSA key for %i bits keysize.\n", gen->bits);
+    r = Esys_CreateLoaded(gen->esys_ctx, parent,
+                          ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                          &gen->inSensitive, &template,
+                          &pkey->object, &keyPrivate, &keyPublic);
+    TPM2_CHECK_RC(gen, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
 
-    r = Esys_Create(gen->prov_ctx->esys_ctx, parent,
-                    ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
-                    &inSensitive, &inPublic, &allOutsideInfo, &allCreationPCR,
-                    &keyPrivate, &keyPublic, NULL, NULL, NULL);
-    TPM2_CHECK_RC(gen->prov_ctx, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
-
-    DBG("Generated the RSA key inside the TPM.\n");
-
-    tpm2Data->pub = *keyPublic;
-    tpm2Data->priv = *keyPrivate;
+    pkey->data.pub = *keyPublic;
+    pkey->data.priv = *keyPrivate;
 
     goto end;
  error:
     r = -1;
-    if (tpm2Data)
-        OPENSSL_free(tpm2Data);
-
+    if (pkey)
+        OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
  end:
     free(keyPrivate);
     free(keyPublic);
 
     if (parent != ESYS_TR_NONE && !gen->parentHandle)
-        Esys_FlushContext(gen->prov_ctx->esys_ctx, parent);
+        Esys_FlushContext(gen->esys_ctx, parent);
 
     if (r == TSS2_RC_SUCCESS)
-        return tpm2Data;
+        return pkey;
     else
         return NULL;
 }
@@ -215,28 +212,95 @@ tpm2_rsa_keymgmt_gen_cleanup(void *ctx)
 {
     TPM2_RSAGEN_CTX *gen = ctx;
 
+    DBG("KEY CLEANUP\n");
     OPENSSL_clear_free(gen, sizeof(TPM2_RSAGEN_CTX));
 }
 
 static void *
 tpm2_rsa_keymgmt_load(const void *reference, size_t reference_sz)
 {
-    TPM2_DATA *tpm2Data = NULL;
+    TPM2_PKEY *pkey = NULL;
+    ESYS_TR parent = ESYS_TR_NONE;
+    TSS2_RC r = 0;
 
-    if (reference_sz == sizeof(tpm2Data)) {
-        /* The contents of the reference is the address to our object */
-        tpm2Data = *(TPM2_DATA **)reference;
+    DBG("KEY LOAD\n");
+    if (reference_sz != sizeof(pkey))
+        return NULL;
 
-        return tpm2Data;
+    /* the contents of the reference is the address to our object */
+    pkey = *(TPM2_PKEY **)reference;
+    /* we grabbed it, so we detach it */
+    *(TPM2_PKEY **)reference = NULL;
+
+    if (pkey->object != ESYS_TR_NONE) {
+        /* the object is already loaded, e.g. from the handle store */
+        return pkey;
     }
 
+    if (pkey->data.privatetype == KEY_TYPE_HANDLE) {
+        r = Esys_TR_FromTPMPublic(pkey->esys_ctx, pkey->data.handle,
+                                  ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
+                                  &pkey->object);
+        TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
+    } else if (pkey->data.privatetype == KEY_TYPE_BLOB
+               && pkey->data.parent != TPM2_RH_OWNER) {
+        r = init_tpm_parent(pkey, pkey->data.parent, &parent);
+        TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
+
+        DBG("Loading key blob wth custom parent.\n");
+        r = Esys_Load(pkey->esys_ctx, parent,
+                      ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                      &pkey->data.priv, &pkey->data.pub, &pkey->object);
+        Esys_TR_Close(pkey->esys_ctx, &parent);
+        TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
+    } else if (pkey->data.privatetype == KEY_TYPE_BLOB) {
+        r = init_tpm_parent(pkey, 0, &parent);
+        TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
+
+        DBG("Loading key blob.\n");
+        r = Esys_Load(pkey->esys_ctx, parent,
+                      ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                      &pkey->data.priv, &pkey->data.pub, &pkey->object);
+        TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
+
+        r = Esys_FlushContext(pkey->esys_ctx, parent);
+        TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
+        parent = ESYS_TR_NONE;
+    } else {
+        TPM2_ERROR_raise(pkey, TPM2TSS_R_TPM2DATA_READ_FAILED);
+        return NULL;
+    }
+
+    r = Esys_TR_SetAuth(pkey->esys_ctx, pkey->object, &pkey->userauth);
+    TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
+
+    return pkey;
+ error:
+    if (parent != ESYS_TR_NONE)
+        Esys_FlushContext(pkey->esys_ctx, parent);
+
+    if (pkey->object != ESYS_TR_NONE)
+        Esys_FlushContext(pkey->esys_ctx, pkey->object);
+
+    pkey->object = ESYS_TR_NONE;
     return NULL;
 }
+
 
 static void
 tpm2_rsa_keymgmt_free(void *keydata)
 {
-    OPENSSL_clear_free(keydata, sizeof(TPM2_DATA));
+    TPM2_PKEY *pkey = keydata;
+
+    DBG("KEY FREE\n");
+    if (pkey->object != ESYS_TR_NONE) {
+        if (pkey->data.privatetype == KEY_TYPE_HANDLE)
+            Esys_TR_Close(pkey->esys_ctx, &pkey->object);
+        else
+            Esys_FlushContext(pkey->esys_ctx, pkey->object);
+    }
+
+    OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
 }
 
 static int
@@ -265,21 +329,22 @@ ossl_param_set_BN_from_uint32(OSSL_PARAM *p, UINT32 num)
 static int
 tpm2_rsa_keymgmt_get_params(void *keydata, OSSL_PARAM params[])
 {
-    TPM2_DATA *tpm2Data = (TPM2_DATA *)keydata;
+    TPM2_PKEY *pkey = (TPM2_PKEY *)keydata;
     OSSL_PARAM *p;
 
+    DBG("KEY GET_PARAMS\n");
     p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_MAX_SIZE);
     if (p != NULL && !OSSL_PARAM_set_int(p, TPM2_MAX_RSA_KEY_BYTES))
         return 0;
     /* public key */
     p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_RSA_N);
     if (p != NULL && !ossl_param_set_BN_from_buffer(p,
-                          tpm2Data->pub.publicArea.unique.rsa.buffer,
-                          tpm2Data->pub.publicArea.unique.rsa.size))
+                          pkey->data.pub.publicArea.unique.rsa.buffer,
+                          pkey->data.pub.publicArea.unique.rsa.size))
         return 0;
     p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_RSA_E);
     if (p != NULL && !ossl_param_set_BN_from_uint32(p,
-                          tpm2Data->pub.publicArea.parameters.rsaDetail.exponent))
+                          pkey->data.pub.publicArea.parameters.rsaDetail.exponent))
         return 0;
 
     return 1;
@@ -302,10 +367,11 @@ tpm2_rsa_keymgmt_gettable_params(void *provctx)
 static int
 tpm2_rsa_keymgmt_has(const void *keydata, int selection)
 {
-    TPM2_DATA *tpm2Data = (TPM2_DATA *)keydata;
+    TPM2_PKEY *pkey = (TPM2_PKEY *)keydata;
     int ok = 0;
 
-    if (tpm2Data != NULL) {
+    DBG("KEY HAS\n");
+    if (pkey != NULL) {
         /* we always have a full keypair,
            although the private portion is not exportable */
         if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0)
@@ -327,29 +393,28 @@ revmemcpy(void *dest, const void *src, size_t len)
 static int
 tpm2_rsa_keymgmt_export(void *keydata, int selection, OSSL_CALLBACK *param_cb, void *cbarg)
 {
-    TPM2_DATA *tpm2Data = (TPM2_DATA *)keydata;
+    TPM2_PKEY *pkey = (TPM2_PKEY *)keydata;
     UINT32 exponent;
     int ok = 1;
 
-    if (tpm2Data == NULL)
+    DBG("KEY EXPORT\n");
+    if (pkey == NULL)
         return 0;
-
-    printf("EXPORT\n");
 
     OSSL_PARAM params[3];
 #if defined(WORDS_BIGENDIAN)
     params[0] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_N,
-                                        tpm2Data->pub.publicArea.unique.rsa.buffer,
-                                        tpm2Data->pub.publicArea.unique.rsa.size);
+                                        pkey->data.pub.publicArea.unique.rsa.buffer,
+                                        pkey->data.pub.publicArea.unique.rsa.size);
 #else
-    unsigned char *n = OPENSSL_malloc(tpm2Data->pub.publicArea.unique.rsa.size);
+    unsigned char *n = OPENSSL_malloc(pkey->data.pub.publicArea.unique.rsa.size);
     /* just reverse the bytes; the BN export/import is unnecessarily complex */
-    revmemcpy(n, tpm2Data->pub.publicArea.unique.rsa.buffer,
-                 tpm2Data->pub.publicArea.unique.rsa.size);
+    revmemcpy(n, pkey->data.pub.publicArea.unique.rsa.buffer,
+                 pkey->data.pub.publicArea.unique.rsa.size);
     params[0] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_N,
-                                        n, tpm2Data->pub.publicArea.unique.rsa.size);
+                                        n, pkey->data.pub.publicArea.unique.rsa.size);
 #endif
-    exponent = tpm2Data->pub.publicArea.parameters.rsaDetail.exponent;
+    exponent = pkey->data.pub.publicArea.parameters.rsaDetail.exponent;
     if (!exponent)
         exponent = 0x10001;
     params[1] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_E,

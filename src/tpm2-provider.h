@@ -1,5 +1,6 @@
 /*******************************************************************************
  * Copyright 2017-2018, Fraunhofer SIT sponsored by Infineon Technologies AG
+ * Copyright 2021, Petr Gotthard
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,7 +36,6 @@
 #include <openssl/bio.h>
 
 #include <tss2/tss2_esys.h>
-#include <tss2/tss2_rc.h>
 
 typedef struct tpm2_provider_ctx_st TPM2_PROVIDER_CTX;
 
@@ -50,28 +50,36 @@ typedef enum {
     KEY_TYPE_HANDLE
 } KEY_TYPE;
 
+/* serializable key data */
 typedef struct {
     int emptyAuth;
-    TPM2B_DIGEST userauth;
-    TPM2B_PUBLIC pub;
     TPM2_HANDLE parent;
+    TPM2B_PUBLIC pub;
     KEY_TYPE privatetype;
     union {
       TPM2B_PRIVATE priv;
       TPM2_HANDLE handle;
     };
-} TPM2_DATA;
+} TPM2_KEYDATA;
+
+/* key object */
+typedef struct {
+    TPM2_KEYDATA data;
+    TPM2B_DIGEST userauth;
+    const OSSL_CORE_HANDLE *core;
+    ESYS_CONTEXT *esys_ctx;
+    ESYS_TR object;
+} TPM2_PKEY;
 
 enum {
-    TPM2TSS_R_GENERAL_FAILURE = 0,
-    ERR_R_MALLOC_FAILURE,
+    TPM2TSS_R_GENERAL_FAILURE = 1,
+    TPM2TSS_R_MALLOC_FAILURE,
     TPM2TSS_R_UNKNOWN_ALG,
     TPM2TSS_R_OWNER_AUTH_FAILED,
     TPM2TSS_R_TPM2DATA_READ_FAILED,
     TPM2TSS_R_DATA_CORRUPTED,
     TPM2TSS_R_CANNOT_MAKE_KEY
 };
-
 
 int
 init_core_func_from_dispatch(const OSSL_DISPATCH *fns);
@@ -94,8 +102,8 @@ tpm2_set_error_debug(const OSSL_CORE_HANDLE *handle,
     (tpm2_new_error((ctx)->core, (reason), __VA_ARGS__), \
      TPM2_ERROR_set_debug(ctx))
 
-#define TPM2_CHECK_RC(ctx, reason, rc, command) \
-    if (rc) { \
+#define TPM2_CHECK_RC(ctx, rc, reason, command) \
+    if ((rc)) { \
         tpm2_new_error_rc((ctx)->core, (reason), (rc)); \
         TPM2_ERROR_set_debug(ctx); \
         command; \
@@ -111,8 +119,5 @@ tpm2_set_error_debug(const OSSL_CORE_HANDLE *handle,
 
 BIO_METHOD *
 bio_prov_init_bio_method(void);
-
-BIO *
-bio_new_from_core_bio(const BIO_METHOD *corebiometh, OSSL_CORE_BIO *corebio);
 
 #endif /* TPM2_TSS_ENGINE_H */
