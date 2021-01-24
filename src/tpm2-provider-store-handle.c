@@ -1,34 +1,4 @@
-/*******************************************************************************
- * Copyright 2017-2018, Fraunhofer SIT sponsored by Infineon Technologies AG
- * Copyright 2021, Petr Gotthard
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * 3. Neither the name of tpm2-tss-engine nor the names of its contributors
- * may be used to endorse or promote products derived from this software
- * without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+/* SPDX-License-Identifier: BSD-3-Clause */
 
 #include <string.h>
 
@@ -105,7 +75,6 @@ tpm2_handle_settable_params(void *provctx)
 static int
 tpm2_handle_set_params(void *loaderctx, const OSSL_PARAM params[])
 {
-    DBG("STORE/HANDLE SET_PARAMS\n");
     return 1;
 }
 
@@ -133,15 +102,17 @@ tpm2_handle_load(void *ctx,
     TPM2_CHECK_RC(csto, r, TPM2TSS_R_GENERAL_FAILURE, goto error1);
 
     if (csto->has_pass) {
+        TPM2B_DIGEST userauth;
         size_t plen = 0;
+
         /* request password; this might open an interactive user prompt */
-        if (!pw_cb(pkey->userauth.buffer, sizeof(TPMU_HA), &plen, NULL, pw_cbarg)) {
+        if (!pw_cb(userauth.buffer, sizeof(TPMU_HA), &plen, NULL, pw_cbarg)) {
             TPM2_ERROR_raise(csto, TPM2TSS_R_GENERAL_FAILURE);
             goto error2;
         }
-        pkey->userauth.size = plen;
+        userauth.size = plen;
 
-        r = Esys_TR_SetAuth(csto->esys_ctx, pkey->object, &pkey->userauth);
+        r = Esys_TR_SetAuth(csto->esys_ctx, pkey->object, &userauth);
         TPM2_CHECK_RC(csto, r, TPM2TSS_R_GENERAL_FAILURE, goto error2);
     } else
         pkey->data.emptyAuth = 1;

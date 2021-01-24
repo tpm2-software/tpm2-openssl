@@ -1,30 +1,4 @@
-/*******************************************************************************
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * 3. Neither the name of tpm2-tss-engine nor the names of its contributors
- * may be used to endorse or promote products derived from this software
- * without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+/* SPDX-License-Identifier: BSD-3-Clause */
 
 #include <string.h>
 
@@ -40,7 +14,7 @@
 
 #include "tpm2-provider-pkey.h"
 
-static TPM2B_PUBLIC keyTemplate = {
+static const TPM2B_PUBLIC keyTemplate = {
     .publicArea = {
         .type = TPM2_ALG_RSA,
         .nameAlg = ENGINE_HASH_ALG,
@@ -75,6 +49,7 @@ struct tpm2_rsagen_ctx_st {
     const OSSL_CORE_HANDLE *core;
     ESYS_CONTEXT *esys_ctx;
     TPM2_HANDLE parentHandle;
+    TPM2B_DIGEST parentAuth;
     TPM2B_SENSITIVE_CREATE inSensitive;
     size_t bits;
     BIGNUM *e;
@@ -92,10 +67,21 @@ tpm2_rsa_keymgmt_gen_init(void *provctx, int selection)
 
     gen->core = cprov->core;
     gen->esys_ctx = cprov->esys_ctx;
+
     return gen;
 }
 
-#define TPM2_PKEY_PARAM_USER_AUTH "user-auth"
+static int
+tpm2_param_get_DIGEST(const OSSL_PARAM *p, TPM2B_DIGEST *digest)
+{
+    if (p->data_type != OSSL_PARAM_UTF8_STRING
+            || p->data_size > sizeof(TPMU_HA))
+        return 0;
+
+    digest->size = p->data_size;
+    memcpy(&digest->buffer, p->data, p->data_size);
+    return 1;
+}
 
 static int
 tpm2_rsa_keymgmt_gen_set_params(void *ctx, const OSSL_PARAM params[])
@@ -103,16 +89,17 @@ tpm2_rsa_keymgmt_gen_set_params(void *ctx, const OSSL_PARAM params[])
     TPM2_RSAGEN_CTX *gen = ctx;
     const OSSL_PARAM *p;
 
-    p = OSSL_PARAM_locate_const(params, TPM2_PKEY_PARAM_USER_AUTH);
-    if (p != NULL) {
-        if (p->data_type != OSSL_PARAM_UTF8_STRING
-                || p->data_size > sizeof(TPMU_HA))
-            return 0;
+    p = OSSL_PARAM_locate_const(params, TPM2_PKEY_PARAM_PARENT);
+    if (p != NULL && !OSSL_PARAM_get_uint32(p, &gen->parentHandle))
+        return 0;
 
-        gen->inSensitive.sensitive.userAuth.size = p->data_size;
-        memcpy(&gen->inSensitive.sensitive.userAuth.buffer, p->data,
-               p->data_size);
-    }
+    p = OSSL_PARAM_locate_const(params, TPM2_PKEY_PARAM_PARENT_AUTH);
+    if (p != NULL && !tpm2_param_get_DIGEST(p, &gen->parentAuth))
+        return 0;
+
+    p = OSSL_PARAM_locate_const(params, TPM2_PKEY_PARAM_USER_AUTH);
+    if (p != NULL && !tpm2_param_get_DIGEST(p, &gen->inSensitive.sensitive.userAuth))
+        return 0;
 
     p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_BITS);
     if (p != NULL && !OSSL_PARAM_get_size_t(p, &gen->bits))
@@ -129,6 +116,8 @@ static const OSSL_PARAM *
 tpm2_rsa_keymgmt_gen_settable_params(void *provctx)
 {
     static OSSL_PARAM settable[] = {
+        OSSL_PARAM_uint32(TPM2_PKEY_PARAM_PARENT, NULL),
+        OSSL_PARAM_utf8_string(TPM2_PKEY_PARAM_PARENT_AUTH, NULL, 0),
         OSSL_PARAM_utf8_string(TPM2_PKEY_PARAM_USER_AUTH, NULL, 0),
         OSSL_PARAM_size_t(OSSL_PKEY_PARAM_RSA_BITS, NULL),
         OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_E, NULL, 0),
@@ -149,13 +138,13 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
     TPM2_PKEY *pkey = NULL;
     TSS2_RC r = TSS2_RC_SUCCESS;
 
-    DBG("KEY GEN%s %i bits\n",
+    DBG("KEY GEN%s %zu bits\n",
         gen->inSensitive.sensitive.userAuth.size > 0 ? " with user-auth" : "",
         gen->bits);
     pkey = OPENSSL_zalloc(sizeof(TPM2_PKEY));
     if (pkey == NULL) {
         TPM2_ERROR_raise(gen, TPM2TSS_R_GENERAL_FAILURE);
-        goto error;
+        return NULL;
     }
 
     pkey->core = gen->core;
@@ -168,43 +157,48 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
     if (gen->inSensitive.sensitive.userAuth.size == 0)
         pkey->data.emptyAuth = 1;
 
-    r = init_tpm_parent(pkey, gen->parentHandle, &parent);
-    TPM2_CHECK_RC(gen, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
-
     pkey->data.parent = gen->parentHandle;
+    /* load parent */
+    if (gen->parentHandle && gen->parentHandle != TPM2_RH_OWNER) {
+        DBG("KEY GEN parent: persistent 0x%x\n", gen->parentHandle);
+        if (!tpm2_load_parent(pkey, gen->parentHandle, &gen->parentAuth, &parent))
+            goto error1;
+    } else {
+        DBG("KEY GEN parent: primary 0x%x\n", TPM2_RH_OWNER);
+        if (!tpm2_build_primary(pkey, ESYS_TR_RH_OWNER, &gen->parentAuth, &parent))
+            goto error1;
+    }
 
     size_t offset = 0;
     TPM2B_TEMPLATE template = { .size = 0 };
     r = Tss2_MU_TPMT_PUBLIC_Marshal(&inPublic.publicArea,
                                     template.buffer, sizeof(TPMT_PUBLIC), &offset);
-    TPM2_CHECK_RC(gen, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
+    TPM2_CHECK_RC(gen, r, TPM2TSS_R_GENERAL_FAILURE, goto final);
     template.size = offset;
 
     r = Esys_CreateLoaded(gen->esys_ctx, parent,
                           ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                           &gen->inSensitive, &template,
                           &pkey->object, &keyPrivate, &keyPublic);
-    TPM2_CHECK_RC(gen, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
+    TPM2_CHECK_RC(gen, r, TPM2TSS_R_GENERAL_FAILURE, goto final);
 
     pkey->data.pub = *keyPublic;
-    pkey->data.priv = *keyPrivate;
-
-    goto end;
- error:
-    r = -1;
-    if (pkey)
-        OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
- end:
-    free(keyPrivate);
     free(keyPublic);
+    pkey->data.privatetype = KEY_TYPE_BLOB;
+    pkey->data.priv = *keyPrivate;
+    free(keyPrivate);
 
-    if (parent != ESYS_TR_NONE && !gen->parentHandle)
+final:
+    if (gen->parentHandle && gen->parentHandle != TPM2_RH_OWNER)
+        Esys_TR_Close(gen->esys_ctx, &parent);
+    else
         Esys_FlushContext(gen->esys_ctx, parent);
 
     if (r == TSS2_RC_SUCCESS)
         return pkey;
-    else
-        return NULL;
+error1:
+    OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
+    return NULL;
 }
 
 static void
@@ -213,6 +207,10 @@ tpm2_rsa_keymgmt_gen_cleanup(void *ctx)
     TPM2_RSAGEN_CTX *gen = ctx;
 
     DBG("KEY CLEANUP\n");
+    if (gen == NULL)
+        return;
+
+    BN_free(gen->e);
     OPENSSL_clear_free(gen, sizeof(TPM2_RSAGEN_CTX));
 }
 
@@ -220,11 +218,9 @@ static void *
 tpm2_rsa_keymgmt_load(const void *reference, size_t reference_sz)
 {
     TPM2_PKEY *pkey = NULL;
-    ESYS_TR parent = ESYS_TR_NONE;
-    TSS2_RC r = 0;
 
     DBG("KEY LOAD\n");
-    if (reference_sz != sizeof(pkey))
+    if (!reference || reference_sz != sizeof(pkey))
         return NULL;
 
     /* the contents of the reference is the address to our object */
@@ -232,60 +228,8 @@ tpm2_rsa_keymgmt_load(const void *reference, size_t reference_sz)
     /* we grabbed it, so we detach it */
     *(TPM2_PKEY **)reference = NULL;
 
-    if (pkey->object != ESYS_TR_NONE) {
-        /* the object is already loaded, e.g. from the handle store */
-        return pkey;
-    }
-
-    if (pkey->data.privatetype == KEY_TYPE_HANDLE) {
-        r = Esys_TR_FromTPMPublic(pkey->esys_ctx, pkey->data.handle,
-                                  ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
-                                  &pkey->object);
-        TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
-    } else if (pkey->data.privatetype == KEY_TYPE_BLOB
-               && pkey->data.parent != TPM2_RH_OWNER) {
-        r = init_tpm_parent(pkey, pkey->data.parent, &parent);
-        TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
-
-        DBG("Loading key blob wth custom parent.\n");
-        r = Esys_Load(pkey->esys_ctx, parent,
-                      ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
-                      &pkey->data.priv, &pkey->data.pub, &pkey->object);
-        Esys_TR_Close(pkey->esys_ctx, &parent);
-        TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
-    } else if (pkey->data.privatetype == KEY_TYPE_BLOB) {
-        r = init_tpm_parent(pkey, 0, &parent);
-        TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
-
-        DBG("Loading key blob.\n");
-        r = Esys_Load(pkey->esys_ctx, parent,
-                      ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
-                      &pkey->data.priv, &pkey->data.pub, &pkey->object);
-        TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
-
-        r = Esys_FlushContext(pkey->esys_ctx, parent);
-        TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
-        parent = ESYS_TR_NONE;
-    } else {
-        TPM2_ERROR_raise(pkey, TPM2TSS_R_TPM2DATA_READ_FAILED);
-        return NULL;
-    }
-
-    r = Esys_TR_SetAuth(pkey->esys_ctx, pkey->object, &pkey->userauth);
-    TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
-
     return pkey;
- error:
-    if (parent != ESYS_TR_NONE)
-        Esys_FlushContext(pkey->esys_ctx, parent);
-
-    if (pkey->object != ESYS_TR_NONE)
-        Esys_FlushContext(pkey->esys_ctx, pkey->object);
-
-    pkey->object = ESYS_TR_NONE;
-    return NULL;
 }
-
 
 static void
 tpm2_rsa_keymgmt_free(void *keydata)
@@ -293,12 +237,13 @@ tpm2_rsa_keymgmt_free(void *keydata)
     TPM2_PKEY *pkey = keydata;
 
     DBG("KEY FREE\n");
-    if (pkey->object != ESYS_TR_NONE) {
-        if (pkey->data.privatetype == KEY_TYPE_HANDLE)
-            Esys_TR_Close(pkey->esys_ctx, &pkey->object);
-        else
-            Esys_FlushContext(pkey->esys_ctx, pkey->object);
-    }
+    if (pkey == NULL)
+        return;
+
+    if (pkey->data.privatetype == KEY_TYPE_HANDLE)
+        Esys_TR_Close(pkey->esys_ctx, &pkey->object);
+    else
+        Esys_FlushContext(pkey->esys_ctx, pkey->object);
 
     OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
 }

@@ -1,41 +1,16 @@
-/*******************************************************************************
- * Copyright 2017-2018, Fraunhofer SIT sponsored by Infineon Technologies AG
- * Copyright 2021, Petr Gotthard
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * 3. Neither the name of tpm2-tss-engine nor the names of its contributors
- * may be used to endorse or promote products derived from this software
- * without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
-#ifndef TPM2_TSS_ENGINE_H
-#define TPM2_TSS_ENGINE_H
+/* SPDX-License-Identifier: BSD-3-Clause */
+
+#ifndef TPM2_PROVIDER_H
+#define TPM2_PROVIDER_H
 
 #include <openssl/core_dispatch.h>
 #include <openssl/bio.h>
 
 #include <tss2/tss2_esys.h>
+
+#define TPM2_PKEY_PARAM_PARENT      "parent"
+#define TPM2_PKEY_PARAM_PARENT_AUTH "parent-auth"
+#define TPM2_PKEY_PARAM_USER_AUTH   "user-auth"
 
 typedef struct tpm2_provider_ctx_st TPM2_PROVIDER_CTX;
 
@@ -84,6 +59,9 @@ enum {
 int
 init_core_func_from_dispatch(const OSSL_DISPATCH *fns);
 
+int
+tpm2_core_get_params(const OSSL_CORE_HANDLE *prov, OSSL_PARAM params[]);
+
 void
 tpm2_new_error(const OSSL_CORE_HANDLE *handle,
                uint32_t reason, const char *fmt, ...);
@@ -120,4 +98,4 @@ tpm2_set_error_debug(const OSSL_CORE_HANDLE *handle,
 BIO_METHOD *
 bio_prov_init_bio_method(void);
 
-#endif /* TPM2_TSS_ENGINE_H */
+#endif /* TPM2_PROVIDER_H */

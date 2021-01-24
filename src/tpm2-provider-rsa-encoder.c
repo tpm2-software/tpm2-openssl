@@ -1,30 +1,4 @@
-/*******************************************************************************
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * 3. Neither the name of tpm2-tss-engine nor the names of its contributors
- * may be used to endorse or promote products derived from this software
- * without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+/* SPDX-License-Identifier: BSD-3-Clause */
 
 #include <string.h>
 
@@ -47,7 +21,6 @@ tpm2_rsa_encoder_newctx(void *provctx)
     TPM2_PROVIDER_CTX *cprov = provctx;
     TPM2_RSA_ENCODER_CTX *ectx = OPENSSL_zalloc(sizeof(TPM2_RSA_ENCODER_CTX));
 
-    DBG("ENCODER NEW\n");
     if (ectx == NULL)
         return NULL;
 
@@ -61,7 +34,9 @@ tpm2_rsa_encoder_freectx(void *ctx)
 {
     TPM2_RSA_ENCODER_CTX *ectx = ctx;
 
-    DBG("ENCODER FREE\n");
+    if (ectx == NULL)
+        return;
+
     OPENSSL_clear_free(ectx, sizeof(TPM2_RSA_ENCODER_CTX));
 }
 
@@ -222,6 +197,113 @@ const OSSL_DISPATCH tpm2_rsa_encoder_pubkey_pem_functions[] = {
     { OSSL_FUNC_ENCODER_GETTABLE_PARAMS, (void (*)(void))tpm2_rsa_encoder_gettable_params },
     { OSSL_FUNC_ENCODER_GET_PARAMS, (void (*)(void))tpm2_rsa_encoder_get_params_pubkey_pem },
     { OSSL_FUNC_ENCODER_ENCODE, (void (*)(void))tpm2_rsa_encoder_encode_pubkey_pem },
+    { 0, NULL }
+};
+
+
+/* Encoder for TEXT info */
+
+/* Number of octets per line */
+#define LABELED_BUF_PRINT_WIDTH    15
+
+/* buffer must be in BIG endian */
+static int print_labeled_buf(BIO *out, const char *label,
+                             const unsigned char *buf, size_t buflen)
+{
+    size_t i, pos;
+
+    if (BIO_printf(out, "%s\n", label) <= 0)
+        return 0;
+
+    pos = 0;
+    /* Add a leading 00 if the top bit is set */
+    if (buflen > 0 && *buf & 0x80) {
+        if (BIO_printf(out, "    %02x%s", 0, buflen == 1 ? "" : ":") <= 0)
+            return 0;
+        pos++;
+    }
+
+    for (i = 0; i < buflen; i++, pos++) {
+        if ((pos % LABELED_BUF_PRINT_WIDTH) == 0) {
+            if (pos > 0 && BIO_printf(out, "\n") <= 0)
+                return 0;
+            if (BIO_printf(out, "    ") <= 0)
+                return 0;
+        }
+
+        if (BIO_printf(out, "%02x%s", buf[i],
+                       (i == buflen - 1) ? "" : ":") <= 0)
+            return 0;
+    }
+    if (BIO_printf(out, "\n") <= 0)
+        return 0;
+
+    return 1;
+}
+
+static const OSSL_PARAM *
+tpm2_rsa_encoder_gettable_params_text(void *provctx)
+{
+    static const OSSL_PARAM gettables[] = {
+        { OSSL_ENCODER_PARAM_OUTPUT_TYPE, OSSL_PARAM_UTF8_PTR, NULL, 0, 0 },
+        OSSL_PARAM_END,
+    };
+
+    return gettables;
+}
+
+static int
+tpm2_rsa_encoder_get_params_text(OSSL_PARAM params[])
+{
+    OSSL_PARAM *p;
+
+    p = OSSL_PARAM_locate(params, OSSL_ENCODER_PARAM_OUTPUT_TYPE);
+    if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, "text"))
+        return 0;
+
+    return 1;
+}
+
+static int
+tpm2_rsa_encoder_encode_text(void *ctx, OSSL_CORE_BIO *cout, const void *key,
+        const OSSL_PARAM key_abstract[], int selection,
+        OSSL_PASSPHRASE_CALLBACK *cb, void *cbarg)
+{
+    TPM2_RSA_ENCODER_CTX *ectx = ctx;
+    TPM2_PKEY *pkey = (TPM2_PKEY *)key;
+    BIO *bout;
+    UINT32 exponent;
+
+    DBG("ENCODER ENCODE text\n");
+
+    bout = bio_new_from_core_bio(ectx->corebiometh, cout);
+    if (bout == NULL)
+        return 0;
+
+    BIO_printf(bout, "Private-Key: (%i bit, TPM 2.0)\n",
+               pkey->data.pub.publicArea.parameters.rsaDetail.keyBits);
+
+    print_labeled_buf(bout, "Modulus:",
+                      pkey->data.pub.publicArea.unique.rsa.buffer,
+                      pkey->data.pub.publicArea.unique.rsa.size);
+
+    exponent = pkey->data.pub.publicArea.parameters.rsaDetail.exponent;
+    if (!exponent)
+        exponent = 0x10001;
+
+    BIO_printf(bout, "Exponent: %i (0x%x)\n", exponent, exponent);
+
+    BIO_free(bout);
+
+    return 1;
+}
+
+const OSSL_DISPATCH tpm2_rsa_encoder_text_functions[] = {
+    { OSSL_FUNC_ENCODER_NEWCTX, (void (*)(void))tpm2_rsa_encoder_newctx },
+    { OSSL_FUNC_ENCODER_FREECTX, (void (*)(void))tpm2_rsa_encoder_freectx },
+    { OSSL_FUNC_ENCODER_GETTABLE_PARAMS, (void (*)(void))tpm2_rsa_encoder_gettable_params_text },
+    { OSSL_FUNC_ENCODER_GET_PARAMS, (void (*)(void))tpm2_rsa_encoder_get_params_text },
+    { OSSL_FUNC_ENCODER_ENCODE, (void (*)(void))tpm2_rsa_encoder_encode_text },
     { 0, NULL }
 };
 

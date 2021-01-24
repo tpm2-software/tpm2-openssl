@@ -1,16 +1,14 @@
-/*
- * Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
- *
- * Licensed under the Apache License 2.0 (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
- */
+/* SPDX-License-Identifier: BSD-3-Clause */
+
+/* Partially based on openssl/providers/common/bio_prov.c */
 
 #ifdef WITH_TSS2_RC
 #include <tss2/tss2_rc.h>
 #endif
 #include "tpm2-provider.h"
+
+static OSSL_FUNC_core_gettable_params_fn *c_gettable_params = NULL;
+static OSSL_FUNC_core_get_params_fn *c_get_params = NULL;
 
 static OSSL_FUNC_core_new_error_fn *c_new_error = NULL;
 static OSSL_FUNC_core_set_error_debug_fn *c_set_error_debug = NULL;
@@ -27,6 +25,15 @@ init_core_func_from_dispatch(const OSSL_DISPATCH *fns)
 {
     for (; fns->function_id != 0; fns++) {
         switch (fns->function_id) {
+        case OSSL_FUNC_CORE_GETTABLE_PARAMS:
+            if (c_gettable_params == NULL)
+                c_gettable_params = OSSL_FUNC_core_gettable_params(fns);
+            break;
+        case OSSL_FUNC_CORE_GET_PARAMS:
+            if (c_get_params == NULL)
+                c_get_params = OSSL_FUNC_core_get_params(fns);
+            break;
+
         case OSSL_FUNC_CORE_NEW_ERROR:
             if (c_new_error == NULL)
                 c_new_error = OSSL_FUNC_core_new_error(fns);
@@ -66,6 +73,14 @@ init_core_func_from_dispatch(const OSSL_DISPATCH *fns)
     return 1;
 }
 
+int
+tpm2_core_get_params(const OSSL_CORE_HANDLE *prov, OSSL_PARAM params[])
+{
+    if (c_get_params == NULL)
+        return 1;
+    return c_get_params(prov, params);
+}
+
 void
 tpm2_new_error(const OSSL_CORE_HANDLE *handle,
                uint32_t reason, const char *fmt, ...)
@@ -97,6 +112,21 @@ tpm2_set_error_debug(const OSSL_CORE_HANDLE *handle,
 {
     if (c_set_error_debug != NULL)
         c_set_error_debug(handle, file, line, func);
+}
+
+BIO *
+bio_new_from_core_bio(const BIO_METHOD *corebiometh, OSSL_CORE_BIO *corebio)
+{
+    BIO *outbio = NULL;
+
+    if (corebiometh == NULL)
+        return NULL;
+
+    outbio = BIO_new(corebiometh);
+    if (outbio != NULL)
+        BIO_set_data(outbio, corebio);
+
+    return outbio;
 }
 
 static int

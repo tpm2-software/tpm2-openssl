@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 
 #include <openssl/provider.h>
 #include <openssl/params.h>
@@ -75,17 +76,12 @@ static const OSSL_ALGORITHM tpm2_asymciphers[] = {
 
 extern const OSSL_DISPATCH tpm2_rsa_encoder_pkcs8_pem_functions[];
 extern const OSSL_DISPATCH tpm2_rsa_encoder_pubkey_pem_functions[];
+extern const OSSL_DISPATCH tpm2_rsa_encoder_text_functions[];
 
 static const OSSL_ALGORITHM tpm2_encoders[] = {
     { "RSA", "provider=tpm2,output=pem,structure=pkcs8", tpm2_rsa_encoder_pkcs8_pem_functions },
     { "RSA", "provider=tpm2,output=pem,structure=SubjectPublicKeyInfo", tpm2_rsa_encoder_pubkey_pem_functions },
-    { NULL, NULL, NULL }
-};
-
-extern const OSSL_DISPATCH tpm2_rsa_decoder_functions[];
-
-static const OSSL_ALGORITHM tpm2_decoders[] = {
-    { "RSA", "provider=tpm2,input=pem,structure=pkcs8", tpm2_rsa_decoder_functions },
+    { "RSA", "provider=tpm2,output=text", tpm2_rsa_encoder_text_functions },
     { NULL, NULL, NULL }
 };
 
@@ -114,8 +110,6 @@ tpm2_query_operation(void *provctx, int operation_id, int *no_cache)
         return tpm2_asymciphers;
     case OSSL_OP_ENCODER:
         return tpm2_encoders;
-    case OSSL_OP_DECODER:
-        return tpm2_decoders;
     case OSSL_OP_STORE:
         return tpm2_stores;
     }
@@ -176,14 +170,17 @@ static const OSSL_DISPATCH tpm2_dispatch_table[] = {
     { 0, NULL }
 };
 
+/* openssl configuration settings */
+#define TPM2_PROV_PARAM_TCTI "tcti"
+
 OPENSSL_EXPORT int
 OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
                    const OSSL_DISPATCH *in, const OSSL_DISPATCH **out,
                    void **provctx)
 {
     TPM2_PROVIDER_CTX *cprov = OPENSSL_zalloc(sizeof(TPM2_PROVIDER_CTX));
+    char *tcti_nameconf = NULL;
     TSS2_TCTI_CONTEXT *tcti_ctx = NULL;
-    const char *tcti_nameconf = NULL;
     TSS2_RC r;
 
     DBG("PROVIDER INIT\n");
@@ -193,6 +190,17 @@ OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
     cprov->core = handle;
     init_core_func_from_dispatch(in);
     cprov->corebiometh = bio_prov_init_bio_method();
+
+    tcti_nameconf = getenv("TPM2OPENSSL_TCTI");
+    if (tcti_nameconf == NULL) {
+        OSSL_PARAM core_params[] = {
+            OSSL_PARAM_utf8_ptr(TPM2_PROV_PARAM_TCTI, tcti_nameconf, 0),
+            OSSL_PARAM_END
+        };
+
+        if (!tpm2_core_get_params(handle, core_params))
+            goto err1;
+    }
 
     r = Tss2_TctiLdr_Initialize(tcti_nameconf, &tcti_ctx);
     TPM2_CHECK_RC(cprov, r, TPM2TSS_R_GENERAL_FAILURE, goto err1);

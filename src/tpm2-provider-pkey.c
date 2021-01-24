@@ -1,35 +1,4 @@
-/*******************************************************************************
- * Copyright 2017-2018, Fraunhofer SIT sponsored by Infineon Technologies AG
- * All rights reserved.
- * Copyright (c) 2019, Wind River Systems.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * 3. Neither the name of tpm2-tss-engine nor the names of its contributors
- * may be used to endorse or promote products derived from this software
- * without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+/* SPDX-License-Identifier: BSD-3-Clause */
 
 #include <string.h>
 
@@ -40,9 +9,6 @@
 #include <tss2/tss2_mu.h>
 
 #include "tpm2-provider-pkey.h"
-
-TPM2B_DIGEST ownerauth = { .size = 0 };
-TPM2B_DIGEST parentauth = { .size = 0 };
 
 typedef struct {
 	ASN1_OBJECT *type;
@@ -66,21 +32,6 @@ ASN1_SEQUENCE(TSSPRIVKEY) = {
 IMPLEMENT_ASN1_FUNCTIONS(TSSPRIVKEY);
 IMPLEMENT_PEM_write_bio(TSSPRIVKEY, TSSPRIVKEY, TSSPRIVKEY_PEM_STRING, TSSPRIVKEY);
 IMPLEMENT_PEM_read_bio(TSSPRIVKEY, TSSPRIVKEY, TSSPRIVKEY_PEM_STRING, TSSPRIVKEY);
-
-BIO *
-bio_new_from_core_bio(const BIO_METHOD *corebiometh, OSSL_CORE_BIO *corebio)
-{
-    BIO *outbio = NULL;
-
-    if (corebiometh == NULL)
-        return NULL;
-
-    outbio = BIO_new(corebiometh);
-    if (outbio != NULL)
-        BIO_set_data(outbio, corebio);
-
-    return outbio;
-}
 
 /** Serialize TPM2_KEYDATA onto disk
  *
@@ -190,10 +141,77 @@ tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata)
     return -1;
 }
 
-static TPM2B_PUBLIC primaryEccTemplate = TPM2B_PUBLIC_PRIMARY_ECC_TEMPLATE;
-static TPM2B_PUBLIC primaryRsaTemplate = TPM2B_PUBLIC_PRIMARY_RSA_TEMPLATE;
+static const TPM2B_PUBLIC primaryRsaTemplate = {
+    .publicArea = {
+        .type = TPM2_ALG_RSA,
+        .nameAlg = ENGINE_HASH_ALG,
+        .objectAttributes = (TPMA_OBJECT_USERWITHAUTH |
+                             TPMA_OBJECT_RESTRICTED |
+                             TPMA_OBJECT_DECRYPT |
+                             TPMA_OBJECT_NODA |
+                             TPMA_OBJECT_FIXEDTPM |
+                             TPMA_OBJECT_FIXEDPARENT |
+                             TPMA_OBJECT_SENSITIVEDATAORIGIN),
+        .authPolicy = {
+             .size = 0,
+         },
+        .parameters.rsaDetail = {
+             .symmetric = {
+                 .algorithm = TPM2_ALG_AES,
+                 .keyBits.aes = 128,
+                 .mode.aes = TPM2_ALG_CFB,
+              },
+             .scheme = {
+                .scheme = TPM2_ALG_NULL,
+                .details = {}
+             },
+             .keyBits = 2048,
+             .exponent = 0,
+         },
+        .unique.rsa = {
+             .size = 0,
+         }
+     }
+};
 
-static TPM2B_SENSITIVE_CREATE primarySensitive = {
+static const TPM2B_PUBLIC primaryEccTemplate = {
+    .publicArea = {
+        .type = TPM2_ALG_ECC,
+        .nameAlg = ENGINE_HASH_ALG,
+        .objectAttributes = (TPMA_OBJECT_USERWITHAUTH |
+                             TPMA_OBJECT_RESTRICTED |
+                             TPMA_OBJECT_DECRYPT |
+                             TPMA_OBJECT_NODA |
+                             TPMA_OBJECT_FIXEDTPM |
+                             TPMA_OBJECT_FIXEDPARENT |
+                             TPMA_OBJECT_SENSITIVEDATAORIGIN),
+        .authPolicy = {
+             .size = 0,
+         },
+        .parameters.eccDetail = {
+             .symmetric = {
+                 .algorithm = TPM2_ALG_AES,
+                 .keyBits.aes = 128,
+                 .mode.aes = TPM2_ALG_CFB,
+              },
+             .scheme = {
+                .scheme = TPM2_ALG_NULL,
+                .details = {}
+             },
+             .curveID = TPM2_ECC_NIST_P256,
+             .kdf = {
+                .scheme = TPM2_ALG_NULL,
+                .details = {}
+             },
+         },
+        .unique.ecc = {
+             .x.size = 0,
+             .y.size = 0
+         }
+     }
+};
+
+static const TPM2B_SENSITIVE_CREATE primarySensitive = {
     .sensitive = {
         .userAuth = {
              .size = 0,
@@ -204,50 +222,57 @@ static TPM2B_SENSITIVE_CREATE primarySensitive = {
     }
 };
 
-static TPM2B_DATA allOutsideInfo = {
+static const TPM2B_DATA allOutsideInfo = {
     .size = 0,
 };
 
-static TPML_PCR_SELECTION allCreationPCR = {
+static const TPML_PCR_SELECTION allCreationPCR = {
     .count = 0,
 };
 
-/** Initialize the ESYS TPM connection and primary/persistent key
- *
- * Establish a connection with the TPM using ESYS libraries and create a primary
- * key under the owner hierarchy or to initialize the ESYS object for a
- * persistent if provided.
- * @param esys_ctx The resulting ESYS context.
- * @param parentHandle The TPM handle of a persistent key or TPM2_RH_OWNER or 0
- * @param parent The resulting ESYS_TR handle for the parent key.
- * @retval TSS2_RC_SUCCESS on success
- * @retval TSS2_RCs according to the error
- */
-TSS2_RC
-init_tpm_parent(TPM2_PKEY *pkey,
-                TPM2_HANDLE parentHandle, ESYS_TR *parent)
+int
+tpm2_load_parent(TPM2_PKEY *pkey, TPM2_HANDLE handle,
+                 const TPM2B_DIGEST *auth, ESYS_TR *object)
 {
     TSS2_RC r;
-    TPM2B_PUBLIC *primaryTemplate = NULL;
-    TPMS_CAPABILITY_DATA *capabilityData = NULL;
+
+    r = Esys_TR_FromTPMPublic(pkey->esys_ctx, handle,
+                              ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
+                              object);
+    TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error1);
+
+    r = Esys_TR_SetAuth(pkey->esys_ctx, *object, auth);
+    TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error2);
+
+    return 1;
+error2:
+    Esys_FlushContext(pkey->esys_ctx, *object);
+error1:
+    return 0;
+}
+
+static int
+tpm2_supports_algorithm(const TPMS_CAPABILITY_DATA *caps, TPM2_ALG_ID algorithm)
+{
     UINT32 index;
-    *parent = ESYS_TR_NONE;
 
-    if (parentHandle && parentHandle != TPM2_RH_OWNER) {
-        DBG("Connecting to a persistent parent key.\n");
-        r = Esys_TR_FromTPMPublic(pkey->esys_ctx, parentHandle,
-                                  ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
-                                  parent);
-        TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
-
-        r = Esys_TR_SetAuth(pkey->esys_ctx, *parent, &parentauth);
-        TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
-
-        return TSS2_RC_SUCCESS;
+    for (index = 0; index < caps->data.algorithms.count; index++) {
+        if (caps->data.algorithms.algProperties[index].alg == algorithm)
+            return 1;
     }
 
-    DBG("Creating primary key under owner.\n");
-    r = Esys_TR_SetAuth(pkey->esys_ctx, ESYS_TR_RH_OWNER, &ownerauth);
+    return 0;
+}
+
+int
+tpm2_build_primary(TPM2_PKEY *pkey, ESYS_TR hierarchy,
+                   const TPM2B_DIGEST *auth, ESYS_TR *object)
+{
+    TPMS_CAPABILITY_DATA *capabilityData = NULL;
+    const TPM2B_PUBLIC *primaryTemplate = NULL;
+    TSS2_RC r;
+
+    r = Esys_TR_SetAuth(pkey->esys_ctx, hierarchy, auth);
     TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
 
     r = Esys_GetCapability(pkey->esys_ctx,
@@ -256,47 +281,31 @@ init_tpm_parent(TPM2_PKEY *pkey,
                            NULL, &capabilityData);
     TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
 
-    for (index = 0; index < capabilityData->data.algorithms.count; index++) {
-        if (capabilityData->data.algorithms.algProperties[index].alg == TPM2_ALG_ECC) {
-            primaryTemplate = &primaryEccTemplate;
-            break;
-        }
-    }
+    if (tpm2_supports_algorithm(capabilityData, TPM2_ALG_ECC))
+        primaryTemplate = &primaryEccTemplate;
+    else if (tpm2_supports_algorithm(capabilityData, TPM2_ALG_RSA))
+        primaryTemplate = &primaryRsaTemplate;
 
-    if (primaryTemplate == NULL) {
-        for (index = 0; index < capabilityData->data.algorithms.count; index++) {
-            if (capabilityData->data.algorithms.algProperties[index].alg == TPM2_ALG_RSA) {
-                primaryTemplate = &primaryRsaTemplate;
-                break;
-            }
-        }
-    }
+    free(capabilityData);
 
-    if (capabilityData != NULL)
-        free (capabilityData);
-
-    if (primaryTemplate == NULL) {
+    if(!primaryTemplate) {
         TPM2_ERROR_raise(pkey, TPM2TSS_R_UNKNOWN_ALG);
         goto error;
     }
 
-    r = Esys_CreatePrimary(pkey->esys_ctx, ESYS_TR_RH_OWNER,
+    r = Esys_CreatePrimary(pkey->esys_ctx, hierarchy,
                            ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                            &primarySensitive, primaryTemplate, &allOutsideInfo,
                            &allCreationPCR,
-                           parent, NULL, NULL, NULL, NULL);
+                           object, NULL, NULL, NULL, NULL);
     if (r == 0x000009a2) {
         TPM2_ERROR_raise(pkey, TPM2TSS_R_OWNER_AUTH_FAILED);
         goto error;
     }
     TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
 
-    return TSS2_RC_SUCCESS;
- error:
-    if (*parent != ESYS_TR_NONE)
-        Esys_FlushContext(pkey->esys_ctx, *parent);
-    *parent = ESYS_TR_NONE;
-
-    return r;
+    return 1;
+error:
+    return 0;
 }
 

@@ -60,14 +60,11 @@ openssl pkeyutl -provider tpm2 -inkey handle:0x81000000 -sign -rawin -in testdat
 
 **Warning!** This is work in progress. It's main purpose is to validate the
 OpenSSL API and obtain community feedback.
-Not all code has been migrated, not every feature has been implemented.
 Nothing will be stable until the final OpenSSL 3.0 is released.
 
 (At least) the following features are not yet implemented:
-* Various parameters for key generation and usage
 * Signing ASN.1, i.e. certificate signing
 * ECDSA keys
-* TPM simulator integration
 
 
 ## Integration with OpenSSL
@@ -90,8 +87,8 @@ This project implements a **tpm2** provider that re-implements some algorithms
 using the TPM 2.0. It does not replace the default provider though-- some
 operations still need the default provider.
 
-The tpm2 provider comes as a single `tpm2.so` module, which needs to be installed
-to OpenSSL's `lib/ossl-modules`. When successfully installed, you should see the
+Instructions to build and install the provider are available in the
+[INSTALL](INSTALL.md) file. When successfully installed, you should see the
 provider listed when you do:
 ```
 openssl list -providers -provider tpm2
@@ -103,6 +100,19 @@ commands to inspect the various algorithms provided, such as the list of encoder
 by:
 ```
 openssl list -encoders -provider tpm2
+```
+
+By default the provider will access the `/dev/tpm0` device. The TPM Command
+Transmission Interface (TCTI) can be modified either using the
+`TPM2OPENSSL_TCTI` environment variable or using the `tcti`
+[config](https://www.openssl.org/docs/manmaster/man5/config.html)
+option.
+
+For example, to use the
+[TPM2 Resource Manager](https://github.com/tpm2-software/tpm2-abrmd)
+set:
+```
+export TPM2OPENSSL_TCTI="tabrmd:bus_name=com.intel.tss2.Tabrmd"
 ```
 
 The provider operations can be invoked either via the `openssl` command line
@@ -159,10 +169,14 @@ Settable key generation parameters (`-pkeyopt`):
  * "e" (bignum) defines a public exponent, by default 65537 (0x10001).
  * "user-auth" (utf8_string) defines a password, which will be used to authorize
    private key operations.
+ * "parent" (uint32) defines parent of the key (as a hex number),
+   by default 0x40000001 (TPM2_RH_OWNER).
+ * "parent-auth" (utf8_string) defines an (optional) parent password.
 
-TODO: Missing owner. Missing key flags and key algs.
+TODO: Missing key flags and key algs.
 
-For example, to define a 1024-bit RSA key without authorization:
+For example, to define a 1024-bit RSA key without authorization under
+TPM2_RH_OWNER:
 ```
 openssl genpkey -provider tpm2 -algorithm RSA -pkeyopt bits:1024 -out testkey.priv
 ```
@@ -184,17 +198,20 @@ tpm2 evictcontrol -c ak_rsa.ctx 0x81000000
 
 ### Exporting a Public Key
 
-To export the X.509 SubjectPublicKeyInfo in PEM (`BEGIN PUBLIC KEY`), which
+To export the X.509 SubjectPublicKeyInfo in PEM (`PUBLIC KEY`), which
 is the most common public key format, do:
 ```
 openssl pkey -provider tpm2 -in testkey.priv -pubout -out testkey.pub
 ```
 
+To print private key attributes you can use the `-text` argument:
+```
+openssl rsa -provider tpm2 -in testkey.priv -text -noout
+```
+
 Note: if the private key usage requires authorization you will be asked for a
 password although exporting a public key does not require it. You may set
-an empty password, or anything else.
-
-TODO: Export RSA one-liner for SSH client. Export textual information.
+an empty password or anything else.
 
 
 ## Loading a Private Key
@@ -218,8 +235,8 @@ openssl rsa -modulus -noout -in testkey.pub
 
 ### Using PEM File
 
-To load a private key, simply specify a name of a PEM file (`TSS2 PRIVATE KEY`),
-possibly with the optional `file:` prefix.
+To load a TPM-based private key, simply specify a name of a PEM file
+(`TSS2 PRIVATE KEY`), possibly with the optional `file:` prefix.
 For example, to print out the value of the modulus of the private key:
 ```
 openssl rsa -provider tpm2 -modulus -noout -in file:testkey.priv
@@ -250,8 +267,8 @@ An authorization may be required to use the key. To supply a password you need
 first to append `?pass` to the URI, e.g. `handle:0x81000000?pass`.
 This activates the `pem_password_cb` callback.
 
-To supply a password via the command-line tool, use then the standard `-passin`
-[option](https://www.openssl.org/docs/manmaster/man1/openssl-passphrase-options.html).
+To supply a password via the command-line tool, use then the standard
+[`-passin` option](https://www.openssl.org/docs/manmaster/man1/openssl-passphrase-options.html).
 All argument types (`pass:`, `env:`, `file:`, `fd:`, `stdin`) may be used.
 For example, to supply a password from an evironment variable $PASSWORD:
 ```
@@ -279,32 +296,35 @@ For example, to sign the "testdata" file using the Attestation Key 0x81000000
 openssl pkeyutl -provider tpm2 -inkey handle:0x81000000 -sign -rawin -in testdata -out testdata.sig
 ```
 
-Settable parameters (`-pkeyopt`):
- * "pad-mode" (utf8_string) defines algorithm to be used. The values follow the
-   OpenSSL terminology:
+The digest (hash) algorithm is selected as follows:
+ * The hash algorithm associated with the private key is used.
+ * When `null`, the algorithm may be set using the `-digest XXX` argument. The
+   `sha1`, `sha256`, `sha384` and `sha512` may be used.
+ * If not set, the sha256 algorithm is used as a default.
+
+The sign scheme is selected as follows:
+ * The sign scheme associated with the private key is used.
+ * When `null`, the scheme may be set using the `-pkeyopt pad-mode:XXX` argument.
+   The values follow the OpenSSL terminology:
 
    | openssl | tpm2           | algorithm |
    | ------- | -------------- | --------- |
    | pkcs1   | TPM_ALG_RSASSA | per RFC8017, Section 8.2. RSASSA-PKCS1-v1_5 |
+   | pss     | TPM_ALG_RSAPSS | per RFC8017, Section 8.1. RSASSA-PSS |
 
- * "digest" (utf8_string) defines digest to be used. The following values are
-   allowed:
+ * If not set, the pkcs1 (TPM_ALG_RSASSA) algorithm is used as a default.
 
-   | openssl | tpm2           | algorithm |
-   | ------- | -------------- | --------- |
-   | sha256  | TPM_ALG_SHA256 | per ISO/IEC 10118-3 |
-
-If the key is not associated with any algorithm, the `pad-mode` and `digest`
-must be specified. For example, to sign using sha256 and rsassa:
+For example, to sign using sha512 and pss:
 ```
-openssl pkeyutl -provider tpm2 -inkey testkey.priv -sign -rawin -in testdata \
-    -pkeyopt pad-mode:pkcs1 -pkeyopt digest:sha256 -out testdata.sig
+openssl pkeyutl -provider tpm2 -sign -inkey testkey.priv -rawin -in testdata \
+    -digest sha512 -pkeyopt pad-mode:pss -out testdata.sig
 ```
 
 Signature verification using the public key is then done using the default
 provider and the public key:
 ```
-openssl pkeyutl -verify -pubin -inkey testkey.pub -sigfile testdata.sig -rawin -in testdata
+openssl pkeyutl -verify -pubin -inkey testkey.pub -rawin -in testdata \
+    -digest sha512 -pkeyopt pad-mode:pss -sigfile testdata.sig
 ```
 
 

@@ -15,14 +15,8 @@ tpm2_load -C primary.ctx -u key.pub -r key.priv -c testkey.ctx
 # make the key persistent
 HANDLE=$(tpm2_evictcontrol --object-context=testkey.ctx | cut -d ' ' -f 2 | head -n 1)
 
-# check the persisted EK
-openssl rsa -provider tpm2 -modulus -noout -in handle:${HANDLE}
-
 # export public key
 openssl pkey -provider tpm2 -in handle:${HANDLE} -pubout -out testkey.pub
-
-# check the exported public key
-openssl rsa -modulus -noout -pubin -in testkey.pub
 
 # encrypt data
 openssl pkeyutl -encrypt -pubin -inkey testkey.pub -in testdata -out testdata.crypt
