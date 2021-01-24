@@ -11,6 +11,9 @@ openssl pkey -provider tpm2 -in testkey.priv -pubout -out testkey.pub
 
 # check default scheme with various digests
 for HASH in sha1 sha256 sha384 sha512; do
+    # skip unsupported algorithms
+    tpm2_getcap algorithms | grep $HASH || continue
+
     # sign using a defined scheme/hash
     openssl pkeyutl -provider tpm2 -sign -inkey testkey.priv -rawin -in testdata \
         -digest $HASH -out testdata.sig

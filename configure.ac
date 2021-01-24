@@ -2,9 +2,9 @@ AC_PREREQ([2.69])
 
 AC_INIT([tpm2-openssl],
         [2.0.0],
-        [https://github.com/p-steuer/pkcs11provider/issues],
+        [https://github.com/gotthardp/tpm2-openssl/issues],
         [],
-        [https://github.com/p-steuer/pkcs11provider])
+        [https://github.com/gotthardp/tpm2-openssl])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([src/tpm2-provider.c])
@@ -29,7 +29,9 @@ AC_ARG_ENABLE([tss2-rc],
 AM_CONDITIONAL(TSS2_RC, test "x$enable_tss2_rc" != "xno")
 
 PKG_PROG_PKG_CONFIG([0.25])
-PKG_CHECK_MODULES([CRYPTO], [libcrypto >= 3.0.0])
+PKG_CHECK_MODULES([CRYPTO], [libcrypto >= 3.0.0],
+                  [ac_cryptolibdir=`$PKG_CONFIG --variable=libdir libcrypto`])
+AC_SUBST(MODULESDIR, "$ac_cryptolibdir/ossl-modules")
 PKG_CHECK_MODULES([TSS2_ESYS], [tss2-esys >= 2.3])
 PKG_CHECK_MODULES([TSS2_TCTILDR], [tss2-tctildr])
 AS_IF([test "x$enable_tss2_rc" != "xno"], [

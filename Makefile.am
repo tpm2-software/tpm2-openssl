@@ -1,6 +1,7 @@
 ACLOCAL_AMFLAGS = -I m4
 
-lib_LTLIBRARIES = tpm2.la
+openssl_modulesdir = $(MODULESDIR)
+openssl_modules_LTLIBRARIES = tpm2.la
 
 tpm2_la_SOURCES = src/tpm2-provider.c \
                   src/tpm2-provider-core.c \

@@ -22,6 +22,7 @@ To run the tests you will also need:
  * [TPM2.0 Tools](https://github.com/tpm2-software/tpm2-tools)
  * [TPM2 Access Broker & Resource Manager](https://github.com/tpm2-software/tpm2-abrmd)
  * [IBM's Software TPM 2.0 Simulator](https://sourceforge.net/projects/ibmswtpm2/files)
+ * D-Bus message bus daemon
 
 
 # Building From Source
@@ -53,15 +54,18 @@ installed to OpenSSL's `lib/ossl-modules`.
 
 # Using With the TPM2 Simulator
 
+## System-Wide
+
 Run the the
 [Microsoft/IBM TPM2 simulator](https://sourceforge.net/projects/ibmswtpm2):
 ```
 ./tpm_server
 ```
 
-Then run the Access Broker & Resource Manager using the simulator's TCTI:
+Then run the Access Broker & Resource Manager using the simulator's TCTI. By
+default it must be started as the user `tss`:
 ```
-tpm2-abrmd --tcti mssim:host=localhost,port=2321
+sudo -u tss tpm2-abrmd --tcti mssim:host=localhost,port=2321
 ```
 
 Finally, export the `TPM2OPENSSL_TCTI` environment variable with the Resource
@@ -72,4 +76,18 @@ export TPM2OPENSSL_TCTI="tabrmd:bus_name=com.intel.tss2.Tabrmd"
 
 If you use the TPM2 Tools you need to export also `TPM2TOOLS_TCTI` with the
 same value.
+
+## Local Session
+
+Alternatively, to avoid using the `tss` user you can start `tpm2-abrmd` with
+a local D-Bus session:
+```
+export DBUS_SESSION_BUS_ADDRESS=`dbus-daemon --session --print-address --fork`
+tpm2-abrmd --session --tcti mssim:host=localhost,port=2321
+```
+
+The `TPM2OPENSSL_TCTI` environment variable must then include `bus_type=session`:
+```
+export TPM2OPENSSL_TCTI="tabrmd:bus_name=com.intel.tss2.Tabrmd,bus_type=session"
+```
 

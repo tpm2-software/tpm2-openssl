@@ -1,3 +1,5 @@
+[![Build and Check](https://github.com/gotthardp/tpm2-openssl/workflows/Build%20and%20Check/badge.svg)](https://github.com/gotthardp/tpm2-openssl/actions)
+
 # Provider for integration of TPM 2.0 to OpenSSL 3.0
 
 The tpm2-openssl project
