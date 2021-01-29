@@ -5,6 +5,7 @@ openssl_modules_LTLIBRARIES = tpm2.la
 
 tpm2_la_SOURCES = src/tpm2-provider.c \
                   src/tpm2-provider-core.c \
+                  src/tpm2-provider-digest.c \
                   src/tpm2-provider-pkey.c \
                   src/tpm2-provider-store-file.c \
                   src/tpm2-provider-store-handle.c \
@@ -24,6 +25,7 @@ tpm2_la_LDFLAGS = -module -avoid-version -no-undefined -export-symbols-regex 'OS
 TESTS = $(TESTS_SHELL)
 
 TESTS_SHELL = test/list.sh \
+              test/digest.sh \
               test/rand.sh \
               test/rsa_genrsa_check.sh \
               test/rsa_genpkey_sign.sh \

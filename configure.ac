@@ -32,7 +32,9 @@ PKG_PROG_PKG_CONFIG([0.25])
 PKG_CHECK_MODULES([CRYPTO], [libcrypto >= 3.0.0],
                   [ac_cryptolibdir=`$PKG_CONFIG --variable=libdir libcrypto`])
 AC_SUBST(MODULESDIR, "$ac_cryptolibdir/ossl-modules")
-PKG_CHECK_MODULES([TSS2_ESYS], [tss2-esys >= 2.3])
+PKG_CHECK_MODULES([TSS2_ESYS], [tss2-esys >= 3.0.0],
+                  [AC_DEFINE([HAVE_TSS2_ESYS3], [1], [found tss2-esys 3.0.0 or above])],
+                  [PKG_CHECK_MODULES([TSS2_ESYS], [tss2-esys >= 2.3.0])])
 PKG_CHECK_MODULES([TSS2_TCTILDR], [tss2-tctildr])
 AS_IF([test "x$enable_tss2_rc" != "xno"], [
     PKG_CHECK_MODULES([TSS2_RC], [tss2-rc >= 2.3])

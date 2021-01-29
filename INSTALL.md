@@ -10,16 +10,15 @@ are required:
    version >= 2017.03.21
  * C compiler and C library
  * [TPM2.0 TSS ESAPI library](https://github.com/tpm2-software/tpm2-tss)
-   (tss2-esys) and header files
- * [OpenSSL](https://www.openssl.org/) >= 3.0
-   development libraries and header files
+   (libtss2-esys) >= 2.3.0 with header files
+ * [OpenSSL](https://www.openssl.org/) >= 3.0 with header files
 
 The OpenSSL 3.0 is not released yet. You need to download the latest Alfa version
 and build it from sources.
 
 To run the tests you will also need:
 
- * [TPM2.0 Tools](https://github.com/tpm2-software/tpm2-tools)
+ * [TPM2.0 Tools](https://github.com/tpm2-software/tpm2-tools) >= 4.0
  * [TPM2 Access Broker & Resource Manager](https://github.com/tpm2-software/tpm2-abrmd)
  * [IBM's Software TPM 2.0 Simulator](https://sourceforge.net/projects/ibmswtpm2/files)
  * D-Bus message bus daemon

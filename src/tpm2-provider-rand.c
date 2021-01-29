@@ -114,7 +114,8 @@ tpm2_rand_unlock(void *ctx)
     return CRYPTO_THREAD_unlock(rand->lock);
 }
 
-static const OSSL_PARAM *tpm2_rand_gettable_ctx_params(void *provctx)
+static const OSSL_PARAM *
+tpm2_rand_gettable_ctx_params(void *provctx)
 {
     static const OSSL_PARAM known_gettable_ctx_params[] = {
         OSSL_PARAM_size_t(OSSL_RAND_PARAM_MAX_REQUEST, NULL),

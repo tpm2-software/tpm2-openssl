@@ -1,4 +1,4 @@
-[![Build and Check](https://github.com/gotthardp/tpm2-openssl/workflows/Build%20and%20Check/badge.svg)](https://github.com/gotthardp/tpm2-openssl/actions)
+[![Build and Check](https://github.com/gotthardp/tpm2-openssl/workflows/build%20and%20check/badge.svg)](https://github.com/gotthardp/tpm2-openssl/actions)
 
 # Provider for integration of TPM 2.0 to OpenSSL 3.0
 
@@ -123,6 +123,34 @@ tool, or via the
 from any custom application.
 
 
+## Message Digest (Hash) Generation
+
+The tpm2 provider implements a
+[OSSL_OP_DIGEST](https://www.openssl.org/docs/manmaster/man7/provider-digest.html)
+operation, which calculates message digests using the TPM. It is made available
+to applications via the
+[EVP_Digest](https://www.openssl.org/docs/manmaster/man3/EVP_Digest.html) API
+function and the
+[`openssl dgst`](https://www.openssl.org/docs/manmaster/man1/openssl-dgst.html)
+command.
+
+The following algorithms are supported by the tpm2 provider, although your
+TPM may support only a subset of these:
+
+| openssl | tpm2             |
+| ------- | ---------------- |
+| sha1    | TPM2_ALG_SHA1    |
+| sha256  | TPM2_ALG_SHA256  |
+| sha384  | TPM2_ALG_SHA384  |
+| sha512  | TPM2_ALG_SHA512  |
+| sm3     | TPM2_ALG_SM3_256 |
+
+For example, to calculate SHA-256 hash of the `data.txt` file:
+```
+openssl dgst -provider tpm2 -sha256 data.txt
+```
+
+
 ## Random Number Generation
 
 The tpm2 provider implements a
@@ -160,20 +188,18 @@ These can be used via the
 [EVP_PKEY](https://www.openssl.org/docs/manmaster/man7/EVP_PKEY-RSA.html)
 API functions and the
 [`openssl genpkey`](https://www.openssl.org/docs/manmaster/man1/openssl-genpkey.html)
-and
-[`openssl pkey`](https://www.openssl.org/docs/manmaster/man1/openssl-pkey.html)
-commands.
+command.
 
 ### Key Generation
 
 Settable key generation parameters (`-pkeyopt`):
- * "bits" (size_t) defines a desired size of the key.
- * "e" (bignum) defines a public exponent, by default 65537 (0x10001).
- * "user-auth" (utf8_string) defines a password, which will be used to authorize
+ * `bits` (size_t) defines a desired size of the key.
+ * `e` (integer) defines a public exponent, by default 65537 (0x10001).
+ * `user-auth` (utf8_string) defines a password, which will be used to authorize
    private key operations.
- * "parent" (uint32) defines parent of the key (as a hex number),
+ * `parent` (uint32) defines parent of the key (as a hex number),
    by default 0x40000001 (TPM2_RH_OWNER).
- * "parent-auth" (utf8_string) defines an (optional) parent password.
+ * `parent-auth` (utf8_string) defines an (optional) parent password.
 
 TODO: Missing key flags and key algs.
 
@@ -198,10 +224,49 @@ tpm2 createak -C ek_rsa.ctx -G rsa -g sha256 -s rsassa -c ak_rsa.ctx
 tpm2 evictcontrol -c ak_rsa.ctx 0x81000000
 ```
 
-### Exporting a Public Key
+### Key Parameter Retrieval
 
-To export the X.509 SubjectPublicKeyInfo in PEM (`PUBLIC KEY`), which
-is the most common public key format, do:
+The following characteristics of the EVP_PKEY can be retrieved (via API only):
+ * `bits` (integer), size of the key
+ * `max-size` (integer) of the signature
+
+In addition to that, the following public key parameters can be exported from
+the EVP_PKEY:
+ * `n` (integer), the RSA modulus
+ * `e` (integer), the RSA exponent
+
+The modulus can be displayed using:
+```
+openssl rsa -provider tpm2 -in testkey.priv -modulus -noout
+```
+
+Naturally, parameters of the private key cannot be retrieved.
+
+
+## Storing the Private or a Public Key
+
+The tpm2 provider implements several
+[OSSL_OP_ENCODER](https://www.openssl.org/docs/manmaster/man7/provider-encoder.html)
+operations for converting the generated (or loaded) key to a various formats.
+These can be used via the
+[OSSL_ENCODER](https://www.openssl.org/docs/manmaster/man3/OSSL_ENCODER.html)
+API functions and the
+[`openssl pkey`](https://www.openssl.org/docs/manmaster/man1/openssl-genpkey.html)
+command.
+
+The following encoders are supported:
+
+| structure            | type                     | openssl arguments
+| -------------------- | ------------------------ | ------------------------------ |
+| PKCS8                | PEM (`TSS2 PRIVATE KEY`) | (default)                      |
+| SubjectPublicKeyInfo | PEM (`PUBLIC KEY`)       | -pubout                        |
+| SubjectPublicKeyInfo | DER                      | -pubout -outform der           |
+| PKCS1                | PEM (`RSA PUBLIC KEY`)   | -RSAPublicKey_out              |
+| PKCS1                | DER                      | -RSAPublicKey_out -outform der |
+|                      | text                     | -text -noout                   |
+
+For example, to export the X.509 SubjectPublicKeyInfo in PEM (`PUBLIC KEY`),
+which is the most common public key format, do:
 ```
 openssl pkey -provider tpm2 -in testkey.priv -pubout -out testkey.pub
 ```

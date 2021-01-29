@@ -278,6 +278,9 @@ tpm2_rsa_keymgmt_get_params(void *keydata, OSSL_PARAM params[])
     OSSL_PARAM *p;
 
     DBG("KEY GET_PARAMS\n");
+    p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_BITS);
+    if (p != NULL && !OSSL_PARAM_set_int(p, pkey->data.pub.publicArea.parameters.rsaDetail.keyBits))
+        return 0;
     p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_MAX_SIZE);
     if (p != NULL && !OSSL_PARAM_set_int(p, TPM2_MAX_RSA_KEY_BYTES))
         return 0;
@@ -299,6 +302,7 @@ static const OSSL_PARAM *
 tpm2_rsa_keymgmt_gettable_params(void *provctx)
 {
     static OSSL_PARAM gettable[] = {
+        OSSL_PARAM_int(OSSL_PKEY_PARAM_BITS, NULL),
         OSSL_PARAM_int(OSSL_PKEY_PARAM_MAX_SIZE, NULL),
         /* public key */
         OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_N, NULL, 0),

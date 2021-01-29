@@ -120,7 +120,13 @@ digest_sign_calculate(TPM2_RSA_SIGNATURE_CTX *sctx)
     DBG("SIGN CALCULATE\n");
     r = Esys_SequenceComplete(sctx->esys_ctx, sctx->sequenceHandle,
                               ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
-                              NULL, TPM2_RH_OWNER, &digest, &validation);
+                              NULL,
+#ifdef HAVE_TSS2_ESYS3
+                              ESYS_TR_RH_OWNER,
+#else
+                              TPM2_RH_OWNER,
+#endif
+                              &digest, &validation);
     TPM2_CHECK_RC(sctx, r, TPM2TSS_R_GENERAL_FAILURE, return 0);
 
     r = Esys_Sign(sctx->esys_ctx, sctx->pkey->object,

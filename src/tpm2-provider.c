@@ -44,6 +44,21 @@ tpm2_get_params(void *provctx, OSSL_PARAM params[])
     return 1;
 }
 
+extern const OSSL_DISPATCH tpm2_digest_SHA1_functions[];
+extern const OSSL_DISPATCH tpm2_digest_SHA256_functions[];
+extern const OSSL_DISPATCH tpm2_digest_SHA384_functions[];
+extern const OSSL_DISPATCH tpm2_digest_SHA512_functions[];
+extern const OSSL_DISPATCH tpm2_digest_SM3_256_functions[];
+
+static const OSSL_ALGORITHM tpm2_digests[] = {
+    { "SHA1:SHA-1:SSL3-SHA1", "provider=tpm2", tpm2_digest_SHA1_functions },
+    { "SHA2-256:SHA-256:SHA256", "provider=tpm2", tpm2_digest_SHA256_functions },
+    { "SHA2-384:SHA-384:SHA384", "provider=tpm2", tpm2_digest_SHA384_functions },
+    { "SHA2-512:SHA-512:SHA512", "provider=tpm2", tpm2_digest_SHA512_functions },
+    { "SM3", "provider=tpm2", tpm2_digest_SM3_256_functions },
+    { NULL, NULL, NULL }
+};
+
 extern const OSSL_DISPATCH tpm2_rand_functions[];
 
 static const OSSL_ALGORITHM tpm2_rands[] = {
@@ -75,12 +90,20 @@ static const OSSL_ALGORITHM tpm2_asymciphers[] = {
 };
 
 extern const OSSL_DISPATCH tpm2_rsa_encoder_pkcs8_pem_functions[];
-extern const OSSL_DISPATCH tpm2_rsa_encoder_pubkey_pem_functions[];
+extern const OSSL_DISPATCH tpm2_rsa_encoder_pkcs1_der_functions[];
+extern const OSSL_DISPATCH tpm2_rsa_encoder_pkcs1_pem_functions[];
+extern const OSSL_DISPATCH tpm2_rsa_encoder_SubjectPublicKeyInfo_der_functions[];
+extern const OSSL_DISPATCH tpm2_rsa_encoder_SubjectPublicKeyInfo_pem_functions[];
 extern const OSSL_DISPATCH tpm2_rsa_encoder_text_functions[];
 
 static const OSSL_ALGORITHM tpm2_encoders[] = {
+    /* private key */
     { "RSA", "provider=tpm2,output=pem,structure=pkcs8", tpm2_rsa_encoder_pkcs8_pem_functions },
-    { "RSA", "provider=tpm2,output=pem,structure=SubjectPublicKeyInfo", tpm2_rsa_encoder_pubkey_pem_functions },
+    /* public key */
+    { "RSA", "provider=tpm2,output=der,structure=pkcs1", tpm2_rsa_encoder_pkcs1_der_functions },
+    { "RSA", "provider=tpm2,output=pem,structure=pkcs1", tpm2_rsa_encoder_pkcs1_pem_functions },
+    { "RSA", "provider=tpm2,output=der,structure=SubjectPublicKeyInfo", tpm2_rsa_encoder_SubjectPublicKeyInfo_der_functions },
+    { "RSA", "provider=tpm2,output=pem,structure=SubjectPublicKeyInfo", tpm2_rsa_encoder_SubjectPublicKeyInfo_pem_functions },
     { "RSA", "provider=tpm2,output=text", tpm2_rsa_encoder_text_functions },
     { NULL, NULL, NULL }
 };
@@ -100,6 +123,8 @@ tpm2_query_operation(void *provctx, int operation_id, int *no_cache)
     *no_cache = 0;
 
     switch (operation_id) {
+    case OSSL_OP_DIGEST:
+        return tpm2_digests;
     case OSSL_OP_RAND:
         return tpm2_rands;
     case OSSL_OP_KEYMGMT:
