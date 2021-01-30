@@ -4,6 +4,7 @@ openssl_modulesdir = $(MODULESDIR)
 openssl_modules_LTLIBRARIES = tpm2.la
 
 tpm2_la_SOURCES = src/tpm2-provider.c \
+                  src/tpm2-provider-algorithms.c \
                   src/tpm2-provider-core.c \
                   src/tpm2-provider-digest.c \
                   src/tpm2-provider-pkey.c \
@@ -31,7 +32,9 @@ TESTS_SHELL = test/list.sh \
               test/rsa_genpkey_sign.sh \
               test/rsa_genpkey_parent_auth.sh \
               test/rsa_createak_sign.sh \
-              test/rsa_create_decrypt.sh
+              test/rsa_create_decrypt.sh \
+              test/rsa_genpkey_x509_cert.sh \
+              test/rsa_createak_x509_csr.sh
 
 TEST_EXTENSIONS = .sh
 SH_LOG_COMPILER = $(srcdir)/test/run

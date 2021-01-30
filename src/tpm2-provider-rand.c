@@ -66,15 +66,16 @@ tpm2_rand_generate(void *ctx, unsigned char *out, size_t outlen,
                    const unsigned char *adin, size_t adinlen)
 {
     TPM2_RAND_CTX *rand = ctx;
-    TSS2_RC r;
 
     DBG("RAND GENERATE\n");
     while (outlen > 0) {
+        TSS2_RC r;
         TPM2B_DIGEST *b;
+
         r = Esys_GetRandom(rand->esys_ctx,
                            ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                            outlen, &b);
-        TPM2_CHECK_RC(rand, r, TPM2TSS_R_GENERAL_FAILURE, break);
+        TPM2_CHECK_RC(rand, r, TPM2TSS_R_GENERAL_FAILURE, return 0);
 
         memcpy(out, &b->buffer, b->size);
         outlen -= b->size;
@@ -82,7 +83,7 @@ tpm2_rand_generate(void *ctx, unsigned char *out, size_t outlen,
         free(b);
     }
 
-    return r == TSS2_RC_SUCCESS;
+    return 1;
 }
 
 static int

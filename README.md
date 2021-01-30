@@ -31,7 +31,8 @@ The tpm2-openssl project
   from the Trusted Computing Groups (TCG)
   [TPM Software Stack (TSS 2.0)](https://trustedcomputinggroup.org/work-groups/software-stack/)
   and uses the
-  [tpm2-tss](https://www.github.org/tpm2-software/tpm2-tss) software stack implementation.
+  [tpm2-tss](https://www.github.org/tpm2-software/tpm2-tss) software stack
+  implementation, version 2.3.0 or later.
 
 
 The original [tpm2-tss-engine](https://github.com/tpm2-software/tpm2-tss-engine)
@@ -53,7 +54,7 @@ openssl pkeyutl -provider tpm2 -inkey handle:0x81000000 -sign -rawin -in testdat
 ```
 
 * Signing using a restricted signing key is possible, e.g. one can sign
-  arbitrary data using the TPM attestation key (AK) created by `tpm2 createak`.
+  arbitrary data using the TPM attestation key (AK) created by `tpm2_createak`.
   Such keys are compatible with e.g. the
   [strongSwan](https://www.strongswan.org/)
   [TPM Plugin](https://wiki.strongswan.org/projects/strongswan/wiki/TpmPlugin).
@@ -65,7 +66,6 @@ OpenSSL API and obtain community feedback.
 Nothing will be stable until the final OpenSSL 3.0 is released.
 
 (At least) the following features are not yet implemented:
-* Signing ASN.1, i.e. certificate signing
 * ECDSA keys
 
 
@@ -169,7 +169,7 @@ openssl rand -provider tpm2 -hex 10
 
 This is similar to:
 ```
-tpm2 getrandom --hex 10
+tpm2_getrandom --hex 10
 ```
 
 Note: For compatibility reasons is the number generator named **CTR-DRBG**,
@@ -216,17 +216,18 @@ openssl genpkey -provider tpm2 -algorithm RSA \
 ```
 
 You may also generate the key using standard TPM2 tools and then make the key
-persistent under a given handle using `tpm2 evictcontrol`. For example to create
+persistent under a given handle using `tpm2_evictcontrol`. For example to create
 a new key Attestation Key (AK) with a handle 0x81000000:
 ```
-tpm2 createek -G rsa -c ek_rsa.ctx
-tpm2 createak -C ek_rsa.ctx -G rsa -g sha256 -s rsassa -c ak_rsa.ctx
-tpm2 evictcontrol -c ak_rsa.ctx 0x81000000
+tpm2_createek -G rsa -c ek_rsa.ctx
+tpm2_createak -C ek_rsa.ctx -G rsa -g sha256 -s rsassa -c ak_rsa.ctx
+tpm2_evictcontrol -c ak_rsa.ctx 0x81000000
 ```
 
 ### Key Parameter Retrieval
 
-The following characteristics of the EVP_PKEY can be retrieved (via API only):
+The following characteristics of the generated EVP_PKEY can be retrieved (via
+API only):
  * `bits` (integer), size of the key
  * `max-size` (integer) of the signature
 
@@ -257,13 +258,13 @@ command.
 The following encoders are supported:
 
 | structure            | type                     | openssl arguments
-| -------------------- | ------------------------ | ------------------------------ |
-| PKCS8                | PEM (`TSS2 PRIVATE KEY`) | (default)                      |
-| SubjectPublicKeyInfo | PEM (`PUBLIC KEY`)       | -pubout                        |
-| SubjectPublicKeyInfo | DER                      | -pubout -outform der           |
-| PKCS1                | PEM (`RSA PUBLIC KEY`)   | -RSAPublicKey_out              |
-| PKCS1                | DER                      | -RSAPublicKey_out -outform der |
-|                      | text                     | -text -noout                   |
+| -------------------- | ------------------------ | -------------------------------- |
+| PKCS8                | PEM (`TSS2 PRIVATE KEY`) | (default)                        |
+| SubjectPublicKeyInfo | PEM (`PUBLIC KEY`)       | `-pubout`                        |
+| SubjectPublicKeyInfo | DER                      | `-pubout -outform der`           |
+| PKCS1                | PEM (`RSA PUBLIC KEY`)   | `-RSAPublicKey_out`              |
+| PKCS1                | DER                      | `-RSAPublicKey_out -outform der` |
+| (none)               | text                     | `-text -noout`                   |
 
 For example, to export the X.509 SubjectPublicKeyInfo in PEM (`PUBLIC KEY`),
 which is the most common public key format, do:
@@ -354,7 +355,7 @@ API function and the
 command.
 
 The `-rawin` argument ensures the digest is calculated by the TPM itself and thus
-restricted signing keys, such as the Attestation Key (from tpm2 createak) can be
+restricted signing keys, such as the Attestation Key (from tpm2_createak) can be
 used.
 
 For example, to sign the "testdata" file using the Attestation Key 0x81000000
@@ -415,3 +416,26 @@ For example, to decrypt the "testdata" file using a decryption private key:
 ```
 openssl pkeyutl -provider tpm2 -inkey testkey.priv -decrypt -in testdata.crypt -out testdata
 ```
+
+
+## Certificate Signing
+
+The tpm2 provider implements all operations required for certificate signing.
+Therefore, the
+[`openssl req`](https://www.openssl.org/docs/manmaster/man1/openssl-req.html)
+operations work as usual.
+
+For example, to generate a new TPM-based key and a self-signed certificate:
+```
+openssl req -provider tpm2 -x509 -subj "/C=GB/CN=foo" -keyout testkey.pem -out testcert.pem
+```
+
+Or, to create a Certificate Signing Request (CSR) based on a persistent
+Attestation Key at a given handle, previously created with `tpm2_createak`:
+```
+openssl req -provider tpm2 -new -subj "/C=GB/CN=foo" -key handle:0x81000000 -out testcsr.pem
+```
+
+If the key is not associated with any specific algorithm you may define the
+hash algorithm using the `-digest` parameter and the padding scheme using the
+`-sigopt pad-mode:` parameter.

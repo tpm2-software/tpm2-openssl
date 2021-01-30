@@ -42,6 +42,19 @@ tpm2_digest_newctx_int(void *provctx, TPM2_ALG_ID algin)
         return tpm2_digest_newctx_int(provctx, TPM2_ALG_##alg); \
     }
 
+static void
+tpm2_digest_freectx(void *ctx)
+{
+    TPM2_DIGEST_CTX *dctx = ctx;
+
+    DBG("DIGEST FREE\n");
+    if (dctx == NULL)
+        return;
+
+    free(dctx->digest);
+    OPENSSL_clear_free(dctx, sizeof(TPM2_DIGEST_CTX));
+}
+
 static int
 tpm2_digest_init(void *ctx)
 {
@@ -118,19 +131,6 @@ tpm2_digest_final(void *ctx, unsigned char *out, size_t *outl, size_t outsz)
     return 1;
 }
 
-static void
-tpm2_digest_freectx(void *ctx)
-{
-    TPM2_DIGEST_CTX *dctx = ctx;
-
-    DBG("DIGEST FREE\n");
-    if (dctx == NULL)
-        return;
-
-    free(dctx->digest);
-    OPENSSL_clear_free(dctx, sizeof(TPM2_DIGEST_CTX));
-}
-
 static const OSSL_PARAM *
 tpm2_digest_gettable_params(void *provctx)
 {
@@ -168,10 +168,10 @@ tpm2_digest_get_params_int(OSSL_PARAM params[], size_t size)
 #define IMPLEMENT_DIGEST_DISPATCH(alg) \
     const OSSL_DISPATCH tpm2_digest_##alg##_functions[] = { \
         { OSSL_FUNC_DIGEST_NEWCTX, (void(*)(void))tpm2_digest_##alg##_newctx }, \
+        { OSSL_FUNC_DIGEST_FREECTX, (void(*)(void))tpm2_digest_freectx }, \
         { OSSL_FUNC_DIGEST_INIT, (void(*)(void))tpm2_digest_init }, \
         { OSSL_FUNC_DIGEST_UPDATE, (void(*)(void))tpm2_digest_update }, \
         { OSSL_FUNC_DIGEST_FINAL, (void(*)(void))tpm2_digest_final }, \
-        { OSSL_FUNC_DIGEST_FREECTX, (void(*)(void))tpm2_digest_freectx }, \
         { OSSL_FUNC_DIGEST_GETTABLE_PARAMS, (void(*)(void))tpm2_digest_gettable_params }, \
         { OSSL_FUNC_DIGEST_GET_PARAMS, (void(*)(void))tpm2_digest_##alg##_get_params }, \
         { 0, NULL } \
