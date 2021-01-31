@@ -75,6 +75,7 @@ tpm2_handle_settable_params(void *provctx)
 static int
 tpm2_handle_set_params(void *loaderctx, const OSSL_PARAM params[])
 {
+    TRACE_PARAMS("STORE/HANDLE SET_PARAMS", params);
     return 1;
 }
 
@@ -99,7 +100,7 @@ tpm2_handle_load(void *ctx,
     r = Esys_TR_FromTPMPublic(csto->esys_ctx, csto->handle,
                               ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                               &pkey->object);
-    TPM2_CHECK_RC(csto, r, TPM2TSS_R_GENERAL_FAILURE, goto error1);
+    TPM2_CHECK_RC(csto, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error1);
 
     if (csto->has_pass) {
         TPM2B_DIGEST userauth;
@@ -107,20 +108,20 @@ tpm2_handle_load(void *ctx,
 
         /* request password; this might open an interactive user prompt */
         if (!pw_cb(userauth.buffer, sizeof(TPMU_HA), &plen, NULL, pw_cbarg)) {
-            TPM2_ERROR_raise(csto, TPM2TSS_R_GENERAL_FAILURE);
+            TPM2_ERROR_raise(csto, TPM2_ERR_AUTHORIZATION_FAILURE);
             goto error2;
         }
         userauth.size = plen;
 
         r = Esys_TR_SetAuth(csto->esys_ctx, pkey->object, &userauth);
-        TPM2_CHECK_RC(csto, r, TPM2TSS_R_GENERAL_FAILURE, goto error2);
+        TPM2_CHECK_RC(csto, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error2);
     } else
         pkey->data.emptyAuth = 1;
 
     r = Esys_ReadPublic(csto->esys_ctx, pkey->object,
                         ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                         &out_public, NULL, NULL);
-    TPM2_CHECK_RC(csto, r, TPM2TSS_R_GENERAL_FAILURE, goto error2);
+    TPM2_CHECK_RC(csto, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error2);
 
     pkey->data.pub = *out_public;
     pkey->data.privatetype = KEY_TYPE_HANDLE;
@@ -138,7 +139,7 @@ tpm2_handle_load(void *ctx,
         params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
                                                      "RSA", 0);
     else {
-        TPM2_ERROR_raise(csto, TPM2TSS_R_GENERAL_FAILURE);
+        TPM2_ERROR_raise(csto, TPM2_ERR_UNKNOWN_ALGORITHM);
         goto error2;
     }
 

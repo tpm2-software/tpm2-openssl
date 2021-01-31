@@ -114,6 +114,19 @@ tpm2_set_error_debug(const OSSL_CORE_HANDLE *handle,
         c_set_error_debug(handle, file, line, func);
 }
 
+void
+tpm2_list_params(const char *text, const OSSL_PARAM params[])
+{
+    fprintf(stderr, "%s [", text);
+
+    while (params->key != NULL) {
+        fprintf(stderr, " %s", params->key);
+        params++;
+    }
+
+    fprintf(stderr, " ]\n");
+}
+
 BIO *
 bio_new_from_core_bio(const BIO_METHOD *corebiometh, OSSL_CORE_BIO *corebio)
 {

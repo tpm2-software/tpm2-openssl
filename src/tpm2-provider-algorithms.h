@@ -3,7 +3,7 @@
 #ifndef TPM2_PROVIDER_ALGORITHMS_H
 #define TPM2_PROVIDER_ALGORITHMS_H
 
-#include <tss2_tpm2_types.h>
+#include <tss2/tss2_tpm2_types.h>
 
 TPMI_ALG_HASH
 tpm2_name_to_alg_hash(const char *name);

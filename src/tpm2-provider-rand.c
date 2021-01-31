@@ -75,7 +75,7 @@ tpm2_rand_generate(void *ctx, unsigned char *out, size_t outlen,
         r = Esys_GetRandom(rand->esys_ctx,
                            ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                            outlen, &b);
-        TPM2_CHECK_RC(rand, r, TPM2TSS_R_GENERAL_FAILURE, return 0);
+        TPM2_CHECK_RC(rand, r, TPM2_ERR_CANNOT_GET_RANDOM, return 0);
 
         memcpy(out, &b->buffer, b->size);
         outlen -= b->size;
@@ -130,6 +130,7 @@ tpm2_rand_get_ctx_params(void *ctx, OSSL_PARAM params[])
 {
     OSSL_PARAM *p;
 
+    TRACE_PARAMS("RAND GET_CTX_PARAMS", params);
     p = OSSL_PARAM_locate(params, OSSL_RAND_PARAM_MAX_REQUEST);
     /* how much fits into the TPM2B_DIGEST, see Part 3 section 16.1.1 */
     if (p != NULL && !OSSL_PARAM_set_size_t(p, sizeof(TPM2B_DIGEST)-2))

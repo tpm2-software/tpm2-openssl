@@ -12,6 +12,7 @@ tpm2_la_SOURCES = src/tpm2-provider.c \
                   src/tpm2-provider-store-handle.c \
                   src/tpm2-provider-rand.c \
                   src/tpm2-provider-rsa-asymcipher.c \
+                  src/tpm2-provider-rsa-decoder.c \
                   src/tpm2-provider-rsa-encoder.c \
                   src/tpm2-provider-rsa-keymgmt.c \
                   src/tpm2-provider-rsa-signature.c

@@ -89,6 +89,7 @@ tpm2_rsa_keymgmt_gen_set_params(void *ctx, const OSSL_PARAM params[])
     TPM2_RSAGEN_CTX *gen = ctx;
     const OSSL_PARAM *p;
 
+    TRACE_PARAMS("KEY GEN_SET_PARAMS", params);
     p = OSSL_PARAM_locate_const(params, TPM2_PKEY_PARAM_PARENT);
     if (p != NULL && !OSSL_PARAM_get_uint32(p, &gen->parentHandle))
         return 0;
@@ -143,7 +144,7 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
         gen->bits);
     pkey = OPENSSL_zalloc(sizeof(TPM2_PKEY));
     if (pkey == NULL) {
-        TPM2_ERROR_raise(gen, TPM2TSS_R_GENERAL_FAILURE);
+        TPM2_ERROR_raise(gen, TPM2_ERR_MEMORY_FAILURE);
         return NULL;
     }
 
@@ -173,14 +174,14 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
     TPM2B_TEMPLATE template = { .size = 0 };
     r = Tss2_MU_TPMT_PUBLIC_Marshal(&inPublic.publicArea,
                                     template.buffer, sizeof(TPMT_PUBLIC), &offset);
-    TPM2_CHECK_RC(gen, r, TPM2TSS_R_GENERAL_FAILURE, goto final);
+    TPM2_CHECK_RC(gen, r, TPM2_ERR_INPUT_CORRUPTED, goto final);
     template.size = offset;
 
     r = Esys_CreateLoaded(gen->esys_ctx, parent,
                           ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                           &gen->inSensitive, &template,
                           &pkey->object, &keyPrivate, &keyPublic);
-    TPM2_CHECK_RC(gen, r, TPM2TSS_R_GENERAL_FAILURE, goto final);
+    TPM2_CHECK_RC(gen, r, TPM2_ERR_CANNOT_CREATE_KEY, goto final);
 
     pkey->data.pub = *keyPublic;
     free(keyPublic);
@@ -277,7 +278,7 @@ tpm2_rsa_keymgmt_get_params(void *keydata, OSSL_PARAM params[])
     TPM2_PKEY *pkey = (TPM2_PKEY *)keydata;
     OSSL_PARAM *p;
 
-    DBG("KEY GET_PARAMS\n");
+    TRACE_PARAMS("KEY GET_PARAMS", params);
     p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_BITS);
     if (p != NULL && !OSSL_PARAM_set_int(p, pkey->data.pub.publicArea.parameters.rsaDetail.keyBits))
         return 0;

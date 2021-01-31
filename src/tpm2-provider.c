@@ -108,6 +108,13 @@ static const OSSL_ALGORITHM tpm2_encoders[] = {
     { NULL, NULL, NULL }
 };
 
+extern const OSSL_DISPATCH tpm2_rsa_decoder_functions[];
+
+static const OSSL_ALGORITHM tpm2_decoders[] = {
+    { "RSA:rsaEncryption", "provider=tpm2,input=der", tpm2_rsa_decoder_functions },
+    { NULL, NULL, NULL }
+};
+
 extern const OSSL_DISPATCH tpm2_file_store_functions[];
 extern const OSSL_DISPATCH tpm2_handle_store_functions[];
 
@@ -135,6 +142,8 @@ tpm2_query_operation(void *provctx, int operation_id, int *no_cache)
         return tpm2_asymciphers;
     case OSSL_OP_ENCODER:
         return tpm2_encoders;
+    case OSSL_OP_DECODER:
+        return tpm2_decoders;
     case OSSL_OP_STORE:
         return tpm2_stores;
     }
@@ -145,7 +154,20 @@ static const OSSL_ITEM *
 tpm2_get_reason_strings(void *provctx)
 {
     static const OSSL_ITEM reason_strings[] = {
-        {TPM2TSS_R_GENERAL_FAILURE, "dummy reason string"},
+        {TPM2_ERR_MEMORY_FAILURE, "memory allocation failure"},
+        {TPM2_ERR_AUTHORIZATION_FAILURE, "authorization failure"},
+        {TPM2_ERR_UNKNOWN_ALGORITHM, "unknown algorithm"},
+        {TPM2_ERR_INPUT_CORRUPTED, "input corrupted"},
+        {TPM2_ERR_CANNOT_CONNECT, "cannot connect"},
+        {TPM2_ERR_CANNOT_GET_CAPABILITY, "cannot get capability"},
+        {TPM2_ERR_CANNOT_GET_RANDOM, "cannot get random"},
+        {TPM2_ERR_CANNOT_LOAD_PARENT, "cannot load parent"},
+        {TPM2_ERR_CANNOT_CREATE_PRIMARY, "cannot create primary"},
+        {TPM2_ERR_CANNOT_CREATE_KEY, "cannot create key"},
+        {TPM2_ERR_CANNOT_LOAD_KEY, "cannot load key"},
+        {TPM2_ERR_CANNOT_HASH, "cannot hash"},
+        {TPM2_ERR_CANNOT_SIGN, "cannot sign"},
+        {TPM2_ERR_CANNOT_DECRYPT, "cannot decrypt"},
         {0, NULL}
     };
 
@@ -228,10 +250,10 @@ OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
     }
 
     r = Tss2_TctiLdr_Initialize(tcti_nameconf, &tcti_ctx);
-    TPM2_CHECK_RC(cprov, r, TPM2TSS_R_GENERAL_FAILURE, goto err1);
+    TPM2_CHECK_RC(cprov, r, TPM2_ERR_CANNOT_CONNECT, goto err1);
 
     r = Esys_Initialize(&cprov->esys_ctx, tcti_ctx, NULL);
-    TPM2_CHECK_RC(cprov, r, TPM2TSS_R_GENERAL_FAILURE, goto err2);
+    TPM2_CHECK_RC(cprov, r, TPM2_ERR_CANNOT_CONNECT, goto err2);
 
     *out = tpm2_dispatch_table;
     *provctx = cprov;

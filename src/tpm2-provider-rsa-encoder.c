@@ -58,6 +58,7 @@ tpm2_rsa_encoder_get_params_int(OSSL_PARAM params[],
 {
     OSSL_PARAM *p;
 
+    TRACE_PARAMS("ENCODER GET_PARAMS", params);
     p = OSSL_PARAM_locate(params, OSSL_ENCODER_PARAM_OUTPUT_TYPE);
     if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, otype))
         return 0;
@@ -374,6 +375,7 @@ tpm2_rsa_encoder_get_params_text(OSSL_PARAM params[])
 {
     OSSL_PARAM *p;
 
+    TRACE_PARAMS("ENCODER GET_PARAMS", params);
     p = OSSL_PARAM_locate(params, OSSL_ENCODER_PARAM_OUTPUT_TYPE);
     if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, "text"))
         return 0;

@@ -63,7 +63,7 @@ decrypt_message(TPM2_RSA_ASYMCIPHER_CTX *actx,
     r = Esys_RSA_Decrypt(actx->esys_ctx, actx->pkey->object,
                          ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                          &cipher, &inScheme, &label, &actx->message);
-    TPM2_CHECK_RC(actx, r, TPM2TSS_R_GENERAL_FAILURE, return 0);
+    TPM2_CHECK_RC(actx, r, TPM2_ERR_CANNOT_DECRYPT, return 0);
 
     return 1;
 }
@@ -93,7 +93,6 @@ rsa_asymcipher_freectx(void *ctx)
 {
     TPM2_RSA_ASYMCIPHER_CTX *actx = ctx;
 
-    DBG("ACIPHER FREECTX\n");
     if (actx == NULL)
         return;
 

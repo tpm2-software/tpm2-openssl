@@ -9,6 +9,8 @@
 
 #include "tpm2-provider.h"
 
+#define TSSPRIVKEY_PEM_STRING "TSS2 PRIVATE KEY"
+
 #define ENGINE_HASH_ALG TPM2_ALG_SHA256
 
 BIO *

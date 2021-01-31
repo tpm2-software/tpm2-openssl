@@ -176,7 +176,7 @@ Note: For compatibility reasons is the number generator named **CTR-DRBG**,
 although the TPM uses a completely different mechanism.
 
 Gettable parameters (API only):
- * "max_request" (size_t) defines maximal size of a single request.
+ * `max_request` (size_t) defines maximal size of a single request.
 
 
 ## Key Management
@@ -226,8 +226,8 @@ tpm2_evictcontrol -c ak_rsa.ctx 0x81000000
 
 ### Key Parameter Retrieval
 
-The following characteristics of the generated EVP_PKEY can be retrieved (via
-API only):
+The following parameters of the generated EVP_PKEY can be retrieved (via API
+only):
  * `bits` (integer), size of the key
  * `max-size` (integer) of the signature
 
@@ -248,7 +248,7 @@ Naturally, parameters of the private key cannot be retrieved.
 
 The tpm2 provider implements several
 [OSSL_OP_ENCODER](https://www.openssl.org/docs/manmaster/man7/provider-encoder.html)
-operations for converting the generated (or loaded) key to a various formats.
+operations for converting the generated (or loaded) key to various formats.
 These can be used via the
 [OSSL_ENCODER](https://www.openssl.org/docs/manmaster/man3/OSSL_ENCODER.html)
 API functions and the
@@ -264,7 +264,7 @@ The following encoders are supported:
 | SubjectPublicKeyInfo | DER                      | `-pubout -outform der`           |
 | PKCS1                | PEM (`RSA PUBLIC KEY`)   | `-RSAPublicKey_out`              |
 | PKCS1                | DER                      | `-RSAPublicKey_out -outform der` |
-| (none)               | text                     | `-text -noout`                   |
+|                      | text                     | `-text -noout`                   |
 
 For example, to export the X.509 SubjectPublicKeyInfo in PEM (`PUBLIC KEY`),
 which is the most common public key format, do:
@@ -423,7 +423,7 @@ openssl pkeyutl -provider tpm2 -inkey testkey.priv -decrypt -in testdata.crypt -
 The tpm2 provider implements all operations required for certificate signing.
 Therefore, the
 [`openssl req`](https://www.openssl.org/docs/manmaster/man1/openssl-req.html)
-operations work as usual.
+commands work as usual.
 
 For example, to generate a new TPM-based key and a self-signed certificate:
 ```
@@ -431,7 +431,8 @@ openssl req -provider tpm2 -x509 -subj "/C=GB/CN=foo" -keyout testkey.pem -out t
 ```
 
 Or, to create a Certificate Signing Request (CSR) based on a persistent
-Attestation Key at a given handle, previously created with `tpm2_createak`:
+Attestation Key at a given handle, previously created with `tpm2_createak` and
+`tpm2_evictcontrol`:
 ```
 openssl req -provider tpm2 -new -subj "/C=GB/CN=foo" -key handle:0x81000000 -out testcsr.pem
 ```

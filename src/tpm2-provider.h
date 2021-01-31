@@ -47,13 +47,20 @@ typedef struct {
 } TPM2_PKEY;
 
 enum {
-    TPM2TSS_R_GENERAL_FAILURE = 1,
-    TPM2TSS_R_MALLOC_FAILURE,
-    TPM2TSS_R_UNKNOWN_ALG,
-    TPM2TSS_R_OWNER_AUTH_FAILED,
-    TPM2TSS_R_TPM2DATA_READ_FAILED,
-    TPM2TSS_R_DATA_CORRUPTED,
-    TPM2TSS_R_CANNOT_MAKE_KEY
+    TPM2_ERR_MEMORY_FAILURE = 1,
+    TPM2_ERR_AUTHORIZATION_FAILURE,
+    TPM2_ERR_UNKNOWN_ALGORITHM,
+    TPM2_ERR_INPUT_CORRUPTED,
+    TPM2_ERR_CANNOT_CONNECT,
+    TPM2_ERR_CANNOT_GET_CAPABILITY,
+    TPM2_ERR_CANNOT_GET_RANDOM,
+    TPM2_ERR_CANNOT_LOAD_PARENT,
+    TPM2_ERR_CANNOT_CREATE_PRIMARY,
+    TPM2_ERR_CANNOT_CREATE_KEY,
+    TPM2_ERR_CANNOT_LOAD_KEY,
+    TPM2_ERR_CANNOT_HASH,
+    TPM2_ERR_CANNOT_SIGN,
+    TPM2_ERR_CANNOT_DECRYPT
 };
 
 int
@@ -74,6 +81,9 @@ void
 tpm2_set_error_debug(const OSSL_CORE_HANDLE *handle,
                      const char *file, int line, const char *func);
 
+void
+tpm2_list_params(const char *text, const OSSL_PARAM params[]);
+
 #define TPM2_ERROR_raise(ctx, reason) TPM2_ERROR_raise_text(ctx, reason, NULL)
 
 #define TPM2_ERROR_raise_text(ctx, reason, ...) \
@@ -89,9 +99,11 @@ tpm2_set_error_debug(const OSSL_CORE_HANDLE *handle,
 
 #ifdef NDEBUG
 #define DBG(...) ((void) 0)
+#define TRACE_PARAMS(...) ((void) 0)
 #define TPM2_ERROR_set_debug(ctx) ((void) 0)
 #else
 #define DBG(...) fprintf(stderr, __VA_ARGS__)
+#define TRACE_PARAMS(text, params) tpm2_list_params((text), (params))
 #define TPM2_ERROR_set_debug(ctx) tpm2_set_error_debug((ctx)->core, OPENSSL_FILE, OPENSSL_LINE, OPENSSL_FUNC)
 #endif
 

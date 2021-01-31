@@ -2,7 +2,6 @@
 
 #include <string.h>
 
-#include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rand.h>
 
@@ -27,11 +26,14 @@ ASN1_SEQUENCE(TSSPRIVKEY) = {
 } ASN1_SEQUENCE_END(TSSPRIVKEY)
 
 #define OID_loadableKey "2.23.133.10.1.3"
-#define TSSPRIVKEY_PEM_STRING "TSS2 PRIVATE KEY"
 
 IMPLEMENT_ASN1_FUNCTIONS(TSSPRIVKEY);
 IMPLEMENT_PEM_write_bio(TSSPRIVKEY, TSSPRIVKEY, TSSPRIVKEY_PEM_STRING, TSSPRIVKEY);
-IMPLEMENT_PEM_read_bio(TSSPRIVKEY, TSSPRIVKEY, TSSPRIVKEY_PEM_STRING, TSSPRIVKEY);
+
+TSSPRIVKEY *d2i_TSSPRIVKEY_bio(BIO *bp, TSSPRIVKEY **a)
+{
+    return ASN1_d2i_bio_of(TSSPRIVKEY, TSSPRIVKEY_new, d2i_TSSPRIVKEY, bp, a);
+}
 
 /** Serialize TPM2_KEYDATA onto disk
  *
@@ -103,15 +105,8 @@ tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata)
     TSSPRIVKEY *tpk = NULL;
     char type_oid[64];
 
-    tpk = PEM_read_bio_TSSPRIVKEY(bin, NULL, NULL, NULL);
-    if (!tpk) {
-        unsigned long last = ERR_peek_error();
-        if (ERR_GET_REASON(last) == PEM_R_NO_START_LINE) {
-            ERR_clear_error();
-            return 0; /* no more data */
-        } else
-            return -1; /* some other error */
-    }
+    if ((tpk = d2i_TSSPRIVKEY_bio(bin, NULL)) == NULL)
+        return 0;
 
     keydata->privatetype = KEY_TYPE_BLOB;
     keydata->emptyAuth = tpk->emptyAuth;
@@ -138,7 +133,7 @@ tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata)
     return 1;
  error:
     TSSPRIVKEY_free(tpk);
-    return -1;
+    return 0;
 }
 
 static const TPM2B_PUBLIC primaryRsaTemplate = {
@@ -239,10 +234,10 @@ tpm2_load_parent(TPM2_PKEY *pkey, TPM2_HANDLE handle,
     r = Esys_TR_FromTPMPublic(pkey->esys_ctx, handle,
                               ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                               object);
-    TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error1);
+    TPM2_CHECK_RC(pkey, r, TPM2_ERR_CANNOT_LOAD_PARENT, goto error1);
 
     r = Esys_TR_SetAuth(pkey->esys_ctx, *object, auth);
-    TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error2);
+    TPM2_CHECK_RC(pkey, r, TPM2_ERR_CANNOT_LOAD_PARENT, goto error2);
 
     return 1;
 error2:
@@ -273,13 +268,13 @@ tpm2_build_primary(TPM2_PKEY *pkey, ESYS_TR hierarchy,
     TSS2_RC r;
 
     r = Esys_TR_SetAuth(pkey->esys_ctx, hierarchy, auth);
-    TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
+    TPM2_CHECK_RC(pkey, r, TPM2_ERR_CANNOT_CREATE_PRIMARY, goto error);
 
     r = Esys_GetCapability(pkey->esys_ctx,
                            ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                            TPM2_CAP_ALGS, 0, TPM2_MAX_CAP_ALGS,
                            NULL, &capabilityData);
-    TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
+    TPM2_CHECK_RC(pkey, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto error);
 
     if (tpm2_supports_algorithm(capabilityData, TPM2_ALG_ECC))
         primaryTemplate = &primaryEccTemplate;
@@ -289,7 +284,7 @@ tpm2_build_primary(TPM2_PKEY *pkey, ESYS_TR hierarchy,
     free(capabilityData);
 
     if(!primaryTemplate) {
-        TPM2_ERROR_raise(pkey, TPM2TSS_R_UNKNOWN_ALG);
+        TPM2_ERROR_raise(pkey, TPM2_ERR_UNKNOWN_ALGORITHM);
         goto error;
     }
 
@@ -299,10 +294,10 @@ tpm2_build_primary(TPM2_PKEY *pkey, ESYS_TR hierarchy,
                            &allCreationPCR,
                            object, NULL, NULL, NULL, NULL);
     if (r == 0x000009a2) {
-        TPM2_ERROR_raise(pkey, TPM2TSS_R_OWNER_AUTH_FAILED);
+        TPM2_ERROR_raise(pkey, TPM2_ERR_AUTHORIZATION_FAILURE);
         goto error;
     }
-    TPM2_CHECK_RC(pkey, r, TPM2TSS_R_GENERAL_FAILURE, goto error);
+    TPM2_CHECK_RC(pkey, r, TPM2_ERR_CANNOT_CREATE_PRIMARY, goto error);
 
     return 1;
 error:
