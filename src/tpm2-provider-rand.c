@@ -12,9 +12,9 @@
 typedef struct tpm2_rand_ctx_st TPM2_RAND_CTX;
 
 struct tpm2_rand_ctx_st {
-    CRYPTO_RWLOCK *lock;
     const OSSL_CORE_HANDLE *core;
     ESYS_CONTEXT *esys_ctx;
+    CRYPTO_RWLOCK *lock;
 };
 
 static void *
@@ -75,7 +75,7 @@ tpm2_rand_generate(void *ctx, unsigned char *out, size_t outlen,
         r = Esys_GetRandom(rand->esys_ctx,
                            ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                            outlen, &b);
-        TPM2_CHECK_RC(rand, r, TPM2_ERR_CANNOT_GET_RANDOM, return 0);
+        TPM2_CHECK_RC(rand->core, r, TPM2_ERR_CANNOT_GET_RANDOM, return 0);
 
         memcpy(out, &b->buffer, b->size);
         outlen -= b->size;

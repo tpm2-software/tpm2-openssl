@@ -98,11 +98,13 @@ tpm2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
 
         if (pkey->data.parent && pkey->data.parent != TPM2_RH_OWNER) {
             DBG("STORE/FILE LOAD parent: persistent 0x%x\n", pkey->data.parent);
-            if (!tpm2_load_parent(pkey, pkey->data.parent, &dctx->parentAuth, &parent))
+            if (!tpm2_load_parent(pkey->core, pkey->esys_ctx,
+                                  pkey->data.parent, &dctx->parentAuth, &parent))
                 goto error1;
         } else {
             DBG("STORE/FILE LOAD parent: primary 0x%x\n", TPM2_RH_OWNER);
-            if (!tpm2_build_primary(pkey, ESYS_TR_RH_OWNER, &dctx->parentAuth, &parent))
+            if (!tpm2_build_primary(pkey->core, pkey->esys_ctx,
+                                    ESYS_TR_RH_OWNER, &dctx->parentAuth, &parent))
                 goto error1;
         }
 
@@ -115,14 +117,14 @@ tpm2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
         else
             Esys_FlushContext(pkey->esys_ctx, parent);
 
-        TPM2_CHECK_RC(pkey, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error1);
+        TPM2_CHECK_RC(pkey->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error1);
     } else if (pkey->data.privatetype == KEY_TYPE_HANDLE) {
         r = Esys_TR_FromTPMPublic(pkey->esys_ctx, pkey->data.handle,
                                   ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                                   &pkey->object);
-        TPM2_CHECK_RC(pkey, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error1);
+        TPM2_CHECK_RC(pkey->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error1);
     } else {
-        TPM2_ERROR_raise(pkey, TPM2_ERR_INPUT_CORRUPTED);
+        TPM2_ERROR_raise(pkey->core, TPM2_ERR_INPUT_CORRUPTED);
         goto error1;
     }
 
@@ -132,13 +134,13 @@ tpm2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
 
         /* request password; this might open an interactive user prompt */
         if (!pw_cb(userauth.buffer, sizeof(TPMU_HA), &plen, NULL, pw_cbarg)) {
-            TPM2_ERROR_raise(dctx, TPM2_ERR_AUTHORIZATION_FAILURE);
+            TPM2_ERROR_raise(dctx->core, TPM2_ERR_AUTHORIZATION_FAILURE);
             goto error2;
         }
         userauth.size = plen;
 
         r = Esys_TR_SetAuth(dctx->esys_ctx, pkey->object, &userauth);
-        TPM2_CHECK_RC(dctx, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error2);
+        TPM2_CHECK_RC(dctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error2);
     }
 
     /* submit the loaded key */
@@ -149,7 +151,7 @@ tpm2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
         params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
                                                      "RSA", 0);
     else {
-        TPM2_ERROR_raise(dctx, TPM2_ERR_UNKNOWN_ALGORITHM);
+        TPM2_ERROR_raise(dctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
         goto error2;
     }
 

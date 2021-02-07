@@ -19,11 +19,11 @@ openssl pkey -provider tpm2 -in testkey.priv -passin pass: -pubout -out testkey.
 
 # sign using a defined scheme/hash
 openssl pkeyutl -provider tpm2 -sign -inkey testkey.priv -rawin -in testdata \
-    -passin pass:abc -digest sha512 -pkeyopt pad-mode:pss -out testdata.sig
+    -passin pass:abc -pkeyopt pad-mode:pss -out testdata.sig
 
 # verify the signature
 openssl pkeyutl -verify -pubin -inkey testkey.pub -rawin -in testdata \
-    -digest sha512 -pkeyopt pad-mode:pss -sigfile testdata.sig
+    -pkeyopt pad-mode:pss -sigfile testdata.sig
 
 # release the persistent key
 tpm2_evictcontrol --object-context=${HANDLE}

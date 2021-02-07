@@ -65,7 +65,7 @@ tpm2_digest_init(void *ctx)
     DBG("DIGEST INIT\n");
     r = Esys_HashSequenceStart(dctx->esys_ctx, ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                                &null_auth, dctx->algorithm, &dctx->sequenceHandle);
-    TPM2_CHECK_RC(dctx, r, TPM2_ERR_CANNOT_HASH, return 0);
+    TPM2_CHECK_RC(dctx->core, r, TPM2_ERR_CANNOT_HASH, return 0);
 
     return 1;
 }
@@ -86,7 +86,7 @@ tpm2_digest_update(void *ctx, const unsigned char *data, size_t datalen)
 
     r = Esys_SequenceUpdate(dctx->esys_ctx, dctx->sequenceHandle,
                             ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE, &buf);
-    TPM2_CHECK_RC(dctx, r, TPM2_ERR_CANNOT_HASH, return 0);
+    TPM2_CHECK_RC(dctx->core, r, TPM2_ERR_CANNOT_HASH, return 0);
 
     return 1;
 }
@@ -106,7 +106,7 @@ digest_calculate(TPM2_DIGEST_CTX *dctx)
                               TPM2_RH_NULL,
 #endif
                               &dctx->digest, NULL);
-    TPM2_CHECK_RC(dctx, r, TPM2_ERR_CANNOT_HASH, return 0);
+    TPM2_CHECK_RC(dctx->core, r, TPM2_ERR_CANNOT_HASH, return 0);
 
     return 1;
 }
@@ -147,7 +147,6 @@ tpm2_digest_get_params_int(OSSL_PARAM params[], size_t size)
 {
     OSSL_PARAM *p;
 
-    TRACE_PARAMS("DIGEST GET_PARAMS", params);
     p = OSSL_PARAM_locate(params, OSSL_DIGEST_PARAM_BLOCK_SIZE);
     if (p != NULL && !OSSL_PARAM_set_size_t(p, TPM2_MAX_DIGEST_BUFFER))
         return 0;
@@ -163,6 +162,7 @@ tpm2_digest_get_params_int(OSSL_PARAM params[], size_t size)
     static int \
     tpm2_digest_##alg##_get_params(OSSL_PARAM params[]) \
     { \
+        TRACE_PARAMS("DIGEST " #alg " GET_PARAMS", params); \
         return tpm2_digest_get_params_int(params, TPM2_##alg##_DIGEST_SIZE); \
     }
 

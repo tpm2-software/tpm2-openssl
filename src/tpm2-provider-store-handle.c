@@ -84,7 +84,7 @@ tpm2_handle_load(void *ctx,
             OSSL_CALLBACK *object_cb, void *object_cbarg,
             OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
-    TPM2_HANDLE_CTX *csto = ctx;
+    TPM2_HANDLE_CTX *sctx = ctx;
     TPM2B_PUBLIC *out_public = NULL;
     TPM2_PKEY *pkey = NULL;
     TSS2_RC r;
@@ -94,41 +94,41 @@ tpm2_handle_load(void *ctx,
     if (pkey == NULL)
         return 0;
 
-    pkey->core = csto->core;
-    pkey->esys_ctx = csto->esys_ctx;
+    pkey->core = sctx->core;
+    pkey->esys_ctx = sctx->esys_ctx;
 
-    r = Esys_TR_FromTPMPublic(csto->esys_ctx, csto->handle,
+    r = Esys_TR_FromTPMPublic(sctx->esys_ctx, sctx->handle,
                               ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                               &pkey->object);
-    TPM2_CHECK_RC(csto, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error1);
+    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error1);
 
-    if (csto->has_pass) {
+    if (sctx->has_pass) {
         TPM2B_DIGEST userauth;
         size_t plen = 0;
 
         /* request password; this might open an interactive user prompt */
         if (!pw_cb(userauth.buffer, sizeof(TPMU_HA), &plen, NULL, pw_cbarg)) {
-            TPM2_ERROR_raise(csto, TPM2_ERR_AUTHORIZATION_FAILURE);
+            TPM2_ERROR_raise(sctx->core, TPM2_ERR_AUTHORIZATION_FAILURE);
             goto error2;
         }
         userauth.size = plen;
 
-        r = Esys_TR_SetAuth(csto->esys_ctx, pkey->object, &userauth);
-        TPM2_CHECK_RC(csto, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error2);
+        r = Esys_TR_SetAuth(sctx->esys_ctx, pkey->object, &userauth);
+        TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error2);
     } else
         pkey->data.emptyAuth = 1;
 
-    r = Esys_ReadPublic(csto->esys_ctx, pkey->object,
+    r = Esys_ReadPublic(sctx->esys_ctx, pkey->object,
                         ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                         &out_public, NULL, NULL);
-    TPM2_CHECK_RC(csto, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error2);
+    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error2);
 
     pkey->data.pub = *out_public;
     pkey->data.privatetype = KEY_TYPE_HANDLE;
-    pkey->data.handle = csto->handle;
+    pkey->data.handle = sctx->handle;
 
     free(out_public);
-    csto->load_done = 1;
+    sctx->load_done = 1;
 
     OSSL_PARAM params[4];
     int object_type = OSSL_OBJECT_PKEY;
@@ -139,7 +139,7 @@ tpm2_handle_load(void *ctx,
         params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
                                                      "RSA", 0);
     else {
-        TPM2_ERROR_raise(csto, TPM2_ERR_UNKNOWN_ALGORITHM);
+        TPM2_ERROR_raise(sctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
         goto error2;
     }
 
@@ -150,7 +150,7 @@ tpm2_handle_load(void *ctx,
 
     return object_cb(params, object_cbarg);
 error2:
-    Esys_TR_Close(csto->esys_ctx, &csto->handle);
+    Esys_TR_Close(sctx->esys_ctx, &sctx->handle);
 error1:
     OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
     return 0;
@@ -159,8 +159,8 @@ error1:
 static int
 tpm2_handle_eof(void *ctx)
 {
-    TPM2_HANDLE_CTX *csto = ctx;
-    return csto->load_done;
+    TPM2_HANDLE_CTX *sctx = ctx;
+    return sctx->load_done;
 }
 
 static int

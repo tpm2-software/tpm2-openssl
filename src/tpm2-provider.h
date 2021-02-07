@@ -60,6 +60,7 @@ enum {
     TPM2_ERR_CANNOT_LOAD_KEY,
     TPM2_ERR_CANNOT_HASH,
     TPM2_ERR_CANNOT_SIGN,
+    TPM2_ERR_CANNOT_ENCRYPT,
     TPM2_ERR_CANNOT_DECRYPT
 };
 
@@ -84,27 +85,27 @@ tpm2_set_error_debug(const OSSL_CORE_HANDLE *handle,
 void
 tpm2_list_params(const char *text, const OSSL_PARAM params[]);
 
-#define TPM2_ERROR_raise(ctx, reason) TPM2_ERROR_raise_text(ctx, reason, NULL)
+#define TPM2_ERROR_raise(core, reason) TPM2_ERROR_raise_text(core, reason, NULL)
 
-#define TPM2_ERROR_raise_text(ctx, reason, ...) \
-    (tpm2_new_error((ctx)->core, (reason), __VA_ARGS__), \
-     TPM2_ERROR_set_debug(ctx))
+#define TPM2_ERROR_raise_text(core, reason, ...) \
+    (tpm2_new_error((core), (reason), __VA_ARGS__), \
+     TPM2_ERROR_set_debug(core))
 
-#define TPM2_CHECK_RC(ctx, rc, reason, command) \
+#define TPM2_CHECK_RC(core, rc, reason, command) \
     if ((rc)) { \
-        tpm2_new_error_rc((ctx)->core, (reason), (rc)); \
-        TPM2_ERROR_set_debug(ctx); \
+        tpm2_new_error_rc((core), (reason), (rc)); \
+        TPM2_ERROR_set_debug(core); \
         command; \
     }
 
 #ifdef NDEBUG
 #define DBG(...) ((void) 0)
 #define TRACE_PARAMS(...) ((void) 0)
-#define TPM2_ERROR_set_debug(ctx) ((void) 0)
+#define TPM2_ERROR_set_debug(core) ((void) 0)
 #else
 #define DBG(...) fprintf(stderr, __VA_ARGS__)
 #define TRACE_PARAMS(text, params) tpm2_list_params((text), (params))
-#define TPM2_ERROR_set_debug(ctx) tpm2_set_error_debug((ctx)->core, OPENSSL_FILE, OPENSSL_LINE, OPENSSL_FUNC)
+#define TPM2_ERROR_set_debug(core) tpm2_set_error_debug((core), OPENSSL_FILE, OPENSSL_LINE, OPENSSL_FUNC)
 #endif
 
 BIO_METHOD *

@@ -264,7 +264,7 @@ The following encoders are supported:
 | SubjectPublicKeyInfo | DER                      | `-pubout -outform der`           |
 | PKCS1                | PEM (`RSA PUBLIC KEY`)   | `-RSAPublicKey_out`              |
 | PKCS1                | DER                      | `-RSAPublicKey_out -outform der` |
-|                      | text                     | `-text -noout`                   |
+| (null)               | text                     | `-text -noout`                   |
 
 For example, to export the X.509 SubjectPublicKeyInfo in PEM (`PUBLIC KEY`),
 which is the most common public key format, do:

@@ -6,6 +6,7 @@ openssl_modules_LTLIBRARIES = tpm2.la
 tpm2_la_SOURCES = src/tpm2-provider.c \
                   src/tpm2-provider-algorithms.c \
                   src/tpm2-provider-core.c \
+                  src/tpm2-provider-cipher.c \
                   src/tpm2-provider-digest.c \
                   src/tpm2-provider-pkey.c \
                   src/tpm2-provider-store-file.c \

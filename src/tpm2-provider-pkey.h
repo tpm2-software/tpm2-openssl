@@ -23,12 +23,12 @@ int
 tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata);
 
 int
-tpm2_load_parent(TPM2_PKEY *pkey, TPM2_HANDLE handle,
-                 const TPM2B_DIGEST *auth, ESYS_TR *object);
+tpm2_load_parent(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
+                 TPM2_HANDLE handle, const TPM2B_DIGEST *auth, ESYS_TR *object);
 
 int
-tpm2_build_primary(TPM2_PKEY *pkey, ESYS_TR hierarchy,
-                   const TPM2B_DIGEST *auth, ESYS_TR *object);
+tpm2_build_primary(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
+                   ESYS_TR hierarchy, const TPM2B_DIGEST *auth, ESYS_TR *object);
 
 #endif /* TPM2_PROVIDER_PKEY_H */
 

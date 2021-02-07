@@ -56,6 +56,24 @@ struct tpm2_rsagen_ctx_st {
 };
 
 static void *
+tpm2_rsa_keymgmt_new(void *provctx)
+{
+    TPM2_PROVIDER_CTX *cprov = provctx;
+    TPM2_PKEY *pkey;
+
+    DBG("KEY NEW\n");
+    if ((pkey = OPENSSL_zalloc(sizeof(TPM2_PKEY))) == NULL) {
+        TPM2_ERROR_raise(cprov->core, TPM2_ERR_MEMORY_FAILURE);
+        return NULL;
+    }
+
+    pkey->core = cprov->core;
+    pkey->esys_ctx = cprov->esys_ctx;
+
+    return pkey;
+}
+
+static void *
 tpm2_rsa_keymgmt_gen_init(void *provctx, int selection)
 {
     TPM2_PROVIDER_CTX *cprov = provctx;
@@ -144,7 +162,7 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
         gen->bits);
     pkey = OPENSSL_zalloc(sizeof(TPM2_PKEY));
     if (pkey == NULL) {
-        TPM2_ERROR_raise(gen, TPM2_ERR_MEMORY_FAILURE);
+        TPM2_ERROR_raise(gen->core, TPM2_ERR_MEMORY_FAILURE);
         return NULL;
     }
 
@@ -162,11 +180,13 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
     /* load parent */
     if (gen->parentHandle && gen->parentHandle != TPM2_RH_OWNER) {
         DBG("KEY GEN parent: persistent 0x%x\n", gen->parentHandle);
-        if (!tpm2_load_parent(pkey, gen->parentHandle, &gen->parentAuth, &parent))
+        if (!tpm2_load_parent(pkey->core, pkey->esys_ctx,
+                              gen->parentHandle, &gen->parentAuth, &parent))
             goto error1;
     } else {
         DBG("KEY GEN parent: primary 0x%x\n", TPM2_RH_OWNER);
-        if (!tpm2_build_primary(pkey, ESYS_TR_RH_OWNER, &gen->parentAuth, &parent))
+        if (!tpm2_build_primary(pkey->core, pkey->esys_ctx,
+                                ESYS_TR_RH_OWNER, &gen->parentAuth, &parent))
             goto error1;
     }
 
@@ -174,14 +194,14 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
     TPM2B_TEMPLATE template = { .size = 0 };
     r = Tss2_MU_TPMT_PUBLIC_Marshal(&inPublic.publicArea,
                                     template.buffer, sizeof(TPMT_PUBLIC), &offset);
-    TPM2_CHECK_RC(gen, r, TPM2_ERR_INPUT_CORRUPTED, goto final);
+    TPM2_CHECK_RC(gen->core, r, TPM2_ERR_INPUT_CORRUPTED, goto final);
     template.size = offset;
 
     r = Esys_CreateLoaded(gen->esys_ctx, parent,
                           ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                           &gen->inSensitive, &template,
                           &pkey->object, &keyPrivate, &keyPublic);
-    TPM2_CHECK_RC(gen, r, TPM2_ERR_CANNOT_CREATE_KEY, goto final);
+    TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto final);
 
     pkey->data.pub = *keyPublic;
     free(keyPublic);
@@ -330,6 +350,47 @@ tpm2_rsa_keymgmt_has(const void *keydata, int selection)
     return ok;
 }
 
+static UINT32
+pkey_get_rsa_exp(const TPM2_PKEY *pkey)
+{
+    UINT32 exponent;
+
+    exponent = pkey->data.pub.publicArea.parameters.rsaDetail.exponent;
+    if (!exponent)
+        exponent = 0x10001;
+
+    return exponent;
+}
+
+static int
+tpm2_rsa_keymgmt_match(const void *keydata1, const void *keydata2,
+                       int selection)
+{
+    TPM2_PKEY *pkey1 = (TPM2_PKEY *)keydata1;
+    TPM2_PKEY *pkey2 = (TPM2_PKEY *)keydata2;
+
+    DBG("KEY MATCH\n");
+    if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
+        /* compare N */
+        if (pkey1->data.pub.publicArea.unique.rsa.size !=
+                pkey2->data.pub.publicArea.unique.rsa.size ||
+            memcmp(&pkey1->data.pub.publicArea.unique.rsa.buffer,
+                &pkey2->data.pub.publicArea.unique.rsa.buffer,
+                pkey1->data.pub.publicArea.unique.rsa.size) != 0)
+            return 0;
+
+        /* compare E */
+        if (pkey_get_rsa_exp(pkey1) != pkey_get_rsa_exp(pkey2))
+            return 0;
+    }
+
+    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
+        /* we cannot compare private keys */
+        return 0;
+
+    return 1;
+}
+
 static void *
 revmemcpy(void *dest, const void *src, size_t len)
 {
@@ -341,7 +402,43 @@ revmemcpy(void *dest, const void *src, size_t len)
 }
 
 static int
-tpm2_rsa_keymgmt_export(void *keydata, int selection, OSSL_CALLBACK *param_cb, void *cbarg)
+tpm2_rsa_keymgmt_import(void *keydata,
+                        int selection, const OSSL_PARAM params[])
+{
+    TPM2_PKEY *pkey = (TPM2_PKEY *)keydata;
+    const OSSL_PARAM *p;
+
+    TRACE_PARAMS("KEY IMPORT", params);
+    if (pkey == NULL)
+        return 0;
+
+    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_N);
+    if (p != NULL) {
+        BIGNUM *bignum = NULL;
+        int tolen;
+
+        if (!OSSL_PARAM_get_BN(p, &bignum))
+            return 0;
+
+        tolen = BN_bn2bin(bignum, pkey->data.pub.publicArea.unique.rsa.buffer);
+        BN_free(bignum);
+        if (tolen < 0)
+            return 0;
+
+        pkey->data.pub.publicArea.unique.rsa.size = tolen;
+    }
+
+    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_E);
+    if (p != NULL && !OSSL_PARAM_get_uint32(p,
+                &pkey->data.pub.publicArea.parameters.rsaDetail.exponent))
+        return 0;
+
+    return 1;
+}
+
+static int
+tpm2_rsa_keymgmt_export(void *keydata, int selection,
+                        OSSL_CALLBACK *param_cb, void *cbarg)
 {
     TPM2_PKEY *pkey = (TPM2_PKEY *)keydata;
     UINT32 exponent;
@@ -364,9 +461,7 @@ tpm2_rsa_keymgmt_export(void *keydata, int selection, OSSL_CALLBACK *param_cb, v
     params[0] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_N,
                                         n, pkey->data.pub.publicArea.unique.rsa.size);
 #endif
-    exponent = pkey->data.pub.publicArea.parameters.rsaDetail.exponent;
-    if (!exponent)
-        exponent = 0x10001;
+    exponent = pkey_get_rsa_exp(pkey);
     params[1] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_E,
                                         (unsigned char *)&exponent, sizeof(exponent));
     params[2] = OSSL_PARAM_construct_end();
@@ -380,7 +475,7 @@ tpm2_rsa_keymgmt_export(void *keydata, int selection, OSSL_CALLBACK *param_cb, v
 }
 
 static const OSSL_PARAM *
-tpm2_rsa_keymgmt_export_types(int selection)
+tpm2_rsa_keymgmt_eximport_types(int selection)
 {
     static const OSSL_PARAM rsa_public_key_types[] = {
         OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_N, NULL, 0),
@@ -395,6 +490,7 @@ tpm2_rsa_keymgmt_export_types(int selection)
 }
 
 const OSSL_DISPATCH tpm2_rsa_keymgmt_functions[] = {
+    { OSSL_FUNC_KEYMGMT_NEW, (void(*)(void))tpm2_rsa_keymgmt_new },
     { OSSL_FUNC_KEYMGMT_GEN_INIT, (void(*)(void))tpm2_rsa_keymgmt_gen_init },
     { OSSL_FUNC_KEYMGMT_GEN_SET_PARAMS, (void(*)(void))tpm2_rsa_keymgmt_gen_set_params },
     { OSSL_FUNC_KEYMGMT_GEN_SETTABLE_PARAMS, (void(*)(void))tpm2_rsa_keymgmt_gen_settable_params },
@@ -405,8 +501,11 @@ const OSSL_DISPATCH tpm2_rsa_keymgmt_functions[] = {
     { OSSL_FUNC_KEYMGMT_GET_PARAMS, (void(*)(void))tpm2_rsa_keymgmt_get_params },
     { OSSL_FUNC_KEYMGMT_GETTABLE_PARAMS, (void(*)(void))tpm2_rsa_keymgmt_gettable_params },
     { OSSL_FUNC_KEYMGMT_HAS, (void(*)(void))tpm2_rsa_keymgmt_has },
+    { OSSL_FUNC_KEYMGMT_MATCH, (void(*)(void))tpm2_rsa_keymgmt_match },
+    { OSSL_FUNC_KEYMGMT_IMPORT, (void(*)(void))tpm2_rsa_keymgmt_import },
+    { OSSL_FUNC_KEYMGMT_IMPORT_TYPES, (void(*)(void))tpm2_rsa_keymgmt_eximport_types },
     { OSSL_FUNC_KEYMGMT_EXPORT, (void(*)(void))tpm2_rsa_keymgmt_export },
-    { OSSL_FUNC_KEYMGMT_EXPORT_TYPES, (void(*)(void))tpm2_rsa_keymgmt_export_types },
+    { OSSL_FUNC_KEYMGMT_EXPORT_TYPES, (void(*)(void))tpm2_rsa_keymgmt_eximport_types },
     { 0, NULL }
 };
 

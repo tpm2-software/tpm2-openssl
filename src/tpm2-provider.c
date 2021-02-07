@@ -59,6 +59,13 @@ static const OSSL_ALGORITHM tpm2_digests[] = {
     { NULL, NULL, NULL }
 };
 
+extern const OSSL_DISPATCH tpm2_cipher_aes256cbc_functions[];
+
+static const OSSL_ALGORITHM tpm2_ciphers[] = {
+    { "AES-256-CBC:AES256", "provider=tpm2", tpm2_cipher_aes256cbc_functions },
+    { NULL, NULL, NULL }
+};
+
 extern const OSSL_DISPATCH tpm2_rand_functions[];
 
 static const OSSL_ALGORITHM tpm2_rands[] = {
@@ -132,6 +139,8 @@ tpm2_query_operation(void *provctx, int operation_id, int *no_cache)
     switch (operation_id) {
     case OSSL_OP_DIGEST:
         return tpm2_digests;
+    case OSSL_OP_CIPHER:
+        return tpm2_ciphers;
     case OSSL_OP_RAND:
         return tpm2_rands;
     case OSSL_OP_KEYMGMT:
@@ -167,6 +176,7 @@ tpm2_get_reason_strings(void *provctx)
         {TPM2_ERR_CANNOT_LOAD_KEY, "cannot load key"},
         {TPM2_ERR_CANNOT_HASH, "cannot hash"},
         {TPM2_ERR_CANNOT_SIGN, "cannot sign"},
+        {TPM2_ERR_CANNOT_ENCRYPT, "cannot encrypt"},
         {TPM2_ERR_CANNOT_DECRYPT, "cannot decrypt"},
         {0, NULL}
     };
@@ -250,10 +260,10 @@ OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
     }
 
     r = Tss2_TctiLdr_Initialize(tcti_nameconf, &tcti_ctx);
-    TPM2_CHECK_RC(cprov, r, TPM2_ERR_CANNOT_CONNECT, goto err1);
+    TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_CONNECT, goto err1);
 
     r = Esys_Initialize(&cprov->esys_ctx, tcti_ctx, NULL);
-    TPM2_CHECK_RC(cprov, r, TPM2_ERR_CANNOT_CONNECT, goto err2);
+    TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_CONNECT, goto err2);
 
     *out = tpm2_dispatch_table;
     *provctx = cprov;

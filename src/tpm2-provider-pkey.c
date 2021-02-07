@@ -226,22 +226,22 @@ static const TPML_PCR_SELECTION allCreationPCR = {
 };
 
 int
-tpm2_load_parent(TPM2_PKEY *pkey, TPM2_HANDLE handle,
-                 const TPM2B_DIGEST *auth, ESYS_TR *object)
+tpm2_load_parent(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
+                 TPM2_HANDLE handle, const TPM2B_DIGEST *auth, ESYS_TR *object)
 {
     TSS2_RC r;
 
-    r = Esys_TR_FromTPMPublic(pkey->esys_ctx, handle,
+    r = Esys_TR_FromTPMPublic(esys_ctx, handle,
                               ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                               object);
-    TPM2_CHECK_RC(pkey, r, TPM2_ERR_CANNOT_LOAD_PARENT, goto error1);
+    TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_LOAD_PARENT, goto error1);
 
-    r = Esys_TR_SetAuth(pkey->esys_ctx, *object, auth);
-    TPM2_CHECK_RC(pkey, r, TPM2_ERR_CANNOT_LOAD_PARENT, goto error2);
+    r = Esys_TR_SetAuth(esys_ctx, *object, auth);
+    TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_LOAD_PARENT, goto error2);
 
     return 1;
 error2:
-    Esys_FlushContext(pkey->esys_ctx, *object);
+    Esys_FlushContext(esys_ctx, *object);
 error1:
     return 0;
 }
@@ -260,21 +260,21 @@ tpm2_supports_algorithm(const TPMS_CAPABILITY_DATA *caps, TPM2_ALG_ID algorithm)
 }
 
 int
-tpm2_build_primary(TPM2_PKEY *pkey, ESYS_TR hierarchy,
-                   const TPM2B_DIGEST *auth, ESYS_TR *object)
+tpm2_build_primary(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
+                   ESYS_TR hierarchy, const TPM2B_DIGEST *auth, ESYS_TR *object)
 {
     TPMS_CAPABILITY_DATA *capabilityData = NULL;
     const TPM2B_PUBLIC *primaryTemplate = NULL;
     TSS2_RC r;
 
-    r = Esys_TR_SetAuth(pkey->esys_ctx, hierarchy, auth);
-    TPM2_CHECK_RC(pkey, r, TPM2_ERR_CANNOT_CREATE_PRIMARY, goto error);
+    r = Esys_TR_SetAuth(esys_ctx, hierarchy, auth);
+    TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_CREATE_PRIMARY, goto error);
 
-    r = Esys_GetCapability(pkey->esys_ctx,
+    r = Esys_GetCapability(esys_ctx,
                            ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                            TPM2_CAP_ALGS, 0, TPM2_MAX_CAP_ALGS,
                            NULL, &capabilityData);
-    TPM2_CHECK_RC(pkey, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto error);
+    TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto error);
 
     if (tpm2_supports_algorithm(capabilityData, TPM2_ALG_ECC))
         primaryTemplate = &primaryEccTemplate;
@@ -284,20 +284,20 @@ tpm2_build_primary(TPM2_PKEY *pkey, ESYS_TR hierarchy,
     free(capabilityData);
 
     if(!primaryTemplate) {
-        TPM2_ERROR_raise(pkey, TPM2_ERR_UNKNOWN_ALGORITHM);
+        TPM2_ERROR_raise(core, TPM2_ERR_UNKNOWN_ALGORITHM);
         goto error;
     }
 
-    r = Esys_CreatePrimary(pkey->esys_ctx, hierarchy,
+    r = Esys_CreatePrimary(esys_ctx, hierarchy,
                            ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                            &primarySensitive, primaryTemplate, &allOutsideInfo,
                            &allCreationPCR,
                            object, NULL, NULL, NULL, NULL);
     if (r == 0x000009a2) {
-        TPM2_ERROR_raise(pkey, TPM2_ERR_AUTHORIZATION_FAILURE);
+        TPM2_ERROR_raise(core, TPM2_ERR_AUTHORIZATION_FAILURE);
         goto error;
     }
-    TPM2_CHECK_RC(pkey, r, TPM2_ERR_CANNOT_CREATE_PRIMARY, goto error);
+    TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_CREATE_PRIMARY, goto error);
 
     return 1;
 error:

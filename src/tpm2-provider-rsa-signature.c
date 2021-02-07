@@ -57,7 +57,7 @@ rsa_signature_digest_sign_init(void *ctx, const char *mdname, void *provkey)
     TSS2_RC r;
     TPM2_RSA_SIGNATURE_CTX *sctx = ctx;
 
-    DBG("DIGEST INIT MD=%s\n", mdname);
+    DBG("SIGN DIGEST_SIGN_INIT MD=%s\n", mdname);
     sctx->pkey = provkey;
 
     /* determine hash algorithm */
@@ -95,15 +95,15 @@ digest_sign_start(TPM2_RSA_SIGNATURE_CTX *sctx)
     TPM2B_AUTH null_auth = { .size = 0 };
 
     if (sctx->signature) {
-        DBG("DIGEST RE-START\n");
+        DBG("SIGN DIGEST_SIGN_RESTART\n");
         free(sctx->signature);
         sctx->signature = NULL;
     } else
-        DBG("DIGEST START\n");
+        DBG("SIGN DIGEST_SIGN_START\n");
 
     r = Esys_HashSequenceStart(sctx->esys_ctx, ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                                &null_auth, sctx->digalg, &sctx->sequenceHandle);
-    TPM2_CHECK_RC(sctx, r, TPM2_ERR_CANNOT_HASH, return 0);
+    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_HASH, return 0);
 
     return 1;
 }
@@ -119,7 +119,7 @@ rsa_signature_digest_sign_update(void *ctx,
     if (sctx->sequenceHandle == ESYS_TR_NONE && !digest_sign_start(sctx))
         return 0;
 
-    DBG("DIGEST UPDATE\n");
+    DBG("SIGN DIGEST_SIGN_UPDATE\n");
     if (data != NULL) {
         if (datalen > TPM2_MAX_DIGEST_BUFFER)
             return 0;
@@ -131,7 +131,7 @@ rsa_signature_digest_sign_update(void *ctx,
 
     r = Esys_SequenceUpdate(sctx->esys_ctx, sctx->sequenceHandle,
                             ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE, &buffer);
-    TPM2_CHECK_RC(sctx, r, TPM2_ERR_CANNOT_HASH, return 0);
+    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_HASH, return 0);
 
     return 1;
 }
@@ -143,7 +143,7 @@ digest_sign_calculate(TPM2_RSA_SIGNATURE_CTX *sctx)
     TPM2B_DIGEST *digest = NULL;
     TPMT_TK_HASHCHECK *validation = NULL;
 
-    DBG("DIGEST CALCULATE\n");
+    DBG("SIGN DIGEST_SIGN_CALCULATE\n");
     r = Esys_SequenceComplete(sctx->esys_ctx, sctx->sequenceHandle,
                               ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                               NULL,
@@ -153,19 +153,19 @@ digest_sign_calculate(TPM2_RSA_SIGNATURE_CTX *sctx)
                               TPM2_RH_OWNER,
 #endif
                               &digest, &validation);
-    TPM2_CHECK_RC(sctx, r, TPM2_ERR_CANNOT_HASH, return 0);
+    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_HASH, return 0);
     /* the update may be called again to sign another data block */
     sctx->sequenceHandle = ESYS_TR_NONE;
 
     if (validation->digest.size == 0)
-        DBG("DIGEST CALCULATE zero size ticket\n");
+        DBG("SIGN DIGEST_SIGN_CALCULATE zero size ticket\n");
 
     r = Esys_Sign(sctx->esys_ctx, sctx->pkey->object,
                   ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                   digest, &sctx->signScheme, validation, &sctx->signature);
     free(digest);
     free(validation);
-    TPM2_CHECK_RC(sctx, r, TPM2_ERR_CANNOT_SIGN, return 0);
+    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_SIGN, return 0);
 
     return 1;
 }
@@ -183,6 +183,7 @@ get_signature_buffer(const TPMT_SIGNATURE *signature,
                 return 0;
             memcpy(sig, signature->signature.rsassa.sig.buffer, *siglen);
         }
+        return 1;
     }
     else
         return 0;
@@ -203,7 +204,7 @@ rsa_signature_digest_sign_final(void *ctx,
             return 0;
     }
 
-    DBG("DIGEST FINAL\n");
+    DBG("SIGN DIGEST_SIGN_FINAL\n");
     if (!get_signature_buffer(sctx->signature, sig, siglen, sigsize))
         return 0;
 
@@ -220,7 +221,7 @@ rsa_signature_digest_sign(void *ctx, unsigned char *sig, size_t *siglen,
     TPM2B_DIGEST *digest = NULL;
     TPMT_TK_HASHCHECK *validation = NULL;
 
-    DBG("DIGEST SIGN\n");
+    DBG("SIGN DIGEST_SIGN\n");
     if (data != NULL) {
         if (datalen > TPM2_MAX_DIGEST_BUFFER)
             return 0;
@@ -232,17 +233,17 @@ rsa_signature_digest_sign(void *ctx, unsigned char *sig, size_t *siglen,
 
     r = Esys_Hash(sctx->esys_ctx, ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                   &buffer, sctx->digalg, ESYS_TR_RH_OWNER, &digest, &validation);
-    TPM2_CHECK_RC(sctx, r, TPM2_ERR_CANNOT_HASH, return 0);
+    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_HASH, return 0);
 
     if (validation->digest.size == 0)
-        DBG("DIGEST SIGN zero size ticket\n");
+        DBG("SIGN DIGEST_SIGN zero size ticket\n");
 
     r = Esys_Sign(sctx->esys_ctx, sctx->pkey->object,
                   ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                   digest, &sctx->signScheme, validation, &sctx->signature);
     free(digest);
     free(validation);
-    TPM2_CHECK_RC(sctx, r, TPM2_ERR_CANNOT_SIGN, return 0);
+    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_SIGN, return 0);
 
     if (!get_signature_buffer(sctx->signature, sig, siglen, sigsize))
         return 0;
@@ -256,7 +257,7 @@ rsa_signature_get_ctx_params(void *ctx, OSSL_PARAM params[])
     TPM2_RSA_SIGNATURE_CTX *sctx = ctx;
     OSSL_PARAM *p;
 
-    TRACE_PARAMS("DIGEST GET_CTX_PARAMS", params);
+    TRACE_PARAMS("SIGN GET_CTX_PARAMS", params);
     if (ctx == NULL || params == NULL)
         return 0;
 
@@ -294,7 +295,7 @@ rsa_signature_set_ctx_params(void *ctx, const OSSL_PARAM params[])
     TPM2_RSA_SIGNATURE_CTX *sctx = ctx;
     const OSSL_PARAM *p;
 
-    TRACE_PARAMS("DIGEST SET_CTX_PARAMS", params);
+    TRACE_PARAMS("SIGN SET_CTX_PARAMS", params);
     p = OSSL_PARAM_locate_const(params, OSSL_SIGNATURE_PARAM_PAD_MODE);
     if (p != NULL) {
         if (p->data_type != OSSL_PARAM_UTF8_STRING ||
