@@ -232,7 +232,13 @@ rsa_signature_digest_sign(void *ctx, unsigned char *sig, size_t *siglen,
         buffer.size = 0;
 
     r = Esys_Hash(sctx->esys_ctx, ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
-                  &buffer, sctx->digalg, ESYS_TR_RH_OWNER, &digest, &validation);
+                  &buffer, sctx->digalg,
+#ifdef HAVE_TSS2_ESYS3
+                  ESYS_TR_RH_OWNER,
+#else
+                  TPM2_RH_OWNER,
+#endif
+                  &digest, &validation);
     TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_HASH, return 0);
 
     if (validation->digest.size == 0)
