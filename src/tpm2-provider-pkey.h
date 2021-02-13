@@ -13,6 +13,11 @@
 
 #define ENGINE_HASH_ALG TPM2_ALG_SHA256
 
+typedef enum {
+    KEY_FORMAT_PEM,
+    KEY_FORMAT_DER,
+} TPM2_PKEY_FORMAT;
+
 BIO *
 bio_new_from_core_bio(const BIO_METHOD *corebiometh, OSSL_CORE_BIO *corebio);
 
@@ -20,7 +25,7 @@ int
 tpm2_keydata_write(const TPM2_KEYDATA *keydata, BIO *bout);
 
 int
-tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata);
+tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata, TPM2_PKEY_FORMAT format);
 
 int
 tpm2_load_parent(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,

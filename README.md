@@ -151,6 +151,30 @@ openssl dgst -provider tpm2 -sha256 data.txt
 ```
 
 
+## Symmetric Ciphers
+
+The tpm2 provider implements a
+[OSSL_OP_CIPHER](https://www.openssl.org/docs/manmaster/man7/provider-cipher.html)
+operation, which encrypts and decrypts messages using the TPM ciphers. It is made
+available to applications via the
+[EVP_Cipher](https://www.openssl.org/docs/manmaster/man3/EVP_Cipher.html) API
+function and the
+[`openssl enc`](https://www.openssl.org/docs/manmaster/man1/openssl-enc.html)
+command.
+
+The AES-128-CBC, AES-192-CBC and AES-256-CBC are supported by the tpm2 provider,
+although your TPM may support only a subset of these.
+
+For example, to encrypt the `data.txt` file using AES-128-CBC and a given key
+and initialization vector (IV):
+```
+openssl enc -provider tpm2 -aes128 -e -K $KEY -iv $IV -in data.txt -out data.enc
+```
+
+The provided key will be imported into a temporary object in the NULL hierarchy.
+The object will be removed after `EVP_CIPHER_CTX_free` gets called.
+
+
 ## Random Number Generation
 
 The tpm2 provider implements a

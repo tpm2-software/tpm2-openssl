@@ -102,11 +102,30 @@ rsa_asymcipher_freectx(void *ctx)
     OPENSSL_clear_free(actx, sizeof(TPM2_RSA_ASYMCIPHER_CTX));
 }
 
+static int
+rsa_asymcipher_set_ctx_params(void *ctx, const OSSL_PARAM params[])
+{
+    TRACE_PARAMS("DECRYPT SET_CTX_PARAMS", params);
+
+    return 1;
+}
+
+static const OSSL_PARAM *
+rsa_asymcipher_settable_ctx_params(void *provctx)
+{
+    static const OSSL_PARAM known_settable_ctx_params[] = {
+        OSSL_PARAM_END
+    };
+    return known_settable_ctx_params;
+}
+
 const OSSL_DISPATCH tpm2_rsa_asymcipher_functions[] = {
     { OSSL_FUNC_ASYM_CIPHER_NEWCTX, (void (*)(void))rsa_asymcipher_newctx },
     { OSSL_FUNC_ASYM_CIPHER_DECRYPT_INIT, (void (*)(void))rsa_asymcipher_decrypt_init },
     { OSSL_FUNC_ASYM_CIPHER_DECRYPT, (void (*)(void))rsa_asymcipher_decrypt },
     { OSSL_FUNC_ASYM_CIPHER_FREECTX, (void (*)(void))rsa_asymcipher_freectx },
+    { OSSL_FUNC_ASYM_CIPHER_SET_CTX_PARAMS, (void (*)(void))rsa_asymcipher_set_ctx_params },
+    { OSSL_FUNC_ASYM_CIPHER_SETTABLE_CTX_PARAMS, (void (*)(void))rsa_asymcipher_settable_ctx_params },
     { 0, NULL }
 };
 

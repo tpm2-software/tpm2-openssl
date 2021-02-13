@@ -16,10 +16,11 @@ struct tpm2_rsa_decoder_ctx_st {
     BIO_METHOD *corebiometh;
     ESYS_CONTEXT *esys_ctx;
     TPM2B_DIGEST parentAuth;
+    TPM2_PKEY_FORMAT format;
 };
 
 static void *
-tpm2_decoder_newctx(void *provctx)
+tpm2_decoder_int_newctx(void *provctx, TPM2_PKEY_FORMAT format)
 {
     TPM2_PROVIDER_CTX *cprov = provctx;
     TPM2_RSA_DECODER_CTX *dctx = OPENSSL_zalloc(sizeof(TPM2_RSA_DECODER_CTX));
@@ -30,8 +31,16 @@ tpm2_decoder_newctx(void *provctx)
     dctx->core = cprov->core;
     dctx->corebiometh = cprov->corebiometh;
     dctx->esys_ctx = cprov->esys_ctx;
+    dctx->format = format;
     return dctx;
 }
+
+#define IMPLEMENT_DECODER_NEWCTX(format) \
+    static void * \
+    tpm2_decoder_##format##_newctx(void *provctx) \
+    { \
+        return tpm2_decoder_int_newctx(provctx, KEY_FORMAT_##format); \
+    }
 
 static void
 tpm2_decoder_freectx(void *ctx)
@@ -53,17 +62,24 @@ OSSL_PARAM *tpm2_decoder_gettable_params(void *provctx)
 }
 
 static int
-tpm2_decoder_get_params(OSSL_PARAM params[])
+tpm2_decoder_int_get_params(OSSL_PARAM params[], const char *type)
 {
     OSSL_PARAM *p;
 
-    TRACE_PARAMS("DECODER GET_PARAMS", params);
     p = OSSL_PARAM_locate(params, OSSL_DECODER_PARAM_INPUT_TYPE);
-    if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, "der"))
+    if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, type))
         return 0;
 
     return 1;
 }
+
+#define IMPLEMENT_DECODER_GET_PARAMS(format) \
+    static int \
+    tpm2_decoder_##format##_get_params(OSSL_PARAM params[]) \
+    { \
+        TRACE_PARAMS("DECODER " #format " GET_PARAMS", params); \
+        return tpm2_decoder_int_get_params(params, #format); \
+    }
 
 static int
 tpm2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
@@ -88,7 +104,7 @@ tpm2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
     pkey->esys_ctx = dctx->esys_ctx;
     pkey->object = ESYS_TR_NONE;
 
-    res = tpm2_keydata_read(bin, &pkey->data);
+    res = tpm2_keydata_read(bin, &pkey->data, dctx->format);
     BIO_free(bin);
     if (!res)
         goto error1;
@@ -97,12 +113,12 @@ tpm2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
         ESYS_TR parent = ESYS_TR_NONE;
 
         if (pkey->data.parent && pkey->data.parent != TPM2_RH_OWNER) {
-            DBG("STORE/FILE LOAD parent: persistent 0x%x\n", pkey->data.parent);
+            DBG("DECODER LOAD parent: persistent 0x%x\n", pkey->data.parent);
             if (!tpm2_load_parent(pkey->core, pkey->esys_ctx,
                                   pkey->data.parent, &dctx->parentAuth, &parent))
                 goto error1;
         } else {
-            DBG("STORE/FILE LOAD parent: primary 0x%x\n", TPM2_RH_OWNER);
+            DBG("DECODER LOAD parent: primary 0x%x\n", TPM2_RH_OWNER);
             if (!tpm2_build_primary(pkey->core, pkey->esys_ctx,
                                     ESYS_TR_RH_OWNER, &dctx->parentAuth, &parent))
                 goto error1;
@@ -171,12 +187,21 @@ error1:
     return 0;
 }
 
-const OSSL_DISPATCH tpm2_rsa_decoder_functions[] = {
-    { OSSL_FUNC_DECODER_NEWCTX, (void (*)(void))tpm2_decoder_newctx },
-    { OSSL_FUNC_DECODER_FREECTX, (void (*)(void))tpm2_decoder_freectx },
-    { OSSL_FUNC_DECODER_GETTABLE_PARAMS, (void (*)(void))tpm2_decoder_gettable_params },
-    { OSSL_FUNC_DECODER_GET_PARAMS, (void (*)(void))tpm2_decoder_get_params },
-    { OSSL_FUNC_DECODER_DECODE, (void (*)(void))tpm2_decoder_decode },
-    { 0, NULL }
-};
+#define IMPLEMENT_DECODER_DISPATCH(format) \
+    const OSSL_DISPATCH tpm2_rsa_decoder_##format##_functions[] = { \
+        { OSSL_FUNC_DECODER_NEWCTX, (void (*)(void))tpm2_decoder_##format##_newctx }, \
+        { OSSL_FUNC_DECODER_FREECTX, (void (*)(void))tpm2_decoder_freectx }, \
+        { OSSL_FUNC_DECODER_GETTABLE_PARAMS, (void (*)(void))tpm2_decoder_gettable_params }, \
+        { OSSL_FUNC_DECODER_GET_PARAMS, (void (*)(void))tpm2_decoder_##format##_get_params }, \
+        { OSSL_FUNC_DECODER_DECODE, (void (*)(void))tpm2_decoder_decode }, \
+        { 0, NULL } \
+    };
+
+#define DECLARE_DECODER(format) \
+    IMPLEMENT_DECODER_NEWCTX(format) \
+    IMPLEMENT_DECODER_GET_PARAMS(format) \
+    IMPLEMENT_DECODER_DISPATCH(format)
+
+DECLARE_DECODER(PEM)
+DECLARE_DECODER(DER)
 

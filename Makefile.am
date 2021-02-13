@@ -6,12 +6,12 @@ openssl_modules_LTLIBRARIES = tpm2.la
 tpm2_la_SOURCES = src/tpm2-provider.c \
                   src/tpm2-provider-algorithms.c \
                   src/tpm2-provider-core.c \
-                  src/tpm2-provider-cipher.c \
                   src/tpm2-provider-digest.c \
+                  src/tpm2-provider-cipher.c \
+                  src/tpm2-provider-rand.c \
                   src/tpm2-provider-pkey.c \
                   src/tpm2-provider-store-file.c \
                   src/tpm2-provider-store-handle.c \
-                  src/tpm2-provider-rand.c \
                   src/tpm2-provider-rsa-asymcipher.c \
                   src/tpm2-provider-rsa-decoder.c \
                   src/tpm2-provider-rsa-encoder.c \
@@ -29,6 +29,8 @@ TESTS = $(TESTS_SHELL)
 
 TESTS_SHELL = test/list.sh \
               test/digest.sh \
+              test/cipher_aes128.sh \
+              test/cipher_aes256_nopad.sh \
               test/rand.sh \
               test/rsa_genrsa_check.sh \
               test/rsa_genpkey_sign.sh \

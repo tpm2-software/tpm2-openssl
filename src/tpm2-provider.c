@@ -59,10 +59,14 @@ static const OSSL_ALGORITHM tpm2_digests[] = {
     { NULL, NULL, NULL }
 };
 
-extern const OSSL_DISPATCH tpm2_cipher_aes256cbc_functions[];
+extern const OSSL_DISPATCH tpm2_cipher_AES128CBC_functions[];
+extern const OSSL_DISPATCH tpm2_cipher_AES192CBC_functions[];
+extern const OSSL_DISPATCH tpm2_cipher_AES256CBC_functions[];
 
 static const OSSL_ALGORITHM tpm2_ciphers[] = {
-    { "AES-256-CBC:AES256", "provider=tpm2", tpm2_cipher_aes256cbc_functions },
+    { "AES-128-CBC:AES128", "provider=tpm2", tpm2_cipher_AES128CBC_functions },
+    { "AES-192-CBC:AES192", "provider=tpm2", tpm2_cipher_AES192CBC_functions },
+    { "AES-256-CBC:AES256", "provider=tpm2", tpm2_cipher_AES256CBC_functions },
     { NULL, NULL, NULL }
 };
 
@@ -115,10 +119,12 @@ static const OSSL_ALGORITHM tpm2_encoders[] = {
     { NULL, NULL, NULL }
 };
 
-extern const OSSL_DISPATCH tpm2_rsa_decoder_functions[];
+extern const OSSL_DISPATCH tpm2_rsa_decoder_PEM_functions[];
+extern const OSSL_DISPATCH tpm2_rsa_decoder_DER_functions[];
 
 static const OSSL_ALGORITHM tpm2_decoders[] = {
-    { "RSA:rsaEncryption", "provider=tpm2,input=der", tpm2_rsa_decoder_functions },
+    { "RSA:rsaEncryption", "provider=tpm2,input=pem", tpm2_rsa_decoder_PEM_functions },
+    { "RSA:rsaEncryption", "provider=tpm2,input=der", tpm2_rsa_decoder_DER_functions },
     { NULL, NULL, NULL }
 };
 
@@ -167,6 +173,7 @@ tpm2_get_reason_strings(void *provctx)
         {TPM2_ERR_AUTHORIZATION_FAILURE, "authorization failure"},
         {TPM2_ERR_UNKNOWN_ALGORITHM, "unknown algorithm"},
         {TPM2_ERR_INPUT_CORRUPTED, "input corrupted"},
+        {TPM2_ERR_WRONG_DATA_LENGTH, "wrong data length"},
         {TPM2_ERR_CANNOT_CONNECT, "cannot connect"},
         {TPM2_ERR_CANNOT_GET_CAPABILITY, "cannot get capability"},
         {TPM2_ERR_CANNOT_GET_RANDOM, "cannot get random"},

@@ -29,6 +29,7 @@ ASN1_SEQUENCE(TSSPRIVKEY) = {
 
 IMPLEMENT_ASN1_FUNCTIONS(TSSPRIVKEY);
 IMPLEMENT_PEM_write_bio(TSSPRIVKEY, TSSPRIVKEY, TSSPRIVKEY_PEM_STRING, TSSPRIVKEY);
+IMPLEMENT_PEM_read_bio(TSSPRIVKEY, TSSPRIVKEY, TSSPRIVKEY_PEM_STRING, TSSPRIVKEY);
 
 TSSPRIVKEY *d2i_TSSPRIVKEY_bio(BIO *bp, TSSPRIVKEY **a)
 {
@@ -100,12 +101,22 @@ error:
  * @retval -1 on failure
  */
 int
-tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata)
+tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata, TPM2_PKEY_FORMAT format)
 {
     TSSPRIVKEY *tpk = NULL;
     char type_oid[64];
 
-    if ((tpk = d2i_TSSPRIVKEY_bio(bin, NULL)) == NULL)
+    switch (format) {
+    case KEY_FORMAT_PEM:
+        tpk = PEM_read_bio_TSSPRIVKEY(bin, NULL, NULL, NULL);
+        break;
+    case KEY_FORMAT_DER:
+        tpk = d2i_TSSPRIVKEY_bio(bin, NULL);
+        break;
+    default:
+        return 0;
+    }
+    if (tpk == NULL)
         return 0;
 
     keydata->privatetype = KEY_TYPE_BLOB;
