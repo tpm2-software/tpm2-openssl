@@ -24,3 +24,4 @@ tpm2.la
 *.log
 test-driver
 test/*.trs
+NVChip

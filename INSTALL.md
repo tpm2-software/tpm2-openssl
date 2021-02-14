@@ -22,6 +22,7 @@ To run the tests you will also need:
  * [TPM2 Access Broker & Resource Manager](https://github.com/tpm2-software/tpm2-abrmd)
  * [IBM's Software TPM 2.0 Simulator](https://sourceforge.net/projects/ibmswtpm2/files)
  * D-Bus message bus daemon
+ * curl
 
 
 # Building From Source
@@ -48,7 +49,10 @@ make
 ```
 
 The tpm2 provider comes as a single `tpm2.so` module, which needs to be
-installed to OpenSSL's `lib/ossl-modules`.
+installed to OpenSSL's `lib/ossl-modules` using:
+```
+make install
+```
 
 
 # Using With the TPM2 Simulator
@@ -61,8 +65,13 @@ Run the the
 ./tpm_server
 ```
 
-Then run the Access Broker & Resource Manager using the simulator's TCTI. By
-default it must be started as the user `tss`:
+The simulator stores persistent information to the `NVChip` file in the current
+directory. Remove this file before starting the simulator if you want a clean
+state.
+
+After starting the TPM2 simulator run the
+[Access Broker & Resource Manager](https://github.com/tpm2-software/tpm2-abrmd)
+ using the simulator's TCTI. By default it must be started as the user `tss`:
 ```
 sudo -u tss tpm2-abrmd --tcti mssim:host=localhost,port=2321
 ```
@@ -76,17 +85,21 @@ export TPM2OPENSSL_TCTI="tabrmd:bus_name=com.intel.tss2.Tabrmd"
 If you use the TPM2 Tools you need to export also `TPM2TOOLS_TCTI` with the
 same value.
 
-## Local Session
+## Session Instance
 
 Alternatively, to avoid using the `tss` user you can start `tpm2-abrmd` with
-a local D-Bus session:
+a session D-Bus instance, which is limited to the current login session:
 ```
 export DBUS_SESSION_BUS_ADDRESS=`dbus-daemon --session --print-address --fork`
-tpm2-abrmd --session --tcti mssim:host=localhost,port=2321
+tpm2-abrmd --session --tcti mssim:host=localhost,port=2321 &
 ```
 
 The `TPM2OPENSSL_TCTI` environment variable must then include `bus_type=session`:
 ```
 export TPM2OPENSSL_TCTI="tabrmd:bus_name=com.intel.tss2.Tabrmd,bus_type=session"
 ```
+
+Please note you need to start openssl in the same login session. Use the
+system-wide D-Bus instance described above if you need to share the `tpm2-abrmd`
+across sessions.
 

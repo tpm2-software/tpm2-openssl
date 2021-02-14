@@ -9,6 +9,9 @@ TPMI_ALG_HASH
 tpm2_name_to_alg_hash(const char *name);
 
 TPMI_ALG_RSA_SCHEME
+tpm2_num_to_alg_rsa_scheme(const int num);
+
+TPMI_ALG_RSA_SCHEME
 tpm2_name_to_alg_rsa_scheme(const char *name);
 
 int

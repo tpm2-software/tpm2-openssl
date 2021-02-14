@@ -7,19 +7,45 @@
 
 #include "tpm2-provider-algorithms.h"
 
+typedef struct {
+    const char *name;
+    TPMI_ALG_HASH alg;
+} alg_names_t;
+
 TPMI_ALG_HASH
 tpm2_name_to_alg_hash(const char *name)
 {
-    if (strcasecmp(name, "sha1") == 0)
-        return TPM2_ALG_SHA1;
-    else if (strcasecmp(name, "sha256") == 0)
-        return TPM2_ALG_SHA256;
-    else if (strcasecmp(name, "sha384") == 0)
-        return TPM2_ALG_SHA384;
-    else if (strcasecmp(name, "sha512") == 0)
-        return TPM2_ALG_SHA512;
-    else
+    static const alg_names_t names[] = {
+        { "sha1", TPM2_ALG_SHA1 },
+        { "sha-1", TPM2_ALG_SHA1 },
+        { "sha256", TPM2_ALG_SHA256 },
+        { "sha-256", TPM2_ALG_SHA256 },
+        { "sha384", TPM2_ALG_SHA384 },
+        { "sha-384", TPM2_ALG_SHA384 },
+        { "sha512", TPM2_ALG_SHA512 },
+        { "sha-512", TPM2_ALG_SHA512 },
+        { NULL, TPM2_ALG_ERROR }
+    };
+    const alg_names_t *nameptr;
+
+    for (nameptr = names; nameptr->name != NULL; nameptr++) {
+        if (!strcasecmp(name, nameptr->name))
+            return nameptr->alg;
+    }
+
+    return TPM2_ALG_ERROR;
+}
+
+TPMI_ALG_RSA_SCHEME
+tpm2_num_to_alg_rsa_scheme(const int num)
+{
+    switch (num)
+    {
+    case RSA_PKCS1_PSS_PADDING:
+        return TPM2_ALG_RSAPSS;
+    default:
         return TPM2_ALG_ERROR;
+    }
 }
 
 TPMI_ALG_RSA_SCHEME

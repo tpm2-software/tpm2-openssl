@@ -79,7 +79,7 @@ tpm2_rsa_keymgmt_gen_init(void *provctx, int selection)
     TPM2_PROVIDER_CTX *cprov = provctx;
     TPM2_RSAGEN_CTX *gen = OPENSSL_zalloc(sizeof(TPM2_RSAGEN_CTX));
 
-    DBG("KEY GEN INIT\n");
+    DBG("KEY GEN INIT %x\n", selection);
     if (gen == NULL)
         return NULL;
 
@@ -340,7 +340,7 @@ tpm2_rsa_keymgmt_has(const void *keydata, int selection)
     TPM2_PKEY *pkey = (TPM2_PKEY *)keydata;
     int ok = 0;
 
-    DBG("KEY HAS\n");
+    DBG("KEY HAS %x\n", selection);
     if (pkey != NULL) {
         /* we always have a full keypair,
            although the private portion is not exportable */
@@ -369,7 +369,7 @@ tpm2_rsa_keymgmt_match(const void *keydata1, const void *keydata2,
     TPM2_PKEY *pkey1 = (TPM2_PKEY *)keydata1;
     TPM2_PKEY *pkey2 = (TPM2_PKEY *)keydata2;
 
-    DBG("KEY MATCH\n");
+    DBG("KEY MATCH %x\n", selection);
     if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
         /* compare N */
         if (pkey1->data.pub.publicArea.unique.rsa.size !=
@@ -444,8 +444,11 @@ tpm2_rsa_keymgmt_export(void *keydata, int selection,
     UINT32 exponent;
     int ok = 1;
 
-    DBG("KEY EXPORT\n");
+    DBG("KEY EXPORT %x\n", selection);
     if (pkey == NULL)
+        return 0;
+
+    if (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY)
         return 0;
 
     OSSL_PARAM params[3];

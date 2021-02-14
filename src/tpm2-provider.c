@@ -44,6 +44,8 @@ tpm2_get_params(void *provctx, OSSL_PARAM params[])
     return 1;
 }
 
+#define TPM2_PROPS(op) ("provider=tpm2,tpm2." #op)
+
 extern const OSSL_DISPATCH tpm2_digest_SHA1_functions[];
 extern const OSSL_DISPATCH tpm2_digest_SHA256_functions[];
 extern const OSSL_DISPATCH tpm2_digest_SHA384_functions[];
@@ -51,11 +53,11 @@ extern const OSSL_DISPATCH tpm2_digest_SHA512_functions[];
 extern const OSSL_DISPATCH tpm2_digest_SM3_256_functions[];
 
 static const OSSL_ALGORITHM tpm2_digests[] = {
-    { "SHA1:SHA-1:SSL3-SHA1", "provider=tpm2", tpm2_digest_SHA1_functions },
-    { "SHA2-256:SHA-256:SHA256", "provider=tpm2", tpm2_digest_SHA256_functions },
-    { "SHA2-384:SHA-384:SHA384", "provider=tpm2", tpm2_digest_SHA384_functions },
-    { "SHA2-512:SHA-512:SHA512", "provider=tpm2", tpm2_digest_SHA512_functions },
-    { "SM3", "provider=tpm2", tpm2_digest_SM3_256_functions },
+    { "SHA1:SHA-1:SSL3-SHA1", TPM2_PROPS(digest), tpm2_digest_SHA1_functions },
+    { "SHA2-256:SHA-256:SHA256", TPM2_PROPS(digest), tpm2_digest_SHA256_functions },
+    { "SHA2-384:SHA-384:SHA384", TPM2_PROPS(digest), tpm2_digest_SHA384_functions },
+    { "SHA2-512:SHA-512:SHA512", TPM2_PROPS(digest), tpm2_digest_SHA512_functions },
+    { "SM3", TPM2_PROPS(digest), tpm2_digest_SM3_256_functions },
     { NULL, NULL, NULL }
 };
 
@@ -64,9 +66,9 @@ extern const OSSL_DISPATCH tpm2_cipher_AES192CBC_functions[];
 extern const OSSL_DISPATCH tpm2_cipher_AES256CBC_functions[];
 
 static const OSSL_ALGORITHM tpm2_ciphers[] = {
-    { "AES-128-CBC:AES128", "provider=tpm2", tpm2_cipher_AES128CBC_functions },
-    { "AES-192-CBC:AES192", "provider=tpm2", tpm2_cipher_AES192CBC_functions },
-    { "AES-256-CBC:AES256", "provider=tpm2", tpm2_cipher_AES256CBC_functions },
+    { "AES-128-CBC:AES128", TPM2_PROPS(cipher), tpm2_cipher_AES128CBC_functions },
+    { "AES-192-CBC:AES192", TPM2_PROPS(cipher), tpm2_cipher_AES192CBC_functions },
+    { "AES-256-CBC:AES256", TPM2_PROPS(cipher), tpm2_cipher_AES256CBC_functions },
     { NULL, NULL, NULL }
 };
 
@@ -75,7 +77,7 @@ extern const OSSL_DISPATCH tpm2_rand_functions[];
 static const OSSL_ALGORITHM tpm2_rands[] = {
     /* TODO: Does this need to be variying?
        For example, ST32TPHF is using a FIPS compliant SHA256 DRBG */
-    { "CTR-DRBG" /*"HASH-DRBG"*/, "provider=tpm2", tpm2_rand_functions },
+    { "CTR-DRBG" /*"HASH-DRBG"*/, TPM2_PROPS(rand), tpm2_rand_functions },
     { NULL, NULL, NULL }
 };
 
@@ -89,7 +91,7 @@ static const OSSL_ALGORITHM tpm2_keymgmts[] = {
 extern const OSSL_DISPATCH tpm2_rsa_signature_functions[];
 
 static const OSSL_ALGORITHM tpm2_signatures[] = {
-    { "RSA:rsaEncryption", "provider=tpm2", tpm2_rsa_signature_functions },
+    { "RSA:rsaEncryption", TPM2_PROPS(signature), tpm2_rsa_signature_functions },
     { NULL, NULL, NULL }
 };
 
@@ -132,8 +134,8 @@ extern const OSSL_DISPATCH tpm2_file_store_functions[];
 extern const OSSL_DISPATCH tpm2_handle_store_functions[];
 
 static const OSSL_ALGORITHM tpm2_stores[] = {
-    { "file", "provider=tpm2", tpm2_file_store_functions },
-    { "handle", "provider=tpm2", tpm2_handle_store_functions },
+    { "file", TPM2_PROPS(store), tpm2_file_store_functions },
+    { "handle", TPM2_PROPS(store), tpm2_handle_store_functions },
     { NULL, NULL, NULL }
 };
 

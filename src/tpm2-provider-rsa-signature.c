@@ -70,8 +70,10 @@ rsa_signature_digest_sign_init(void *ctx, const char *mdname, void *provkey)
             sctx->digalg = sctx->pkey->data.pub.publicArea.parameters.rsaDetail.scheme.details.anySig.hashAlg;
         else
             sctx->digalg = TPM2_ALG_SHA256;
-    } else if ((sctx->digalg = tpm2_name_to_alg_hash(mdname)) == TPM2_ALG_ERROR)
+    } else if ((sctx->digalg = tpm2_name_to_alg_hash(mdname)) == TPM2_ALG_ERROR) {
+        TPM2_ERROR_raise(sctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
         return 0;
+    }
 
     if (sctx->signScheme.scheme == TPM2_ALG_NULL) {
         if (sctx->pkey->data.pub.publicArea.parameters.rsaDetail.scheme.scheme != TPM2_ALG_NULL)
@@ -304,18 +306,31 @@ rsa_signature_set_ctx_params(void *ctx, const OSSL_PARAM params[])
     TRACE_PARAMS("SIGN SET_CTX_PARAMS", params);
     p = OSSL_PARAM_locate_const(params, OSSL_SIGNATURE_PARAM_PAD_MODE);
     if (p != NULL) {
-        if (p->data_type != OSSL_PARAM_UTF8_STRING ||
-                ((sctx->signScheme.scheme =
-                    tpm2_name_to_alg_rsa_scheme(p->data)) == TPM2_ALG_ERROR))
+        if (p->data_type == OSSL_PARAM_INTEGER) {
+            int pad_mode;
+
+            if (!OSSL_PARAM_get_int(p, &pad_mode))
+                return 0;
+            sctx->signScheme.scheme = tpm2_num_to_alg_rsa_scheme(pad_mode);
+        } else if (p->data_type == OSSL_PARAM_UTF8_STRING) {
+            sctx->signScheme.scheme = tpm2_name_to_alg_rsa_scheme(p->data);
+        } else
             return 0;
+
+        if (sctx->signScheme.scheme == TPM2_ALG_ERROR) {
+            TPM2_ERROR_raise(sctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
+            return 0;
+        }
     }
 
     p = OSSL_PARAM_locate_const(params, OSSL_SIGNATURE_PARAM_DIGEST);
     if (p != NULL) {
         if (p->data_type != OSSL_PARAM_UTF8_STRING ||
                 ((sctx->signScheme.details.any.hashAlg =
-                    tpm2_name_to_alg_hash(p->data)) == TPM2_ALG_ERROR))
+                    tpm2_name_to_alg_hash(p->data)) == TPM2_ALG_ERROR)) {
+            TPM2_ERROR_raise(sctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
             return 0;
+        }
     }
 
     return 1;

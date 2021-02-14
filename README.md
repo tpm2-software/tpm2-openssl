@@ -71,6 +71,8 @@ Nothing will be stable until the final OpenSSL 3.0 is released.
 
 ## Integration with OpenSSL
 
+### Loading the Provider
+
 In OpenSSL terms,
 [provider](https://www.openssl.org/docs/manmaster/man7/provider.html) is a unit
 of code that provides one or more implementations for various operations for
@@ -90,7 +92,8 @@ using the TPM 2.0. It does not replace the default provider though-- some
 operations still need the default provider.
 
 Instructions to build and install the provider are available in the
-[INSTALL](INSTALL.md) file. When successfully installed, you should see the
+[INSTALL](INSTALL.md) file. When successfully installed, you can load the
+provider using the `-provider tpm2` argument. For example, you should see the
 provider listed when you do:
 ```
 openssl list -providers -provider tpm2
@@ -103,6 +106,28 @@ by:
 ```
 openssl list -encoders -provider tpm2
 ```
+
+### Loading Multiple Providers
+
+You can load several providers and combine their operations. When providers
+implementing identical operations are loaded, you need to specify a
+[property query clause](https://www.openssl.org/docs/manmaster/man7/property.html)
+to advise which of the two implementations shall be used.
+
+For example, to use tpm2 operations when available and the default operations
+otherwise, specify:
+```
+-provider tpm2 -provider default -propquery ?provider=tpm2
+```
+
+You can also avoid one or more TPM2 operations. This is useful for resolving
+conflicts between various implementations. For example, to use TPM2 for all
+available operations except OSSL_OP_DIGEST, specify:
+```
+-provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.digest!=yes
+```
+
+### TPM Command Transmission Interface (TCTI)
 
 By default the provider will access the `/dev/tpm0` device. The TPM Command
 Transmission Interface (TCTI) can be modified either using the
@@ -150,6 +175,10 @@ For example, to calculate SHA-256 hash of the `data.txt` file:
 openssl dgst -provider tpm2 -sha256 data.txt
 ```
 
+Please note that TPM2 does not allow replication of hash sequences, so the
+`EVP_MD_CTX_copy` function cannot be supported. This causes inconveniences e.g.
+to the TLS Handshake implementation.
+
 
 ## Symmetric Ciphers
 
@@ -162,8 +191,9 @@ function and the
 [`openssl enc`](https://www.openssl.org/docs/manmaster/man1/openssl-enc.html)
 command.
 
-The AES-128-CBC, AES-192-CBC and AES-256-CBC are supported by the tpm2 provider,
-although your TPM may support only a subset of these.
+The AES-128-CBC (`aes128`), AES-192-CBC (`aes192`) and AES-256-CBC (`aes256`)
+are supported by the tpm2 provider, although your TPM may support only a subset
+of these.
 
 For example, to encrypt the `data.txt` file using AES-128-CBC and a given key
 and initialization vector (IV):
@@ -171,8 +201,8 @@ and initialization vector (IV):
 openssl enc -provider tpm2 -aes128 -e -K $KEY -iv $IV -in data.txt -out data.enc
 ```
 
-The provided key will be imported into a temporary object in the NULL hierarchy.
-The object will be removed after `EVP_CIPHER_CTX_free` gets called.
+The key (`-K`) used for the operation will be imported into a temporary object
+in the NULL hierarchy. The object will be removed after `EVP_CIPHER_CTX_free`.
 
 
 ## Random Number Generation
@@ -464,3 +494,25 @@ openssl req -provider tpm2 -new -subj "/C=GB/CN=foo" -key handle:0x81000000 -out
 If the key is not associated with any specific algorithm you may define the
 hash algorithm using the `-digest` parameter and the padding scheme using the
 `-sigopt pad-mode:` parameter.
+
+
+## TLS Handshake
+
+The tpm2 provider also implements all operations required for establishing a
+TLS (e.g. HTTPS) connection authenticated using a TPM-based private key.
+To perform the TLS handshake you need to:
+ * Load the tpm2 provider to get support of TPM-based private keys.
+ * Load the default provider to get a faster and wider set of symmetric ciphers.
+ * Exclude TPM2 hashes, which are incompatible with the TLS implementation.
+
+To start a test server using the key and X.509 certificate created in the
+previous section do:
+```
+openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.digest!=yes \
+                 -accept 4443 -www -key testkey.pem -cert testcert.pem
+```
+
+You can then access it using the standard `curl`:
+```
+curl --cacert testcert.pem https://localhost:4443/
+```
