@@ -516,3 +516,6 @@ You can then access it using the standard `curl`:
 ```
 curl --cacert testcert.pem https://localhost:4443/
 ```
+
+You can also use a persistent key at a given handle, but the key can only be
+associated with the `rsapss` sign scheme, which is preferred by the TLS standard.

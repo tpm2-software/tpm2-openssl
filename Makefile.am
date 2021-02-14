@@ -38,8 +38,9 @@ TESTS_SHELL = test/list.sh \
               test/rsa_createak_sign.sh \
               test/rsa_create_decrypt.sh \
               test/rsa_genpkey_x509_cert.sh \
+              test/rsa_genpkey_tls_server.sh \
               test/rsa_createak_x509_csr.sh \
-              test/rsa_ssl_server.sh
+              test/rsa_createak_tls_server.sh
 
 TEST_EXTENSIONS = .sh
 SH_LOG_COMPILER = $(srcdir)/test/run
