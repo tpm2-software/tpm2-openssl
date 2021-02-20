@@ -4,7 +4,6 @@ set -eufx
 function cleanup()
 {
     kill -term $SERVER
-    wait $SERVER 2>/dev/null
     rm testkey.pem testcert.conf testcert.pem
 }
 

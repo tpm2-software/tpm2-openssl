@@ -397,6 +397,20 @@ For example, to supply a password from an evironment variable $PASSWORD:
 openssl rsa -provider tpm2 -modulus -noout -in handle:0x81000000?pass -passin env:PASSWORD
 ```
 
+### Using a Serialized Object
+
+The `tpm2_evictcontrol` command can optionally output a serialized object
+representing the persistent handle:
+```
+tpm2_evictcontrol -c ak_rsa.ctx -o ak_rsa.obj
+```
+
+To load a persistent key using the serialized object, specify the prefix
+`object:` and then a file name:
+```
+openssl rsa -provider tpm2 -modulus -noout -in object:ak_rsa.obj
+```
+
 
 ## Signature
 

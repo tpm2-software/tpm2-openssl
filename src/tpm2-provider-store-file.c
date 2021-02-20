@@ -1,5 +1,11 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 
+/*
+ * This implements a limited STORE, which supports PER and DER formats only.
+ * Provided for user convenience. It can be used to load the TSS2 PRIVATE KEY
+ * and X.509 certificates without loading the default provider.
+ */
+
 #include <string.h>
 
 #include <openssl/core_dispatch.h>
@@ -26,9 +32,11 @@ tpm2_file_open(void *provctx, const char *uri)
     BIO *bio;
 
     DBG("STORE/FILE OPEN %s\n", uri);
-    bio = BIO_new_file(uri, "r");
-    if (!bio)
+    bio = BIO_new_file(uri, "rb");
+    if (!bio) {
+        ERR_clear_error();
         return NULL;
+    }
 
     ctx = OPENSSL_zalloc(sizeof(TPM2_FILE_CTX));
     if (ctx == NULL) {
@@ -67,49 +75,81 @@ tpm2_file_set_params(void *loaderctx, const OSSL_PARAM params[])
     return 1;
 }
 
+/* ASN1_d2i_bio helper to retrieve raw ASN.1 data */
+static void *
+d2i_raw(void **x, const unsigned char **p, long len)
+{
+    unsigned char *buf;
+
+    if ((buf = OPENSSL_malloc(len)) == NULL)
+        return NULL;
+
+    memcpy(buf, *p, len);
+    *(long *)x = len;
+
+    return buf;
+}
+
 static int
 tpm2_file_load(void *ctx,
                OSSL_CALLBACK *object_cb, void *object_cbarg,
                OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
     TPM2_FILE_CTX *fctx = ctx;
-    char *pem_name, *pem_header;
-    unsigned char *pem_data;
-    long pem_len;
+    char *pem_name = NULL;
+    char *pem_header = NULL;
+    unsigned char *der_data;
+    long der_len;
     OSSL_PARAM params[3];
-    int object_type, ret;
+    int object_type = OSSL_OBJECT_UNKNOWN;
+    int fpos, ret;
 
-    if (!PEM_read_bio(fctx->bin, &pem_name, &pem_header, &pem_data, &pem_len)) {
+    DBG("STORE/FILE LOAD\n");
+    if ((fpos = BIO_tell(fctx->bin)) == -1)
+        return 0;
+    /* try to read PEM */
+    if (!PEM_read_bio(fctx->bin, &pem_name, &pem_header, &der_data, &der_len)) {
         unsigned long last = ERR_peek_error();
-        if (ERR_GET_REASON(last) == PEM_R_NO_START_LINE) {
+        if (ERR_GET_REASON(last) != PEM_R_NO_START_LINE)
+            return 0;
+        ERR_clear_error();
+
+        /* rewind back */
+        if (BIO_seek(fctx->bin, fpos) == -1)
+            return 0;
+        /* try to read raw DER */
+        der_data = ASN1_d2i_bio(NULL, d2i_raw, fctx->bin, (void **)&der_len);
+        if(der_data == NULL) {
+            if (!BIO_eof(fctx->bin))
+                return 0;
             ERR_clear_error();
-            return 0; /* no more data */
-        } else
-            return -1; /* some other error */
+            return 1;
+        }
     }
 
-    /* this is PEM */
-    DBG("STORE/FILE LOAD(PEM) %s\n", pem_name);
+    if (pem_name != NULL) {
+        DBG("STORE/FILE LOAD(PEM) %s\n", pem_name);
 
-    if (!strcmp(pem_name, TSSPRIVKEY_PEM_STRING))
-        object_type = OSSL_OBJECT_PKEY;
-    else if (!strcmp(pem_name, PEM_STRING_X509))
-        object_type = OSSL_OBJECT_CERT;
-    else
-        object_type = OSSL_OBJECT_UNKNOWN;
+        if (!strcmp(pem_name, TSSPRIVKEY_PEM_STRING))
+            object_type = OSSL_OBJECT_PKEY;
+        else if (!strcmp(pem_name, PEM_STRING_X509))
+            object_type = OSSL_OBJECT_CERT;
+        else if (!strcmp(pem_name, PEM_STRING_X509_CRL))
+            object_type = OSSL_OBJECT_CRL;
+    }
 
     /* pass the data to ossl_store_handle_load_result(),
        which will call the TPM2_PKEY decoder or read the certificate  */
     params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
     params[1] = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_DATA,
-                                                  pem_data, pem_len);
+                                                  der_data, der_len);
     params[2] = OSSL_PARAM_construct_end();
 
     ret = object_cb(params, object_cbarg);
 
     OPENSSL_free(pem_name);
     OPENSSL_free(pem_header);
-    OPENSSL_free(pem_data);
+    OPENSSL_free(der_data);
     return ret;
 }
 

@@ -204,7 +204,7 @@ tpm2_cipher_process_buffer(TPM2_CIPHER_CTX *cctx, int padded,
                              ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                              &cctx->buffer, cctx->decrypt, TPM2_ALG_NULL,
                              cctx->ivector, &outbuff, &ivector);
-    if (r & 0xFFFF == TPM2_RC_COMMAND_CODE) {
+    if ((r & 0xFFFF) == TPM2_RC_COMMAND_CODE) {
         r = Esys_EncryptDecrypt(cctx->esys_ctx, cctx->object,
                                 ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                                 cctx->decrypt, TPM2_ALG_NULL, cctx->ivector,

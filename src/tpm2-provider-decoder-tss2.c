@@ -1,5 +1,10 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 
+/*
+ * This implements a DER->PKEY decoder for the 'TSS2 PRIVATE KEY' type. It can
+ * be used with any STORE implementation.
+ */
+
 #include <string.h>
 
 #include <openssl/core_dispatch.h>
@@ -9,21 +14,20 @@
 
 #include "tpm2-provider-pkey.h"
 
-typedef struct tpm2_rsa_decoder_ctx_st TPM2_RSA_DECODER_CTX;
+typedef struct tpm2_tss2_decoder_ctx_st TPM2_TSS2_DECODER_CTX;
 
-struct tpm2_rsa_decoder_ctx_st {
+struct tpm2_tss2_decoder_ctx_st {
     const OSSL_CORE_HANDLE *core;
     BIO_METHOD *corebiometh;
     ESYS_CONTEXT *esys_ctx;
     TPM2B_DIGEST parentAuth;
-    TPM2_PKEY_FORMAT format;
 };
 
 static void *
-tpm2_decoder_int_newctx(void *provctx, TPM2_PKEY_FORMAT format)
+tpm2_tss2_decoder_newctx(void *provctx)
 {
     TPM2_PROVIDER_CTX *cprov = provctx;
-    TPM2_RSA_DECODER_CTX *dctx = OPENSSL_zalloc(sizeof(TPM2_RSA_DECODER_CTX));
+    TPM2_TSS2_DECODER_CTX *dctx = OPENSSL_zalloc(sizeof(TPM2_TSS2_DECODER_CTX));
 
     if (dctx == NULL)
         return NULL;
@@ -31,30 +35,23 @@ tpm2_decoder_int_newctx(void *provctx, TPM2_PKEY_FORMAT format)
     dctx->core = cprov->core;
     dctx->corebiometh = cprov->corebiometh;
     dctx->esys_ctx = cprov->esys_ctx;
-    dctx->format = format;
     return dctx;
 }
 
-#define IMPLEMENT_DECODER_NEWCTX(format) \
-    static void * \
-    tpm2_decoder_##format##_newctx(void *provctx) \
-    { \
-        return tpm2_decoder_int_newctx(provctx, KEY_FORMAT_##format); \
-    }
-
 static void
-tpm2_decoder_freectx(void *ctx)
+tpm2_tss2_decoder_freectx(void *ctx)
 {
-    TPM2_RSA_DECODER_CTX *dctx = ctx;
+    TPM2_TSS2_DECODER_CTX *dctx = ctx;
 
-    OPENSSL_clear_free(dctx, sizeof(TPM2_RSA_DECODER_CTX));
+    OPENSSL_clear_free(dctx, sizeof(TPM2_TSS2_DECODER_CTX));
 }
 
 static const
-OSSL_PARAM *tpm2_decoder_gettable_params(void *provctx)
+OSSL_PARAM *tpm2_tss2_decoder_gettable_params(void *provctx)
 {
     static const OSSL_PARAM gettables[] = {
         { OSSL_DECODER_PARAM_INPUT_TYPE, OSSL_PARAM_UTF8_PTR, NULL, 0, 0 },
+        { OSSL_DECODER_PARAM_INPUT_STRUCTURE, OSSL_PARAM_UTF8_PTR, NULL, 0, 0 },
         OSSL_PARAM_END,
     };
 
@@ -62,38 +59,34 @@ OSSL_PARAM *tpm2_decoder_gettable_params(void *provctx)
 }
 
 static int
-tpm2_decoder_int_get_params(OSSL_PARAM params[], const char *type)
+tpm2_tss2_decoder_get_params(OSSL_PARAM params[])
 {
     OSSL_PARAM *p;
 
     p = OSSL_PARAM_locate(params, OSSL_DECODER_PARAM_INPUT_TYPE);
-    if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, type))
+    if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, "DER"))
+        return 0;
+
+    p = OSSL_PARAM_locate(params, OSSL_DECODER_PARAM_INPUT_STRUCTURE);
+    if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, "TSS2"))
         return 0;
 
     return 1;
 }
 
-#define IMPLEMENT_DECODER_GET_PARAMS(format) \
-    static int \
-    tpm2_decoder_##format##_get_params(OSSL_PARAM params[]) \
-    { \
-        TRACE_PARAMS("DECODER " #format " GET_PARAMS", params); \
-        return tpm2_decoder_int_get_params(params, #format); \
-    }
-
 static int
-tpm2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
-                OSSL_CALLBACK *object_cb, void *object_cbarg,
-                OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
+                         OSSL_CALLBACK *object_cb, void *object_cbarg,
+                         OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
-    TPM2_RSA_DECODER_CTX *dctx = ctx;
+    TPM2_TSS2_DECODER_CTX *dctx = ctx;
     TPM2_PKEY *pkey;
     BIO *bin;
     OSSL_PARAM params[4];
     int object_type, res;
     TSS2_RC r = 0;
 
-    DBG("DECODER DECODE\n");
+    DBG("TSS2 DECODER DECODE\n");
     if ((pkey = OPENSSL_zalloc(sizeof(TPM2_PKEY))) == NULL)
         return 0;
 
@@ -104,7 +97,7 @@ tpm2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
     pkey->esys_ctx = dctx->esys_ctx;
     pkey->object = ESYS_TR_NONE;
 
-    res = tpm2_keydata_read(bin, &pkey->data, dctx->format);
+    res = tpm2_keydata_read(bin, &pkey->data, KEY_FORMAT_DER);
     BIO_free(bin);
     if (!res)
         goto error1;
@@ -113,12 +106,12 @@ tpm2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
         ESYS_TR parent = ESYS_TR_NONE;
 
         if (pkey->data.parent && pkey->data.parent != TPM2_RH_OWNER) {
-            DBG("DECODER LOAD parent: persistent 0x%x\n", pkey->data.parent);
+            DBG("TSS2 DECODER LOAD parent: persistent 0x%x\n", pkey->data.parent);
             if (!tpm2_load_parent(pkey->core, pkey->esys_ctx,
                                   pkey->data.parent, &dctx->parentAuth, &parent))
                 goto error1;
         } else {
-            DBG("DECODER LOAD parent: primary 0x%x\n", TPM2_RH_OWNER);
+            DBG("TSS2 DECODER LOAD parent: primary 0x%x\n", TPM2_RH_OWNER);
             if (!tpm2_build_primary(pkey->core, pkey->esys_ctx,
                                     ESYS_TR_RH_OWNER, &dctx->parentAuth, &parent))
                 goto error1;
@@ -187,21 +180,12 @@ error1:
     return 0;
 }
 
-#define IMPLEMENT_DECODER_DISPATCH(format) \
-    const OSSL_DISPATCH tpm2_rsa_decoder_##format##_functions[] = { \
-        { OSSL_FUNC_DECODER_NEWCTX, (void (*)(void))tpm2_decoder_##format##_newctx }, \
-        { OSSL_FUNC_DECODER_FREECTX, (void (*)(void))tpm2_decoder_freectx }, \
-        { OSSL_FUNC_DECODER_GETTABLE_PARAMS, (void (*)(void))tpm2_decoder_gettable_params }, \
-        { OSSL_FUNC_DECODER_GET_PARAMS, (void (*)(void))tpm2_decoder_##format##_get_params }, \
-        { OSSL_FUNC_DECODER_DECODE, (void (*)(void))tpm2_decoder_decode }, \
-        { 0, NULL } \
-    };
-
-#define DECLARE_DECODER(format) \
-    IMPLEMENT_DECODER_NEWCTX(format) \
-    IMPLEMENT_DECODER_GET_PARAMS(format) \
-    IMPLEMENT_DECODER_DISPATCH(format)
-
-DECLARE_DECODER(PEM)
-DECLARE_DECODER(DER)
+const OSSL_DISPATCH tpm2_tss2_decoder_functions[] = {
+    { OSSL_FUNC_DECODER_NEWCTX, (void (*)(void))tpm2_tss2_decoder_newctx },
+    { OSSL_FUNC_DECODER_FREECTX, (void (*)(void))tpm2_tss2_decoder_freectx },
+    { OSSL_FUNC_DECODER_GETTABLE_PARAMS, (void (*)(void))tpm2_tss2_decoder_gettable_params },
+    { OSSL_FUNC_DECODER_GET_PARAMS, (void (*)(void))tpm2_tss2_decoder_get_params },
+    { OSSL_FUNC_DECODER_DECODE, (void (*)(void))tpm2_tss2_decoder_decode },
+    { 0, NULL }
+};
 

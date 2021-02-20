@@ -7,7 +7,7 @@ echo -n "abcde12345abcde12345" > testdata
 tpm2_createprimary -G rsa -g sha256 -c parent.ctx
 
 # make the primary persistent
-HANDLE=$(tpm2_evictcontrol --object-context=parent.ctx | cut -d ' ' -f 2 | head -n 1)
+HANDLE=$(tpm2_evictcontrol -c parent.ctx | cut -d ' ' -f 2 | head -n 1)
 
 # generate key with an user authorization
 openssl genpkey -provider tpm2 -algorithm RSA -out testkey.priv \
@@ -26,6 +26,6 @@ openssl pkeyutl -verify -pubin -inkey testkey.pub -rawin -in testdata \
     -pkeyopt pad-mode:pss -sigfile testdata.sig
 
 # release the persistent key
-tpm2_evictcontrol --object-context=${HANDLE}
+tpm2_evictcontrol -c ${HANDLE}
 
 rm parent.ctx testdata testdata.sig testkey.priv testkey.pub

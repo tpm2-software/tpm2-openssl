@@ -265,10 +265,10 @@ rsa_signature_get_ctx_params(void *ctx, OSSL_PARAM params[])
     TPM2_RSA_SIGNATURE_CTX *sctx = ctx;
     OSSL_PARAM *p;
 
-    TRACE_PARAMS("SIGN GET_CTX_PARAMS", params);
     if (ctx == NULL || params == NULL)
         return 0;
 
+    TRACE_PARAMS("SIGN GET_CTX_PARAMS", params);
     p = OSSL_PARAM_locate(params, OSSL_SIGNATURE_PARAM_ALGORITHM_ID);
     if (p != NULL) {
         unsigned char *aid = NULL;

@@ -121,21 +121,22 @@ static const OSSL_ALGORITHM tpm2_encoders[] = {
     { NULL, NULL, NULL }
 };
 
-extern const OSSL_DISPATCH tpm2_rsa_decoder_PEM_functions[];
-extern const OSSL_DISPATCH tpm2_rsa_decoder_DER_functions[];
+extern const OSSL_DISPATCH tpm2_der_decoder_functions[];
+extern const OSSL_DISPATCH tpm2_tss2_decoder_functions[];
 
 static const OSSL_ALGORITHM tpm2_decoders[] = {
-    { "RSA:rsaEncryption", "provider=tpm2,input=pem", tpm2_rsa_decoder_PEM_functions },
-    { "RSA:rsaEncryption", "provider=tpm2,input=der", tpm2_rsa_decoder_DER_functions },
+    { "DER", "provider=tpm2,input=pem", tpm2_der_decoder_functions },
+    { "RSA:rsaEncryption", "provider=tpm2,input=der,structure=TSS2", tpm2_tss2_decoder_functions },
     { NULL, NULL, NULL }
 };
 
 extern const OSSL_DISPATCH tpm2_file_store_functions[];
-extern const OSSL_DISPATCH tpm2_handle_store_functions[];
+extern const OSSL_DISPATCH tpm2_object_store_functions[];
 
 static const OSSL_ALGORITHM tpm2_stores[] = {
     { "file", TPM2_PROPS(store), tpm2_file_store_functions },
-    { "handle", TPM2_PROPS(store), tpm2_handle_store_functions },
+    { "object", TPM2_PROPS(store), tpm2_object_store_functions },
+    { "handle", TPM2_PROPS(store), tpm2_object_store_functions },
     { NULL, NULL, NULL }
 };
 

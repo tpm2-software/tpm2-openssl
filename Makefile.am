@@ -11,9 +11,10 @@ tpm2_la_SOURCES = src/tpm2-provider.c \
                   src/tpm2-provider-rand.c \
                   src/tpm2-provider-pkey.c \
                   src/tpm2-provider-store-file.c \
-                  src/tpm2-provider-store-handle.c \
+                  src/tpm2-provider-store-object.c \
+                  src/tpm2-provider-decoder-der.c \
+                  src/tpm2-provider-decoder-tss2.c \
                   src/tpm2-provider-rsa-asymcipher.c \
-                  src/tpm2-provider-rsa-decoder.c \
                   src/tpm2-provider-rsa-encoder.c \
                   src/tpm2-provider-rsa-keymgmt.c \
                   src/tpm2-provider-rsa-signature.c
@@ -35,7 +36,8 @@ TESTS_SHELL = test/list.sh \
               test/rsa_genrsa_check.sh \
               test/rsa_genpkey_sign.sh \
               test/rsa_genpkey_parent_auth.sh \
-              test/rsa_createak_sign.sh \
+              test/rsa_createak_sign_object.sh \
+              test/rsa_createak_sign_handle.sh \
               test/rsa_create_decrypt.sh \
               test/rsa_genpkey_x509_cert.sh \
               test/rsa_genpkey_tls_server.sh \

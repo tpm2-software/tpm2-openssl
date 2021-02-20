@@ -4,10 +4,9 @@ set -eufx
 function cleanup()
 {
     kill -term $SERVER
-    wait $SERVER 2>/dev/null
 
     # release persistent handle
-    tpm2_evictcontrol --object-context=${HANDLE}
+    tpm2_evictcontrol -c ${HANDLE}
 
     rm ek_rsa.ctx ak_rsa.ctx testcert.conf testcert.pem
 }
@@ -19,7 +18,7 @@ tpm2_createek -G rsa -c ek_rsa.ctx
 tpm2_createak -C ek_rsa.ctx -G rsa -g sha256 -s rsapss -c ak_rsa.ctx
 
 # load the AK to persistent handle
-HANDLE=$(tpm2_evictcontrol --object-context=ak_rsa.ctx | cut -d ' ' -f 2 | head -n 1)
+HANDLE=$(tpm2_evictcontrol -c ak_rsa.ctx | cut -d ' ' -f 2 | head -n 1)
 
 cat > testcert.conf << EOF
 [ req ]
