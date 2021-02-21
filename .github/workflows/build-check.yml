@@ -13,7 +13,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Install dependencies
-      run: sudo apt-get install autoconf-archive libtss2-dev libtss2-tcti-tabrmd0 tpm2-abrmd tpm2-tools
+      run: sudo apt-get install autoconf-archive lcov libtss2-dev libtss2-tcti-tabrmd0 tpm2-abrmd tpm2-tools
 
     - name: Build TPM2 simulator
       run: |
@@ -44,7 +44,7 @@ jobs:
     - name: Build tpm2-openssl
       run: |
         ./bootstrap
-        ./configure --enable-debug
+        ./configure --enable-code-coverage --enable-debug
         make
         sudo make install
 
@@ -54,6 +54,7 @@ jobs:
         echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> $GITHUB_ENV
         ibmtpm/src/tpm_server &
         tpm2-abrmd --session --tcti mssim:host=localhost,port=2321 &
+        echo "TCTI_ADDRESS=tabrmd:bus_name=com.intel.tss2.Tabrmd,bus_type=session" >> $GITHUB_ENV
         sleep 1
 
     - name: Run tests
@@ -62,12 +63,24 @@ jobs:
         tpm2_getcap properties-fixed | head -n 20
         make check
       env:
-        TPM2TOOLS_TCTI: tabrmd:bus_name=com.intel.tss2.Tabrmd,bus_type=session
-        TPM2OPENSSL_TCTI: tabrmd:bus_name=com.intel.tss2.Tabrmd,bus_type=session
+        TPM2TOOLS_TCTI: ${{ env.TCTI_ADDRESS }}
+        TPM2OPENSSL_TCTI: ${{ env.TCTI_ADDRESS }}
+
+    - name: Check code coverage
+      run: |
+        make check-code-coverage
+      env:
+        TPM2TOOLS_TCTI: ${{ env.TCTI_ADDRESS }}
+        TPM2OPENSSL_TCTI: ${{ env.TCTI_ADDRESS }}
+
+    - name: Submit code coverage
+      uses: codecov/codecov-action@v1.2.1
 
     - name: Archive log files
       if: ${{ success() || failure() }}
       uses: actions/upload-artifact@v2
       with:
         name: test-report
-        path: test/*.log
+        path: |
+          *.log
+          test/*.log

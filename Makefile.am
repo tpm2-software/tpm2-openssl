@@ -19,12 +19,21 @@ tpm2_la_SOURCES = src/tpm2-provider.c \
                   src/tpm2-provider-rsa-keymgmt.c \
                   src/tpm2-provider-rsa-signature.c
 
-tpm2_la_CFLAGS = $(TSS2_ESYS_CFLAGS) $(TSS2_TCTILDR_CFLAGS) $(CRYPTO_CFLAGS)
-tpm2_la_LIBADD = $(TSS2_ESYS_LIBS) $(TSS2_TCTILDR_LIBS)
+# https://www.gnu.org/software/autoconf-archive/ax_code_coverage.html
+if AUTOCONF_CODE_COVERAGE_2019_01_06
+include $(top_srcdir)/aminclude_static.am
+clean-local: code-coverage-clean
+dist-clean-local: code-coverage-dist-clean
+else
+@CODE_COVERAGE_RULES@
+endif
+
+tpm2_la_CFLAGS = $(TSS2_ESYS_CFLAGS) $(TSS2_TCTILDR_CFLAGS) $(CRYPTO_CFLAGS) $(CODE_COVERAGE_CFLAGS)
+tpm2_la_LIBADD = $(TSS2_ESYS_LIBS) $(TSS2_TCTILDR_LIBS) $(CODE_COVERAGE_LIBS)
 if TSS2_RC
 tpm2_la_LIBADD += $(TSS2_RC_LIBS)
 endif
-tpm2_la_LDFLAGS = -module -avoid-version -no-undefined -export-symbols-regex 'OSSL_provider_init'
+tpm2_la_LDFLAGS = -module -avoid-version -no-undefined -export-symbols-regex 'OSSL_provider_init' $(CODE_COVERAGE_LDFLAGS)
 
 TESTS = $(TESTS_SHELL)
 
