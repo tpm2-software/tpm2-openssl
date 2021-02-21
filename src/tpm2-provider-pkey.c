@@ -36,6 +36,11 @@ TSSPRIVKEY *d2i_TSSPRIVKEY_bio(BIO *bp, TSSPRIVKEY **a)
     return ASN1_d2i_bio_of(TSSPRIVKEY, TSSPRIVKEY_new, d2i_TSSPRIVKEY, bp, a);
 }
 
+int i2d_TSSPRIVKEY_bio(BIO *bp, const TSSPRIVKEY *a)
+{
+    return ASN1_i2d_bio_of(TSSPRIVKEY, i2d_TSSPRIVKEY, bp, a);
+}
+
 /** Serialize TPM2_KEYDATA onto disk
  *
  * Write the tpm2tss key data into a file using PEM encoding.
@@ -45,7 +50,7 @@ TSSPRIVKEY *d2i_TSSPRIVKEY_bio(BIO *bp, TSSPRIVKEY **a)
  * @retval 0 on failure
  */
 int
-tpm2_keydata_write(const TPM2_KEYDATA *keydata, BIO *bout)
+tpm2_keydata_write(const TPM2_KEYDATA *keydata, BIO *bout, TPM2_PKEY_FORMAT format)
 {
     TSSPRIVKEY *tpk = NULL;
     TSS2_RC r;
@@ -82,7 +87,16 @@ tpm2_keydata_write(const TPM2_KEYDATA *keydata, BIO *bout)
     ASN1_STRING_set(tpk->privkey, &privbuf[0], privbuf_len);
     ASN1_STRING_set(tpk->pubkey, &pubbuf[0], pubbuf_len);
 
-    PEM_write_bio_TSSPRIVKEY(bout, tpk);
+    switch (format) {
+    case KEY_FORMAT_PEM:
+        PEM_write_bio_TSSPRIVKEY(bout, tpk);
+        break;
+    case KEY_FORMAT_DER:
+        i2d_TSSPRIVKEY_bio(bout, tpk);
+        break;
+    default:
+        goto error;
+    }
 
     TSSPRIVKEY_free(tpk);
     return 1;

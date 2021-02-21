@@ -22,7 +22,7 @@ BIO *
 bio_new_from_core_bio(const BIO_METHOD *corebiometh, OSSL_CORE_BIO *corebio);
 
 int
-tpm2_keydata_write(const TPM2_KEYDATA *keydata, BIO *bout);
+tpm2_keydata_write(const TPM2_KEYDATA *keydata, BIO *bout, TPM2_PKEY_FORMAT format);
 
 int
 tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata, TPM2_PKEY_FORMAT format);

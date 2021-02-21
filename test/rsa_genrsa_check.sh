@@ -1,21 +1,25 @@
 #!/bin/bash
 set -eufx
 
-# generate key
-openssl genrsa -provider tpm2 -verbose -out testkey.priv 1024
+# generate private key as PEM
+openssl genrsa -provider tpm2 -verbose -out pubkey.pem 1024
 
 # validate the generated file
-openssl pkey -provider tpm2 -in testkey.priv -check -noout
+openssl pkey -provider tpm2 -in pubkey.pem -check -noout
 
 # print private key modulus
-openssl rsa -provider tpm2 -in testkey.priv -modulus -noout
+openssl rsa -provider tpm2 -in pubkey.pem -modulus -noout
 
 # print components of the private key
-openssl rsa -provider tpm2 -in testkey.priv -text -noout
+openssl rsa -provider tpm2 -in pubkey.pem -text -noout
+
+# convert PEM private key to DER
+openssl pkey -provider tpm2 -in pubkey.pem -outform der -out pubkey.der
 
 
-# export public key as PEM
-openssl pkey -provider tpm2 -in testkey.priv -pubout -out testkey.pem
+# read PEM and export public key as PEM, use the default STORE implementation
+openssl pkey -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.store=no \
+    -in pubkey.pem -pubout -out testkey.pem
 
 # print PEM public key modulus
 openssl rsa -pubin -in testkey.pem -modulus -noout
@@ -24,8 +28,8 @@ openssl rsa -pubin -in testkey.pem -modulus -noout
 openssl rsa -pubin -in testkey.pem -text -noout
 
 
-# export public key as DER
-openssl pkey -provider tpm2 -in testkey.priv -pubout -outform der -out testkey.der
+# read PEM and export public key as DER, use our limited STORE
+openssl pkey -provider tpm2 -in pubkey.pem -pubout -outform der -out testkey.der
 
 # print DER public key modulus
 openssl rsa -pubin -inform der -in testkey.der -modulus -noout
@@ -34,8 +38,9 @@ openssl rsa -pubin -inform der -in testkey.der -modulus -noout
 openssl rsa -pubin -inform der -in testkey.der -text -noout
 
 
-# export public key as PEM
-openssl rsa -provider tpm2 -in testkey.priv -RSAPublicKey_out -out testrsa.pem
+# read DER and export public key as PEM, use the default STORE implementation
+openssl rsa -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.store=no \
+    -in pubkey.der -inform der -RSAPublicKey_out -out testrsa.pem
 
 # print PEM public key modulus
 openssl rsa -RSAPublicKey_in -in testrsa.pem -modulus -noout
@@ -44,8 +49,8 @@ openssl rsa -RSAPublicKey_in -in testrsa.pem -modulus -noout
 openssl rsa -RSAPublicKey_in -in testrsa.pem -text -noout
 
 
-# export public key as DER
-openssl rsa -provider tpm2 -in testkey.priv -RSAPublicKey_out -outform der -out testrsa.der
+# read DER and export public key as DER, use our limited STORE
+openssl rsa -provider tpm2 -in pubkey.pem -inform der -RSAPublicKey_out -outform der -out testrsa.der
 
 # print PEM public key modulus
 openssl rsa -RSAPublicKey_in -inform der -in testrsa.der -modulus -noout
@@ -54,4 +59,4 @@ openssl rsa -RSAPublicKey_in -inform der -in testrsa.der -modulus -noout
 openssl rsa -RSAPublicKey_in -inform der -in testrsa.der -text -noout
 
 
-rm testkey.priv testkey.pem testkey.der testrsa.pem testrsa.der
+rm pubkey.pem pubkey.der testkey.pem testkey.der testrsa.pem testrsa.der

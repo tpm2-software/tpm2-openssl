@@ -95,24 +95,42 @@ tpm2_rsa_encoder_get_params_int(OSSL_PARAM params[],
 /* RSA PRIVATE KEY encoders */
 
 static int
-tpm2_rsa_encoder_encode_pkcs8_pem(void *ctx, OSSL_CORE_BIO *cout, const void *key,
-        const OSSL_PARAM key_abstract[], int selection,
-        OSSL_PASSPHRASE_CALLBACK *cb, void *cbarg)
+tpm2_rsa_encoder_encode_pkcs8(void *ctx, OSSL_CORE_BIO *cout, const void *key,
+                                  TPM2_PKEY_FORMAT format)
 {
     TPM2_RSA_ENCODER_CTX *ectx = ctx;
     TPM2_PKEY *pkey = (TPM2_PKEY *)key;
     BIO *bout;
     int ret;
 
-    DBG("ENCODER ENCODE pkcs8/pem\n");
     bout = bio_new_from_core_bio(ectx->corebiometh, cout);
     if (bout == NULL)
         return 0;
 
-    ret = tpm2_keydata_write(&pkey->data, bout);
+    ret = tpm2_keydata_write(&pkey->data, bout, format);
     BIO_free(bout);
 
     return ret;
+}
+
+static int
+tpm2_rsa_encoder_encode_pkcs8_der(void *ctx, OSSL_CORE_BIO *cout, const void *key,
+        const OSSL_PARAM key_abstract[], int selection,
+        OSSL_PASSPHRASE_CALLBACK *cb, void *cbarg)
+{
+    DBG("ENCODER ENCODE pkcs8/der\n");
+    return tpm2_rsa_encoder_encode_pkcs8(ctx, cout, key, KEY_FORMAT_DER);
+}
+
+DECLARE_ENCODER(pkcs8, der)
+
+static int
+tpm2_rsa_encoder_encode_pkcs8_pem(void *ctx, OSSL_CORE_BIO *cout, const void *key,
+        const OSSL_PARAM key_abstract[], int selection,
+        OSSL_PASSPHRASE_CALLBACK *cb, void *cbarg)
+{
+    DBG("ENCODER ENCODE pkcs8/pem\n");
+    return tpm2_rsa_encoder_encode_pkcs8(ctx, cout, key, KEY_FORMAT_PEM);
 }
 
 DECLARE_ENCODER(pkcs8, pem)

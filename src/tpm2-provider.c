@@ -102,6 +102,7 @@ static const OSSL_ALGORITHM tpm2_asymciphers[] = {
     { NULL, NULL, NULL }
 };
 
+extern const OSSL_DISPATCH tpm2_rsa_encoder_pkcs8_der_functions[];
 extern const OSSL_DISPATCH tpm2_rsa_encoder_pkcs8_pem_functions[];
 extern const OSSL_DISPATCH tpm2_rsa_encoder_pkcs1_der_functions[];
 extern const OSSL_DISPATCH tpm2_rsa_encoder_pkcs1_pem_functions[];
@@ -111,6 +112,7 @@ extern const OSSL_DISPATCH tpm2_rsa_encoder_text_functions[];
 
 static const OSSL_ALGORITHM tpm2_encoders[] = {
     /* private key */
+    { "RSA", "provider=tpm2,output=der,structure=pkcs8", tpm2_rsa_encoder_pkcs8_der_functions },
     { "RSA", "provider=tpm2,output=pem,structure=pkcs8", tpm2_rsa_encoder_pkcs8_pem_functions },
     /* public key */
     { "RSA", "provider=tpm2,output=der,structure=pkcs1", tpm2_rsa_encoder_pkcs1_der_functions },

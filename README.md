@@ -314,6 +314,7 @@ The following encoders are supported:
 | structure            | type                     | openssl arguments
 | -------------------- | ------------------------ | -------------------------------- |
 | PKCS8                | PEM (`TSS2 PRIVATE KEY`) | (default)                        |
+| PKCS8                | DER                      | `-outform der`                   |
 | SubjectPublicKeyInfo | PEM (`PUBLIC KEY`)       | `-pubout`                        |
 | SubjectPublicKeyInfo | DER                      | `-pubout -outform der`           |
 | PKCS1                | PEM (`RSA PUBLIC KEY`)   | `-RSAPublicKey_out`              |
