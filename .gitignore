@@ -24,7 +24,10 @@ src/*.lo
 tpm2.la
 *.log
 test-driver
+test/.dirstamp
+test/*.o
 test/*.trs
+test/selftest
 tpm2-openssl-*-coverage.info
 tpm2-openssl-*-coverage/
 NVChip

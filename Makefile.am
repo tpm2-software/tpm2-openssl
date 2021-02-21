@@ -35,7 +35,12 @@ tpm2_la_LIBADD += $(TSS2_RC_LIBS)
 endif
 tpm2_la_LDFLAGS = -module -avoid-version -no-undefined -export-symbols-regex 'OSSL_provider_init' $(CODE_COVERAGE_LDFLAGS)
 
-TESTS = $(TESTS_SHELL)
+check_PROGRAMS = test/selftest
+test_selftest_SOURCES = test/selftest.c
+test_selftest_CFLAGS = $(CRYPTO_CFLAGS)
+test_selftest_LDADD = $(CRYPTO_LIBS)
+
+TESTS = $(TESTS_SHELL) $(check_PROGRAMS)
 
 TESTS_SHELL = test/list.sh \
               test/digest.sh \
@@ -44,7 +49,8 @@ TESTS_SHELL = test/list.sh \
               test/rand.sh \
               test/rsa_genrsa_check.sh \
               test/rsa_genpkey_sign.sh \
-              test/rsa_genpkey_parent_auth.sh \
+              test/rsa_genpkey_auth_parent.sh \
+              test/rsa_createak_auth.sh \
               test/rsa_createak_sign_object.sh \
               test/rsa_createak_sign_handle.sh \
               test/rsa_create_decrypt.sh \

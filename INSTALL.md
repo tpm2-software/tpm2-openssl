@@ -1,6 +1,7 @@
+# Building the Provider
 This file contains instructions to build and install the tpm2-openssl provider.
 
-# Dependencies
+## Dependencies
 To build and install the tpm2-openssl software the following software packages
 are required:
 
@@ -16,7 +17,7 @@ are required:
 The OpenSSL 3.0 is not released yet. You need to download the latest Alfa version
 and build it from sources.
 
-To run the tests you will also need:
+To run the tests (see next Section) you will also need:
 
  * [TPM2.0 Tools](https://github.com/tpm2-software/tpm2-tools) >= 4.0
  * [TPM2 Access Broker & Resource Manager](https://github.com/tpm2-software/tpm2-abrmd)
@@ -25,7 +26,7 @@ To run the tests you will also need:
  * curl
 
 
-# Building From Source
+## Building From Source
 
 Run the bootstrap script to generate the configure script:
 ```
@@ -55,9 +56,13 @@ make install
 ```
 
 
-# Using With the TPM2 Simulator
+# Testing the Provider
+To test the Provider you need a working TPM2 chip or a TPM2 simulator.
 
-## System-Wide
+
+## Using With the TPM2 Simulator
+
+### System-Wide
 
 Run the the
 [Microsoft/IBM TPM2 simulator](https://sourceforge.net/projects/ibmswtpm2):
@@ -85,7 +90,7 @@ export TPM2OPENSSL_TCTI="tabrmd:bus_name=com.intel.tss2.Tabrmd"
 If you use the TPM2 Tools you need to export also `TPM2TOOLS_TCTI` with the
 same value.
 
-## Session Instance
+### Session Instance
 
 Alternatively, to avoid using the `tss` user you can start `tpm2-abrmd` with
 a session D-Bus instance, which is limited to the current login session:
@@ -102,4 +107,21 @@ export TPM2OPENSSL_TCTI="tabrmd:bus_name=com.intel.tss2.Tabrmd,bus_type=session"
 Please note you need to start openssl in the same login session. Use the
 system-wide D-Bus instance described above if you need to share the `tpm2-abrmd`
 across sessions.
+
+
+## Running Tests
+
+To run the tests simply do
+```
+make check
+```
+
+If you enable test coverage calculation by `./configure --enable-code-coverage`
+you can do
+```
+make check-code-coverage
+```
+
+This will run the test suite (`make check`) and build a code coverage report
+detailing the code which was touched.
 
