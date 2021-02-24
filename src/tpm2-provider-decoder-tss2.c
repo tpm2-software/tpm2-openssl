@@ -169,7 +169,8 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
                                                   &pkey, sizeof(pkey));
     params[3] = OSSL_PARAM_construct_end();
 
-    return object_cb(params, object_cbarg);
+    if (object_cb(params, object_cbarg))
+        return 1;
 error2:
     if (pkey->data.privatetype == KEY_TYPE_HANDLE)
         Esys_TR_Close(pkey->esys_ctx, &pkey->object);
