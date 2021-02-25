@@ -333,6 +333,15 @@ rsa_signature_set_ctx_params(void *ctx, const OSSL_PARAM params[])
         }
     }
 
+    p = OSSL_PARAM_locate_const(params, OSSL_SIGNATURE_PARAM_PSS_SALTLEN);
+    if (p != NULL && p->data_type != OSSL_PARAM_UTF8_STRING) {
+        /*
+         * Per TCG the TPM2 always uses the largest size allowed, so setting
+         * a specific salt length is not allowed.
+         */
+        return 0;
+    }
+
     return 1;
 }
 
@@ -340,8 +349,10 @@ static const OSSL_PARAM *
 rsa_signature_settable_ctx_params(void *provctx)
 {
     static OSSL_PARAM settable[] = {
+        /* mandatory parameters used by openssl */
         OSSL_PARAM_utf8_string(OSSL_SIGNATURE_PARAM_PAD_MODE, NULL, 0),
         OSSL_PARAM_utf8_string(OSSL_SIGNATURE_PARAM_DIGEST, NULL, 0),
+        OSSL_PARAM_utf8_string(OSSL_SIGNATURE_PARAM_PSS_SALTLEN, NULL, 0),
         OSSL_PARAM_END
     };
 

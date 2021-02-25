@@ -106,6 +106,7 @@ tpm2_rsa_keymgmt_gen_set_params(void *ctx, const OSSL_PARAM params[])
 {
     TPM2_RSAGEN_CTX *gen = ctx;
     const OSSL_PARAM *p;
+    size_t primes;
 
     TRACE_PARAMS("KEY GEN_SET_PARAMS", params);
     p = OSSL_PARAM_locate_const(params, TPM2_PKEY_PARAM_PARENT);
@@ -124,6 +125,11 @@ tpm2_rsa_keymgmt_gen_set_params(void *ctx, const OSSL_PARAM params[])
     if (p != NULL && !OSSL_PARAM_get_size_t(p, &gen->bits))
         return 0;
 
+    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_PRIMES);
+    /* TCG says: only public keys that are the product of two primes */
+    if (p != NULL && (!OSSL_PARAM_get_size_t(p, &primes) || primes != 2))
+        return 0;
+
     p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_E);
     if (p != NULL && !OSSL_PARAM_get_BN(p, &gen->e))
         return 0;
@@ -138,7 +144,9 @@ tpm2_rsa_keymgmt_gen_settable_params(void *provctx)
         OSSL_PARAM_uint32(TPM2_PKEY_PARAM_PARENT, NULL),
         OSSL_PARAM_utf8_string(TPM2_PKEY_PARAM_PARENT_AUTH, NULL, 0),
         OSSL_PARAM_utf8_string(TPM2_PKEY_PARAM_USER_AUTH, NULL, 0),
+        /* mandatory parameters used by openssl */
         OSSL_PARAM_size_t(OSSL_PKEY_PARAM_RSA_BITS, NULL),
+        OSSL_PARAM_size_t(OSSL_PKEY_PARAM_RSA_PRIMES, NULL),
         OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_E, NULL, 0),
         OSSL_PARAM_END
     };
