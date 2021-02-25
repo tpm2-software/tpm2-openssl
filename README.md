@@ -1,5 +1,5 @@
-[![Build and Check](https://github.com/gotthardp/tpm2-openssl/workflows/build%20and%20check/badge.svg)](https://github.com/gotthardp/tpm2-openssl/actions)
-[![codecov](https://codecov.io/gh/gotthardp/tpm2-openssl/branch/master/graph/badge.svg?token=Q1884M5ZQM)](https://codecov.io/gh/gotthardp/tpm2-openssl)
+[![Build and Check](https://github.com/tpm2-software/tpm2-openssl/workflows/build%20and%20check/badge.svg)](https://github.com/tpm2-software/tpm2-openssl/actions)
+[![codecov](https://codecov.io/gh/tpm2-software/tpm2-openssl/branch/master/graph/badge.svg)](https://codecov.io/gh/tpm2-software/tpm2-openssl)
 
 # Provider for integration of TPM 2.0 to OpenSSL 3.0
 
