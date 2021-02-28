@@ -52,6 +52,66 @@ rsa_signature_freectx(void *ctx)
 }
 
 static int
+rsa_signature_sign_init(void *ctx, void *provkey)
+{
+    TPM2_RSA_SIGNATURE_CTX *sctx = ctx;
+
+    DBG("SIGN SIGN_INIT\n");
+    sctx->pkey = provkey;
+    return 1;
+}
+
+static int
+get_signature_buffer(const TPMT_SIGNATURE *signature,
+                     unsigned char *sig, size_t *siglen, size_t sigsize)
+{
+    if (signature->sigAlg == TPM2_ALG_RSASSA ||
+            signature->sigAlg == TPM2_ALG_RSAPSS) {
+        /* copy buffer */
+        *siglen = signature->signature.rsassa.sig.size;
+        if (sig != NULL) {
+            if (*siglen > sigsize)
+                return 0;
+            memcpy(sig, signature->signature.rsassa.sig.buffer, *siglen);
+        }
+        return 1;
+    }
+    else
+        return 0;
+}
+
+static int
+rsa_signature_sign(void *ctx, unsigned char *sig, size_t *siglen, size_t sigsize,
+                   const unsigned char *tbs, size_t tbslen)
+{
+    TPM2_RSA_SIGNATURE_CTX *sctx = ctx;
+    TPM2B_DIGEST digest;
+    TSS2_RC r;
+
+    TPMT_TK_HASHCHECK empty_validation = {
+        .tag = TPM2_ST_HASHCHECK,
+        .hierarchy = TPM2_RH_NULL,
+        .digest.size = 0,
+    };
+
+    DBG("SIGN SIGN\n");
+    if (tbslen > TPM2_MAX_DIGEST_BUFFER)
+        return 0;
+    digest.size = tbslen;
+    memcpy(digest.buffer, tbs, tbslen);
+
+    r = Esys_Sign(sctx->esys_ctx, sctx->pkey->object,
+                  ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                  &digest, &sctx->signScheme, &empty_validation, &sctx->signature);
+    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_SIGN, return 0);
+
+    if (!get_signature_buffer(sctx->signature, sig, siglen, sigsize))
+        return 0;
+
+    return 1;
+}
+
+static int
 rsa_signature_digest_sign_init(void *ctx, const char *mdname, void *provkey)
 {
     TSS2_RC r;
@@ -170,25 +230,6 @@ digest_sign_calculate(TPM2_RSA_SIGNATURE_CTX *sctx)
     TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_SIGN, return 0);
 
     return 1;
-}
-
-static int
-get_signature_buffer(const TPMT_SIGNATURE *signature,
-                     unsigned char *sig, size_t *siglen, size_t sigsize)
-{
-    if (signature->sigAlg == TPM2_ALG_RSASSA ||
-            signature->sigAlg == TPM2_ALG_RSAPSS) {
-        /* copy buffer */
-        *siglen = signature->signature.rsassa.sig.size;
-        if (sig != NULL) {
-            if (*siglen > sigsize)
-                return 0;
-            memcpy(sig, signature->signature.rsassa.sig.buffer, *siglen);
-        }
-        return 1;
-    }
-    else
-        return 0;
 }
 
 static int
@@ -362,6 +403,8 @@ rsa_signature_settable_ctx_params(void *provctx)
 const OSSL_DISPATCH tpm2_rsa_signature_functions[] = {
     { OSSL_FUNC_SIGNATURE_NEWCTX, (void (*)(void))rsa_signature_newctx },
     { OSSL_FUNC_SIGNATURE_FREECTX, (void (*)(void))rsa_signature_freectx },
+    { OSSL_FUNC_SIGNATURE_SIGN_INIT, (void (*)(void))rsa_signature_sign_init },
+    { OSSL_FUNC_SIGNATURE_SIGN, (void (*)(void))rsa_signature_sign },
     { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_INIT, (void (*)(void))rsa_signature_digest_sign_init },
     { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_UPDATE, (void (*)(void))rsa_signature_digest_sign_update },
     { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_FINAL, (void (*)(void))rsa_signature_digest_sign_final },

@@ -421,12 +421,13 @@ The tpm2 provider implements a
 operation that is made available via the
 [EVP_DigestSign](https://www.openssl.org/docs/manmaster/man3/EVP_DigestSign.html)
 API function and the
-[`openssl pkeyutl -sign -rawin`](https://www.openssl.org/docs/manmaster/man1/openssl-pkeyutl.html)
+[`openssl pkeyutl -sign`](https://www.openssl.org/docs/manmaster/man1/openssl-pkeyutl.html)
 command.
 
-The `-rawin` argument ensures the digest is calculated by the TPM itself and thus
-restricted signing keys, such as the Attestation Key (from tpm2_createak) can be
-used.
+The optional `-rawin` argument ensures the digest is calculated by the TPM
+itself and thus restricted signing keys, such as the Attestation Key (from
+tpm2_createak) can be used. Without `-rawin`, the key cannot be restricted and
+the input data length must correspond to the digest length.
 
 For example, to sign the "testdata" file using the Attestation Key 0x81000000
 (restricted signing key, associated with a specific algorithm and hash):

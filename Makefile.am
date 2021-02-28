@@ -49,6 +49,7 @@ TESTS_SHELL = test/list.sh \
               test/rand.sh \
               test/rsa_genrsa_check.sh \
               test/rsa_genpkey_sign.sh \
+              test/rsa_genpkey_sign_rawin.sh \
               test/rsa_genpkey_auth_parent.sh \
               test/rsa_createak_auth.sh \
               test/rsa_createak_sign_object.sh \
