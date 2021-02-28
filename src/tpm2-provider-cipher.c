@@ -349,7 +349,7 @@ tpm2_cipher_gettable_params(void *provctx)
     }
 
 static const OSSL_PARAM *
-tpm2_cipher_gettable_ctx_params(void *provctx)
+tpm2_cipher_gettable_ctx_params(void *ctx, void *provctx)
 {
     static const OSSL_PARAM known_gettable_ctx_params[] = {
         OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_BLOCK_SIZE, NULL),
@@ -369,7 +369,7 @@ tpm2_cipher_gettable_ctx_params(void *provctx)
     }
 
 static const OSSL_PARAM *
-tpm2_cipher_settable_ctx_params(void *provctx)
+tpm2_cipher_settable_ctx_params(void *ctx, void *provctx)
 {
     static const OSSL_PARAM known_settable_ctx_params[] = {
         OSSL_PARAM_uint(OSSL_CIPHER_PARAM_PADDING, NULL),

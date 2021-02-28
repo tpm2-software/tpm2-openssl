@@ -49,7 +49,8 @@ tpm2_rand_freectx(void *ctx)
 static int
 tpm2_rand_instantiate(void *ctx, unsigned int strength,
                       int prediction_resistance,
-                      const unsigned char *pstr, size_t pstr_len)
+                      const unsigned char *pstr, size_t pstr_len,
+                      const OSSL_PARAM params[])
 {
     return 1;
 }
@@ -116,7 +117,7 @@ tpm2_rand_unlock(void *ctx)
 }
 
 static const OSSL_PARAM *
-tpm2_rand_gettable_ctx_params(void *provctx)
+tpm2_rand_gettable_ctx_params(void *ctx, void *provctx)
 {
     static const OSSL_PARAM known_gettable_ctx_params[] = {
         OSSL_PARAM_size_t(OSSL_RAND_PARAM_MAX_REQUEST, NULL),
