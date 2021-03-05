@@ -29,15 +29,19 @@ subjectAltName      = @alt_names
 DNS.1               = localhost
 EOF
 
-# create a private key and then generate a self-signed certificate for it
+# create a RSAE private key and then generate a self-signed certificate for it
 openssl req -provider tpm2 -x509 -config testcert.conf -out testcert.pem
 
-# start SSL server
+# display content of the certificate
+openssl x509 -text -noout -in testcert.pem
+
+# start SSL server with RSA-PSS-RSAE signing
 openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.digest!=yes \
-                 -accept 4443 -www -key testkey.pem -cert testcert.pem &
+                 -accept 4443 -www -key testkey.pem -cert testcert.pem -sigalgs "RSA-PSS+SHA256" &
 SERVER=$!
 trap "cleanup" EXIT
 sleep 1
 
 # start SSL client
-curl --cacert testcert.pem https://localhost:4443/
+curl --tlsv1.2 --cacert testcert.pem https://localhost:4443/
+curl --tlsv1.3 --cacert testcert.pem https://localhost:4443/

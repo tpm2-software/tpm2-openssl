@@ -125,20 +125,20 @@ rsa_signature_digest_sign_init(void *ctx, const char *mdname, void *provkey)
         if (sctx->signScheme.details.any.hashAlg != TPM2_ALG_NULL)
             /* hash algorithm was specified in SET_CTX_PARAMS */
             sctx->digalg = sctx->signScheme.details.any.hashAlg;
-        else if (sctx->pkey->data.pub.publicArea.parameters.rsaDetail.scheme.scheme != TPM2_ALG_NULL)
+        else if (TPM2_PKEY_RSA_SCHEME(sctx->pkey) != TPM2_ALG_NULL)
             /* hash algorithm is associated with the key */
-            sctx->digalg = sctx->pkey->data.pub.publicArea.parameters.rsaDetail.scheme.details.anySig.hashAlg;
+            sctx->digalg = TPM2_PKEY_RSA_HASH(sctx->pkey);
         else
             sctx->digalg = TPM2_ALG_SHA256;
-    } else if ((sctx->digalg = tpm2_name_to_alg_hash(mdname)) == TPM2_ALG_ERROR) {
+    } else if ((sctx->digalg = tpm2_hash_name_to_alg(mdname)) == TPM2_ALG_ERROR) {
         TPM2_ERROR_raise(sctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
         return 0;
     }
 
     if (sctx->signScheme.scheme == TPM2_ALG_NULL) {
-        if (sctx->pkey->data.pub.publicArea.parameters.rsaDetail.scheme.scheme != TPM2_ALG_NULL)
+        if (TPM2_PKEY_RSA_SCHEME(sctx->pkey) != TPM2_ALG_NULL)
             /* copy the key algorithm for ALGORITHM_ID calculation */
-            sctx->signScheme.scheme = sctx->pkey->data.pub.publicArea.parameters.rsaDetail.scheme.scheme;
+            sctx->signScheme.scheme = TPM2_PKEY_RSA_SCHEME(sctx->pkey);
         else
             /* no signing scheme was defined, use default */
             sctx->signScheme.scheme = TPM2_ALG_RSASSA;
@@ -315,8 +315,8 @@ rsa_signature_get_ctx_params(void *ctx, OSSL_PARAM params[])
         unsigned char *aid = NULL;
         int aid_len, r;
 
-        if(!tpm2_sig_scheme_to_x509_alg(&sctx->signScheme, sctx->digalg,
-                                        &aid, &aid_len))
+        if(!tpm2_sig_scheme_to_x509_alg(TPM2_PKEY_BITS(sctx->pkey),
+                                        &sctx->signScheme, &aid, &aid_len))
             return 0;
 
         r = OSSL_PARAM_set_octet_string(p, aid, aid_len);
@@ -328,7 +328,7 @@ rsa_signature_get_ctx_params(void *ctx, OSSL_PARAM params[])
 }
 
 static const OSSL_PARAM *
-rsa_signature_gettable_ctx_params(void *provctx)
+rsa_signature_gettable_ctx_params(void *ctx, void *provctx)
 {
     static OSSL_PARAM gettable[] = {
         OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_ALGORITHM_ID, NULL, 0),
@@ -354,7 +354,7 @@ rsa_signature_set_ctx_params(void *ctx, const OSSL_PARAM params[])
                 return 0;
             sctx->signScheme.scheme = tpm2_num_to_alg_rsa_scheme(pad_mode);
         } else if (p->data_type == OSSL_PARAM_UTF8_STRING) {
-            sctx->signScheme.scheme = tpm2_name_to_alg_rsa_scheme(p->data);
+            sctx->signScheme.scheme = tpm2_rsa_scheme_name_to_alg(p->data);
         } else
             return 0;
 
@@ -368,7 +368,7 @@ rsa_signature_set_ctx_params(void *ctx, const OSSL_PARAM params[])
     if (p != NULL) {
         if (p->data_type != OSSL_PARAM_UTF8_STRING ||
                 ((sctx->signScheme.details.any.hashAlg =
-                    tpm2_name_to_alg_hash(p->data)) == TPM2_ALG_ERROR)) {
+                    tpm2_hash_name_to_alg(p->data)) == TPM2_ALG_ERROR)) {
             TPM2_ERROR_raise(sctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
             return 0;
         }
@@ -387,7 +387,7 @@ rsa_signature_set_ctx_params(void *ctx, const OSSL_PARAM params[])
 }
 
 static const OSSL_PARAM *
-rsa_signature_settable_ctx_params(void *provctx)
+rsa_signature_settable_ctx_params(void *ctx, void *provctx)
 {
     static OSSL_PARAM settable[] = {
         /* mandatory parameters used by openssl */

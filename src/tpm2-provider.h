@@ -46,6 +46,10 @@ typedef struct {
     ESYS_TR object;
 } TPM2_PKEY;
 
+#define TPM2_PKEY_BITS(pkey) ((pkey)->data.pub.publicArea.parameters.rsaDetail.keyBits)
+#define TPM2_PKEY_RSA_SCHEME(pkey) ((pkey)->data.pub.publicArea.parameters.rsaDetail.scheme.scheme)
+#define TPM2_PKEY_RSA_HASH(pkey) ((pkey)->data.pub.publicArea.parameters.rsaDetail.scheme.details.anySig.hashAlg)
+
 enum {
     TPM2_ERR_MEMORY_FAILURE = 1,
     TPM2_ERR_AUTHORIZATION_FAILURE,

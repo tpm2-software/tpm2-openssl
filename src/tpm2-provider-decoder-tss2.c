@@ -84,6 +84,7 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
     BIO *bin;
     OSSL_PARAM params[4];
     int object_type, res;
+    const char *keytype;
     TSS2_RC r = 0;
 
     DBG("TSS2 DECODER DECODE\n");
@@ -156,14 +157,13 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
     object_type = OSSL_OBJECT_PKEY;
     params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
 
-    if (pkey->data.pub.publicArea.type == TPM2_ALG_RSA)
-        params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
-                                                     "RSA", 0);
-    else {
+    if ((keytype = tpm2_openssl_type(&pkey->data)) == NULL) {
         TPM2_ERROR_raise(dctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
         goto error2;
     }
-
+    DBG("TSS2 DECODER DECODE found %s\n", keytype);
+    params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
+                                                 (char *)keytype, 0);
     /* The address of the key becomes the octet string */
     params[2] = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_REFERENCE,
                                                   &pkey, sizeof(pkey));

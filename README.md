@@ -238,7 +238,9 @@ Gettable parameters (API only):
 
 The tpm2 provider implements a
 [OSSL_OP_KEYMGMT](https://www.openssl.org/docs/manmaster/man7/provider-keymgmt.html)
-operation for creation and manipulation of TPM-based **RSA** keys.
+operation for creation and manipulation of TPM-based
+[RSA](https://www.openssl.org/docs/manmaster/man7/RSA.html) and
+[RSA-PSS](https://www.openssl.org/docs/manmaster/man7/RSA-PSS.html) keys.
 These can be used via the
 [EVP_PKEY](https://www.openssl.org/docs/manmaster/man7/EVP_PKEY-RSA.html)
 API functions and the
@@ -247,16 +249,25 @@ command.
 
 ### Key Generation
 
+The following public key algorithms are supported:
+
+| openssl | X.509         |
+| ------- | ------------- |
+| RSA     | rsaEncryption |
+| RSA-PSS | id-RSASSA-PSS |
+
+The RSA-PSS key is a restricted version of RSA which only supports signing,
+verification and key generation using the PSS padding scheme.
+
 Settable key generation parameters (`-pkeyopt`):
  * `bits` (size_t) defines a desired size of the key.
  * `e` (integer) defines a public exponent, by default 65537 (0x10001).
+ * `digest` (utf8_string) associates the key with a specific hash.
  * `user-auth` (utf8_string) defines a password, which will be used to authorize
    private key operations.
  * `parent` (uint32) defines parent of the key (as a hex number),
    by default 0x40000001 (TPM2_RH_OWNER).
  * `parent-auth` (utf8_string) defines an (optional) parent password.
-
-TODO: Missing key flags and key algs.
 
 For example, to define a 1024-bit RSA key without authorization under
 TPM2_RH_OWNER:
@@ -278,6 +289,8 @@ tpm2_createek -G rsa -c ek_rsa.ctx
 tpm2_createak -C ek_rsa.ctx -G rsa -g sha256 -s rsassa -c ak_rsa.ctx
 tpm2_evictcontrol -c ak_rsa.ctx 0x81000000
 ```
+
+Keys restricted to `rsapss` will be handled as RSA-PSS, otherwise as RSA.
 
 ### Key Parameter Retrieval
 
@@ -522,11 +535,15 @@ To perform the TLS handshake you need to:
  * Load the default provider to get a faster and wider set of symmetric ciphers.
  * Exclude TPM2 hashes, which are incompatible with the TLS implementation.
 
+When using a restricted signing key, which is associated with a specific hash
+algorithm, you also need to limit the signature algorithms (using `-sigalgs`
+or `SSL_CTX_set1_sigalgs`) to those supported by the key.
+
 To start a test server using the key and X.509 certificate created in the
 previous section do:
 ```
 openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.digest!=yes \
-                 -accept 4443 -www -key testkey.pem -cert testcert.pem
+                 -accept 4443 -www -key testkey.pem -cert testcert.pem -sigalgs "RSA+SHA256"
 ```
 
 You can then access it using the standard `curl`:

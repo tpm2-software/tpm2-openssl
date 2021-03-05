@@ -329,3 +329,25 @@ error:
     return 0;
 }
 
+const char *
+tpm2_openssl_type(TPM2_KEYDATA *keydata)
+{
+    if (keydata->pub.publicArea.type == TPM2_ALG_RSA) {
+        if (keydata->pub.publicArea.objectAttributes & TPMA_OBJECT_RESTRICTED) {
+            /* when it's a restricted key */
+            switch (keydata->pub.publicArea.parameters.rsaDetail.scheme.scheme) {
+            case TPM2_ALG_NULL:
+            case TPM2_ALG_RSASSA:
+                return "RSA";
+            case TPM2_ALG_RSAPSS:
+                /* if it is restricted to PSS, then it's a RSA-PSS key */
+                return "RSA-PSS";
+            default:
+                return NULL;
+            }
+        } else
+            return "RSA";
+    } else
+        return NULL;
+}
+

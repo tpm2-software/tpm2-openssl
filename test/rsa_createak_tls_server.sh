@@ -14,7 +14,7 @@ function cleanup()
 # create EK
 tpm2_createek -G rsa -c ek_rsa.ctx
 
-# create AK with defined scheme/hash
+# create AK with defined scheme/hash (RSA-PSS)
 tpm2_createak -C ek_rsa.ctx -G rsa -g sha256 -s rsapss -c ak_rsa.ctx
 
 # load the AK to persistent handle
@@ -44,12 +44,16 @@ EOF
 # create a private key and then generate a self-signed certificate for it
 openssl req -provider tpm2 -x509 -config testcert.conf -key handle:${HANDLE} -out testcert.pem
 
-# start SSL server
+# display content of the certificate
+openssl x509 -text -noout -in testcert.pem
+
+# start SSL server with RSA-PSS-PSS signing
 openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.digest!=yes \
-                 -accept 4443 -www -key handle:${HANDLE} -cert testcert.pem &
+                 -accept 4443 -www -key handle:${HANDLE} -cert testcert.pem -sigalgs "rsa_pss_pss_sha256" &
 SERVER=$!
 trap "cleanup" EXIT
 sleep 1
 
 # start SSL client
-curl --cacert testcert.pem https://localhost:4443/
+curl --tlsv1.2 --cacert testcert.pem https://localhost:4443/
+curl --tlsv1.3 --cacert testcert.pem https://localhost:4443/

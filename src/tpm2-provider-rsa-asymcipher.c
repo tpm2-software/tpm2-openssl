@@ -111,7 +111,7 @@ rsa_asymcipher_set_ctx_params(void *ctx, const OSSL_PARAM params[])
 }
 
 static const OSSL_PARAM *
-rsa_asymcipher_settable_ctx_params(void *provctx)
+rsa_asymcipher_settable_ctx_params(void *ctx, void *provctx)
 {
     static const OSSL_PARAM known_settable_ctx_params[] = {
         OSSL_PARAM_END
