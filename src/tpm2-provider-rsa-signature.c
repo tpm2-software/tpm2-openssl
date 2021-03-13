@@ -109,7 +109,7 @@ rsa_signature_sign(void *ctx, unsigned char *sig, size_t *siglen, size_t sigsize
     };
 
     DBG("SIGN SIGN\n");
-    if (tbslen > TPM2_MAX_DIGEST_BUFFER)
+    if (tbslen > sizeof(TPMU_HA))
         return 0;
     digest.size = tbslen;
     memcpy(digest.buffer, tbs, tbslen);

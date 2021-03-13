@@ -1,0 +1,6 @@
+extraction:
+  cpp:
+    prepare:
+      packages:
+      - autoconf-archive
+      - libtss2-dev
