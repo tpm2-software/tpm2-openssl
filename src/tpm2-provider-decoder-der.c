@@ -21,6 +21,12 @@ struct tpm2_der_decoder_ctx_st {
     BIO_METHOD *corebiometh;
 };
 
+static OSSL_FUNC_decoder_newctx_fn tpm2_der_decoder_newctx;
+static OSSL_FUNC_decoder_freectx_fn tpm2_der_decoder_freectx;
+static OSSL_FUNC_decoder_gettable_params_fn tpm2_der_decoder_gettable_params;
+static OSSL_FUNC_decoder_get_params_fn tpm2_der_decoder_get_params;
+static OSSL_FUNC_decoder_decode_fn tpm2_der_decoder_decode;
+
 static void *
 tpm2_der_decoder_newctx(void *provctx)
 {
@@ -55,11 +61,14 @@ OSSL_PARAM *tpm2_der_decoder_gettable_params(void *provctx)
 }
 
 static int
-tpm2_der_decoder_get_params(OSSL_PARAM params[], const char *type)
+tpm2_der_decoder_get_params(OSSL_PARAM params[])
 {
     OSSL_PARAM *p;
 
+    if (params == NULL)
+        return 1;
     TRACE_PARAMS("DER DECODER GET_PARAMS", params);
+
     p = OSSL_PARAM_locate(params, OSSL_DECODER_PARAM_INPUT_TYPE);
     if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, "PEM"))
         return 0;

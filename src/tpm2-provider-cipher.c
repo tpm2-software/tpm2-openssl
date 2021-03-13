@@ -24,6 +24,16 @@ struct tpm2_cipher_ctx_st {
     TPM2B_MAX_BUFFER buffer;
 };
 
+static OSSL_FUNC_cipher_freectx_fn tpm2_cipher_freectx;
+static OSSL_FUNC_cipher_encrypt_init_fn tpm2_cipher_encrypt_init;
+static OSSL_FUNC_cipher_decrypt_init_fn tpm2_cipher_decrypt_init;
+static OSSL_FUNC_cipher_update_fn tpm2_cipher_update;
+static OSSL_FUNC_cipher_final_fn tpm2_cipher_final;
+static OSSL_FUNC_cipher_gettable_params_fn tpm2_cipher_gettable_params;
+static OSSL_FUNC_cipher_gettable_ctx_params_fn tpm2_cipher_gettable_ctx_params;
+static OSSL_FUNC_cipher_settable_ctx_params_fn tpm2_cipher_settable_ctx_params;
+static OSSL_FUNC_cipher_set_ctx_params_fn tpm2_cipher_set_ctx_params;
+
 static void *
 tpm2_cipher_all_newctx(void *provctx,
                        const TPMT_SYM_DEF_OBJECT algdef, size_t block_bits)
@@ -44,6 +54,7 @@ tpm2_cipher_all_newctx(void *provctx,
 }
 
 #define IMPLEMENT_CIPHER_NEWCTX(alg,kbits,amode,blkbits) \
+    static OSSL_FUNC_cipher_newctx_fn tpm2_cipher_##alg##kbits##lcmode##_newctx; \
     static void * \
     tpm2_cipher_##alg##kbits##amode##_newctx(void *provctx) \
     { \
@@ -128,7 +139,8 @@ tpm2_load_external_key(TPM2_CIPHER_CTX *cctx, ESYS_TR parent,
 static int
 tpm2_cipher_init(TPM2_CIPHER_CTX *cctx,
                  const unsigned char *key, size_t keylen,
-                 const unsigned char *iv, size_t ivlen)
+                 const unsigned char *iv, size_t ivlen,
+                 const OSSL_PARAM params[])
 {
 
     if (key != NULL && keylen > 0) {
@@ -159,29 +171,31 @@ tpm2_cipher_init(TPM2_CIPHER_CTX *cctx,
         cctx->ivector->size = ivlen;
     }
 
-    return 1;
+    return tpm2_cipher_set_ctx_params(cctx, params);
 }
 
 static int
 tpm2_cipher_encrypt_init(void *ctx,
                          const unsigned char *key, size_t keylen,
-                         const unsigned char *iv, size_t ivlen)
+                         const unsigned char *iv, size_t ivlen,
+                         const OSSL_PARAM params[])
 {
     TPM2_CIPHER_CTX *cctx = ctx;
 
     cctx->decrypt = TPM2_NO;
-    return tpm2_cipher_init(cctx, key, keylen, iv, ivlen);
+    return tpm2_cipher_init(cctx, key, keylen, iv, ivlen, params);
 }
 
 static int
 tpm2_cipher_decrypt_init(void *ctx,
                          const unsigned char *key, size_t keylen,
-                         const unsigned char *iv, size_t ivlen)
+                         const unsigned char *iv, size_t ivlen,
+                         const OSSL_PARAM params[])
 {
     TPM2_CIPHER_CTX *cctx = ctx;
 
     cctx->decrypt = TPM2_YES;
-    return tpm2_cipher_init(cctx, key, keylen, iv, ivlen);
+    return tpm2_cipher_init(cctx, key, keylen, iv, ivlen, params);
 }
 
 static int
@@ -312,6 +326,9 @@ tpm2_cipher_all_get_params(OSSL_PARAM params[],
 {
     OSSL_PARAM *p;
 
+    if (params == NULL)
+        return 1;
+
     p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_BLOCK_SIZE);
     if (p != NULL && !OSSL_PARAM_set_size_t(p, block_bits/8))
         return 0;
@@ -341,6 +358,7 @@ tpm2_cipher_gettable_params(void *provctx)
 }
 
 #define IMPLEMENT_CIPHER_GET_PARAMS(alg,kbits,lcmode,blkbits,ivbits) \
+    static OSSL_FUNC_cipher_get_params_fn tpm2_cipher_##alg##kbits##lcmode##_get_params; \
     static int \
     tpm2_cipher_##alg##kbits##lcmode##_get_params(OSSL_PARAM params[]) \
     { \
@@ -361,6 +379,7 @@ tpm2_cipher_gettable_ctx_params(void *ctx, void *provctx)
 }
 
 #define IMPLEMENT_CIPHER_GET_CTX_PARAMS(alg,kbits,lcmode,blkbits,ivbits) \
+    static OSSL_FUNC_cipher_get_ctx_params_fn tpm2_cipher_##alg##kbits##lcmode##_get_ctx_params; \
     static int \
     tpm2_cipher_##alg##kbits##lcmode##_get_ctx_params(void *ctx, OSSL_PARAM params[]) \
     { \
@@ -379,11 +398,13 @@ tpm2_cipher_settable_ctx_params(void *ctx, void *provctx)
 }
 
 static int
-tpm2_cipher_set_ctx_params(void *ctx, OSSL_PARAM params[])
+tpm2_cipher_set_ctx_params(void *ctx, const OSSL_PARAM params[])
 {
     TPM2_CIPHER_CTX *cctx = ctx;
     const OSSL_PARAM *p;
 
+    if (params == NULL)
+        return 1;
     TRACE_PARAMS("CIPHER SET_CTX_PARAMS", params);
 
     p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_PADDING);

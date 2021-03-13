@@ -55,6 +55,23 @@ struct tpm2_rsagen_ctx_st {
     int scheme_locked;
 };
 
+static OSSL_FUNC_keymgmt_new_fn tpm2_rsa_keymgmt_new;
+static OSSL_FUNC_keymgmt_gen_init_fn tpm2_rsa_keymgmt_gen_init;
+static OSSL_FUNC_keymgmt_gen_init_fn tpm2_rsapss_keymgmt_gen_init;
+static OSSL_FUNC_keymgmt_gen_set_params_fn tpm2_rsa_keymgmt_gen_set_params;
+static OSSL_FUNC_keymgmt_gen_settable_params_fn tpm2_rsa_keymgmt_gen_settable_params;
+static OSSL_FUNC_keymgmt_gen_fn tpm2_rsa_keymgmt_gen;
+static OSSL_FUNC_keymgmt_gen_cleanup_fn tpm2_rsa_keymgmt_gen_cleanup;
+static OSSL_FUNC_keymgmt_load_fn tpm2_rsa_keymgmt_load;
+static OSSL_FUNC_keymgmt_free_fn tpm2_rsa_keymgmt_free;
+static OSSL_FUNC_keymgmt_get_params_fn tpm2_rsa_keymgmt_get_params;
+static OSSL_FUNC_keymgmt_gettable_params_fn tpm2_rsa_keymgmt_gettable_params;
+static OSSL_FUNC_keymgmt_has_fn tpm2_rsa_keymgmt_has;
+static OSSL_FUNC_keymgmt_match_fn tpm2_rsa_keymgmt_match;
+static OSSL_FUNC_keymgmt_import_fn tpm2_rsa_keymgmt_import;
+static OSSL_FUNC_keymgmt_import_types_fn tpm2_rsa_keymgmt_eximport_types;
+static OSSL_FUNC_keymgmt_export_fn tpm2_rsa_keymgmt_export;
+
 static void *
 tpm2_rsa_keymgmt_new(void *provctx)
 {
@@ -87,7 +104,7 @@ tpm2_create_rsagen_ctx(void *provctx)
 }
 
 static void *
-tpm2_rsa_keymgmt_gen_init(void *provctx, int selection)
+tpm2_rsa_keymgmt_gen_init(void *provctx, int selection, const OSSL_PARAM params[])
 {
     TPM2_RSAGEN_CTX *gen;
 
@@ -98,11 +115,15 @@ tpm2_rsa_keymgmt_gen_init(void *provctx, int selection)
     gen->inPublic = keyTemplate;
     /* a non-restricted key may also decrypt */
     gen->inPublic.publicArea.objectAttributes |= TPMA_OBJECT_DECRYPT;
-    return gen;
+
+    if (tpm2_rsa_keymgmt_gen_set_params(gen, params))
+        return gen;
+    OPENSSL_clear_free(gen, sizeof(TPM2_RSAGEN_CTX));
+    return NULL;
 }
 
 static void *
-tpm2_rsapss_keymgmt_gen_init(void *provctx, int selection)
+tpm2_rsapss_keymgmt_gen_init(void *provctx, int selection, const OSSL_PARAM params[])
 {
     TPM2_RSAGEN_CTX *gen;
 
@@ -115,7 +136,11 @@ tpm2_rsapss_keymgmt_gen_init(void *provctx, int selection)
     gen->inPublic.publicArea.objectAttributes |= TPMA_OBJECT_RESTRICTED;
     gen->inPublic.publicArea.parameters.rsaDetail.scheme.scheme = TPM2_ALG_RSAPSS;
     gen->scheme_locked = 1;
-    return gen;
+
+    if (tpm2_rsa_keymgmt_gen_set_params(gen, params))
+        return gen;
+    OPENSSL_clear_free(gen, sizeof(TPM2_RSAGEN_CTX));
+    return NULL;
 }
 
 static int
@@ -138,7 +163,10 @@ tpm2_rsa_keymgmt_gen_set_params(void *ctx, const OSSL_PARAM params[])
     size_t bits, primes;
     BIGNUM *e = NULL;
 
+    if (params == NULL)
+        return 1;
     TRACE_PARAMS("KEY GEN_SET_PARAMS", params);
+
     p = OSSL_PARAM_locate_const(params, TPM2_PKEY_PARAM_PARENT);
     if (p != NULL && !OSSL_PARAM_get_uint32(p, &gen->parentHandle))
         return 0;
@@ -185,7 +213,7 @@ tpm2_rsa_keymgmt_gen_set_params(void *ctx, const OSSL_PARAM params[])
 }
 
 static const OSSL_PARAM *
-tpm2_rsa_keymgmt_gen_settable_params(void *provctx)
+tpm2_rsa_keymgmt_gen_settable_params(void *ctx, void *provctx)
 {
     static OSSL_PARAM settable[] = {
         OSSL_PARAM_uint32(TPM2_PKEY_PARAM_PARENT, NULL),
@@ -348,7 +376,10 @@ tpm2_rsa_keymgmt_get_params(void *keydata, OSSL_PARAM params[])
     TPM2_PKEY *pkey = (TPM2_PKEY *)keydata;
     OSSL_PARAM *p;
 
+    if (params == NULL)
+        return 1;
     TRACE_PARAMS("KEY GET_PARAMS", params);
+
     p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_BITS);
     if (p != NULL && !OSSL_PARAM_set_int(p, TPM2_PKEY_BITS(pkey)))
         return 0;
@@ -467,9 +498,9 @@ tpm2_rsa_keymgmt_import(void *keydata,
     TPM2_PKEY *pkey = (TPM2_PKEY *)keydata;
     const OSSL_PARAM *p;
 
-    TRACE_PARAMS("KEY IMPORT", params);
     if (pkey == NULL)
         return 0;
+    TRACE_PARAMS("KEY IMPORT", params);
 
     p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_N);
     if (p != NULL) {

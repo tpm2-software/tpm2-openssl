@@ -21,8 +21,21 @@ struct tpm2_rsa_signature_ctx_st {
     TPMT_SIGNATURE *signature;
 };
 
+static OSSL_FUNC_signature_newctx_fn rsa_signature_newctx;
+static OSSL_FUNC_signature_freectx_fn rsa_signature_freectx;
+static OSSL_FUNC_signature_sign_init_fn rsa_signature_sign_init;
+static OSSL_FUNC_signature_sign_fn rsa_signature_sign;
+static OSSL_FUNC_signature_digest_sign_init_fn rsa_signature_digest_sign_init;
+static OSSL_FUNC_signature_digest_sign_update_fn rsa_signature_digest_sign_update;
+static OSSL_FUNC_signature_digest_sign_final_fn rsa_signature_digest_sign_final;
+static OSSL_FUNC_signature_digest_sign_fn rsa_signature_digest_sign;
+static OSSL_FUNC_signature_get_ctx_params_fn rsa_signature_get_ctx_params;
+static OSSL_FUNC_signature_gettable_ctx_params_fn rsa_signature_gettable_ctx_params;
+static OSSL_FUNC_signature_set_ctx_params_fn rsa_signature_set_ctx_params;
+static OSSL_FUNC_signature_settable_ctx_params_fn rsa_signature_settable_ctx_params;
+
 static void *
-rsa_signature_newctx(void *provctx)
+rsa_signature_newctx(void *provctx, const char *propq)
 {
     TPM2_PROVIDER_CTX *cprov = provctx;
     TPM2_RSA_SIGNATURE_CTX *sctx = OPENSSL_zalloc(sizeof(TPM2_RSA_SIGNATURE_CTX));
@@ -52,13 +65,14 @@ rsa_signature_freectx(void *ctx)
 }
 
 static int
-rsa_signature_sign_init(void *ctx, void *provkey)
+rsa_signature_sign_init(void *ctx, void *provkey, const OSSL_PARAM params[])
 {
     TPM2_RSA_SIGNATURE_CTX *sctx = ctx;
 
     DBG("SIGN SIGN_INIT\n");
     sctx->pkey = provkey;
-    return 1;
+
+    return rsa_signature_set_ctx_params(sctx, params);
 }
 
 static int
@@ -112,7 +126,8 @@ rsa_signature_sign(void *ctx, unsigned char *sig, size_t *siglen, size_t sigsize
 }
 
 static int
-rsa_signature_digest_sign_init(void *ctx, const char *mdname, void *provkey)
+rsa_signature_digest_sign_init(void *ctx, const char *mdname, void *provkey,
+                               const OSSL_PARAM params[])
 {
     TSS2_RC r;
     TPM2_RSA_SIGNATURE_CTX *sctx = ctx;
@@ -147,7 +162,7 @@ rsa_signature_digest_sign_init(void *ctx, const char *mdname, void *provkey)
     if (sctx->signScheme.details.any.hashAlg == TPM2_ALG_NULL)
         sctx->signScheme.details.any.hashAlg = sctx->digalg;
 
-    return 1;
+    return rsa_signature_set_ctx_params(sctx, params);
 }
 
 static int
@@ -306,10 +321,10 @@ rsa_signature_get_ctx_params(void *ctx, OSSL_PARAM params[])
     TPM2_RSA_SIGNATURE_CTX *sctx = ctx;
     OSSL_PARAM *p;
 
-    if (ctx == NULL || params == NULL)
-        return 0;
-
+    if (params == NULL)
+        return 1;
     TRACE_PARAMS("SIGN GET_CTX_PARAMS", params);
+
     p = OSSL_PARAM_locate(params, OSSL_SIGNATURE_PARAM_ALGORITHM_ID);
     if (p != NULL) {
         unsigned char *aid = NULL;
@@ -344,7 +359,10 @@ rsa_signature_set_ctx_params(void *ctx, const OSSL_PARAM params[])
     TPM2_RSA_SIGNATURE_CTX *sctx = ctx;
     const OSSL_PARAM *p;
 
+    if (params == NULL)
+        return 1;
     TRACE_PARAMS("SIGN SET_CTX_PARAMS", params);
+
     p = OSSL_PARAM_locate_const(params, OSSL_SIGNATURE_PARAM_PAD_MODE);
     if (p != NULL) {
         if (p->data_type == OSSL_PARAM_INTEGER) {

@@ -19,6 +19,12 @@ struct tpm2_digest_ctx_st {
     TPM2B_DIGEST *digest;
 };
 
+static OSSL_FUNC_digest_freectx_fn tpm2_digest_freectx;
+static OSSL_FUNC_digest_init_fn tpm2_digest_init;
+static OSSL_FUNC_digest_update_fn tpm2_digest_update;
+static OSSL_FUNC_digest_final_fn tpm2_digest_final;
+static OSSL_FUNC_digest_gettable_params_fn tpm2_digest_gettable_params;
+
 static void *
 tpm2_digest_newctx_int(void *provctx, TPM2_ALG_ID algin)
 {
@@ -36,6 +42,7 @@ tpm2_digest_newctx_int(void *provctx, TPM2_ALG_ID algin)
 }
 
 #define IMPLEMENT_DIGEST_NEW_CTX(alg) \
+    static OSSL_FUNC_digest_newctx_fn tpm2_digest_##alg##_newctx; \
     static void * \
     tpm2_digest_##alg##_newctx(void *provctx) \
     { \
@@ -56,7 +63,7 @@ tpm2_digest_freectx(void *ctx)
 }
 
 static int
-tpm2_digest_init(void *ctx)
+tpm2_digest_init(void *ctx, const OSSL_PARAM params[])
 {
     TPM2_DIGEST_CTX *dctx = ctx;
     TPM2B_AUTH null_auth = { .size = 0 };
@@ -147,6 +154,9 @@ tpm2_digest_get_params_int(OSSL_PARAM params[], size_t size)
 {
     OSSL_PARAM *p;
 
+    if (params == NULL)
+        return 1;
+
     p = OSSL_PARAM_locate(params, OSSL_DIGEST_PARAM_BLOCK_SIZE);
     if (p != NULL && !OSSL_PARAM_set_size_t(p, TPM2_MAX_DIGEST_BUFFER))
         return 0;
@@ -159,6 +169,7 @@ tpm2_digest_get_params_int(OSSL_PARAM params[], size_t size)
 }
 
 #define IMPLEMENT_DIGEST_GET_PARAMS(alg) \
+    static OSSL_FUNC_digest_get_params_fn tpm2_digest_##alg##_get_params; \
     static int \
     tpm2_digest_##alg##_get_params(OSSL_PARAM params[]) \
     { \

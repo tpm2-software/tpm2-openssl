@@ -16,6 +16,12 @@ struct tpm2_rsa_encoder_ctx_st {
     BIO_METHOD *corebiometh;
 };
 
+static OSSL_FUNC_encoder_newctx_fn tpm2_rsa_encoder_newctx;
+static OSSL_FUNC_encoder_freectx_fn tpm2_rsa_encoder_freectx;
+static OSSL_FUNC_encoder_gettable_params_fn tpm2_rsa_encoder_gettable_params_text;
+static OSSL_FUNC_encoder_get_params_fn tpm2_rsa_encoder_get_params_text;
+static OSSL_FUNC_encoder_encode_fn tpm2_rsa_encoder_encode_text;
+
 static void *
 tpm2_rsa_encoder_newctx(void *provctx)
 {
@@ -59,6 +65,9 @@ tpm2_rsa_encoder_get_params_int(OSSL_PARAM params[],
 {
     OSSL_PARAM *p;
 
+    if (params == NULL)
+        return 1;
+
     p = OSSL_PARAM_locate(params, OSSL_ENCODER_PARAM_OUTPUT_TYPE);
     if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, otype))
         return 0;
@@ -71,6 +80,7 @@ tpm2_rsa_encoder_get_params_int(OSSL_PARAM params[],
 };
 
 #define IMPLEMENT_ENCODER_GET_PARAMS(otype, ostructure, oformat) \
+    static OSSL_FUNC_encoder_get_params_fn tpm2_##otype##_encoder_get_params_##ostructure##_##oformat; \
     static int \
     tpm2_##otype##_encoder_get_params_##ostructure##_##oformat(OSSL_PARAM params[]) \
     { \
@@ -79,6 +89,7 @@ tpm2_rsa_encoder_get_params_int(OSSL_PARAM params[],
     }
 
 #define IMPLEMENT_ENCODER_ENCODE(otype, ostructure, oformat) \
+    static OSSL_FUNC_encoder_encode_fn tpm2_##otype##_encoder_encode_##ostructure##_##oformat; \
     static int \
     tpm2_##otype##_encoder_encode_##ostructure##_##oformat(void *ctx, \
             OSSL_CORE_BIO *cout, const void *key, const OSSL_PARAM key_abstract[], \
@@ -410,7 +421,10 @@ tpm2_rsa_encoder_get_params_text(OSSL_PARAM params[])
 {
     OSSL_PARAM *p;
 
+    if (params == NULL)
+        return 1;
     TRACE_PARAMS("ENCODER GET_PARAMS", params);
+
     p = OSSL_PARAM_locate(params, OSSL_ENCODER_PARAM_OUTPUT_TYPE);
     if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, "text"))
         return 0;

@@ -24,6 +24,14 @@ struct tpm2_file_ctx_st {
     BIO *bin;
 };
 
+static OSSL_FUNC_store_open_fn tpm2_file_open;
+static OSSL_FUNC_store_attach_fn tpm2_file_attach;
+static OSSL_FUNC_store_settable_ctx_params_fn tpm2_file_settable_params;
+static OSSL_FUNC_store_set_ctx_params_fn tpm2_file_set_params;
+static OSSL_FUNC_store_load_fn tpm2_file_load;
+static OSSL_FUNC_store_eof_fn tpm2_file_eof;
+static OSSL_FUNC_store_close_fn tpm2_file_close;
+
 static void *
 tpm2_file_open(void *provctx, const char *uri)
 {

@@ -17,6 +17,13 @@ struct tpm2_rsa_asymcipher_ctx_st {
     TPM2B_PUBLIC_KEY_RSA *message;
 };
 
+static OSSL_FUNC_asym_cipher_newctx_fn rsa_asymcipher_newctx;
+static OSSL_FUNC_asym_cipher_decrypt_init_fn rsa_asymcipher_decrypt_init;
+static OSSL_FUNC_asym_cipher_decrypt_fn rsa_asymcipher_decrypt;
+static OSSL_FUNC_asym_cipher_freectx_fn rsa_asymcipher_freectx;
+static OSSL_FUNC_asym_cipher_set_ctx_params_fn rsa_asymcipher_set_ctx_params;
+static OSSL_FUNC_asym_cipher_settable_ctx_params_fn rsa_asymcipher_settable_ctx_params;
+
 static void
 *rsa_asymcipher_newctx(void *provctx)
 {
@@ -32,7 +39,7 @@ static void
 }
 
 static int
-rsa_asymcipher_decrypt_init(void *ctx, void *provkey)
+rsa_asymcipher_decrypt_init(void *ctx, void *provkey, const OSSL_PARAM params[])
 {
     TSS2_RC r;
     TPM2_RSA_ASYMCIPHER_CTX *actx = ctx;
@@ -40,7 +47,7 @@ rsa_asymcipher_decrypt_init(void *ctx, void *provkey)
     DBG("DECRYPT INIT\n");
     actx->pkey = provkey;
 
-    return 1;
+    return rsa_asymcipher_set_ctx_params(actx, params);
 }
 
 static int
@@ -105,6 +112,8 @@ rsa_asymcipher_freectx(void *ctx)
 static int
 rsa_asymcipher_set_ctx_params(void *ctx, const OSSL_PARAM params[])
 {
+    if (params == NULL)
+        return 1;
     TRACE_PARAMS("DECRYPT SET_CTX_PARAMS", params);
 
     return 1;

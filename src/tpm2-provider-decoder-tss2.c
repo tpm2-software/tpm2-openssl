@@ -23,6 +23,12 @@ struct tpm2_tss2_decoder_ctx_st {
     TPM2B_DIGEST parentAuth;
 };
 
+static OSSL_FUNC_decoder_newctx_fn tpm2_tss2_decoder_newctx;
+static OSSL_FUNC_decoder_freectx_fn tpm2_tss2_decoder_freectx;
+static OSSL_FUNC_decoder_gettable_params_fn tpm2_tss2_decoder_gettable_params;
+static OSSL_FUNC_decoder_get_params_fn tpm2_tss2_decoder_get_params;
+static OSSL_FUNC_decoder_decode_fn tpm2_tss2_decoder_decode;
+
 static void *
 tpm2_tss2_decoder_newctx(void *provctx)
 {
@@ -62,6 +68,9 @@ static int
 tpm2_tss2_decoder_get_params(OSSL_PARAM params[])
 {
     OSSL_PARAM *p;
+
+    if (params == NULL)
+        return 1;
 
     p = OSSL_PARAM_locate(params, OSSL_DECODER_PARAM_INPUT_TYPE);
     if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, "DER"))

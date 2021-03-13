@@ -17,6 +17,17 @@ struct tpm2_rand_ctx_st {
     CRYPTO_RWLOCK *lock;
 };
 
+static OSSL_FUNC_rand_newctx_fn tpm2_rand_newctx;
+static OSSL_FUNC_rand_freectx_fn tpm2_rand_freectx;
+static OSSL_FUNC_rand_instantiate_fn tpm2_rand_instantiate;
+static OSSL_FUNC_rand_uninstantiate_fn tpm2_rand_uninstantiate;
+static OSSL_FUNC_rand_generate_fn tpm2_rand_generate;
+static OSSL_FUNC_rand_enable_locking_fn tpm2_rand_enable_locking;
+static OSSL_FUNC_rand_lock_fn tpm2_rand_lock;
+static OSSL_FUNC_rand_unlock_fn tpm2_rand_unlock;
+static OSSL_FUNC_rand_gettable_ctx_params_fn tpm2_rand_gettable_ctx_params;
+static OSSL_FUNC_rand_get_ctx_params_fn tpm2_rand_get_ctx_params;
+
 static void *
 tpm2_rand_newctx(void *provctx, void *parent,
                  const OSSL_DISPATCH *parent_calls)
@@ -106,14 +117,14 @@ tpm2_rand_lock(void *ctx)
     return CRYPTO_THREAD_write_lock(rand->lock);
 }
 
-static int
+static void
 tpm2_rand_unlock(void *ctx)
 {
     TPM2_RAND_CTX *rand = ctx;
 
     if (rand == NULL || rand->lock == NULL)
-        return 1;
-    return CRYPTO_THREAD_unlock(rand->lock);
+        return;
+    CRYPTO_THREAD_unlock(rand->lock);
 }
 
 static const OSSL_PARAM *
@@ -131,7 +142,10 @@ tpm2_rand_get_ctx_params(void *ctx, OSSL_PARAM params[])
 {
     OSSL_PARAM *p;
 
+    if (params == NULL)
+        return 1;
     TRACE_PARAMS("RAND GET_CTX_PARAMS", params);
+
     p = OSSL_PARAM_locate(params, OSSL_RAND_PARAM_MAX_REQUEST);
     /* how much fits into the TPM2B_DIGEST, see Part 3 section 16.1.1 */
     if (p != NULL && !OSSL_PARAM_set_size_t(p, sizeof(TPM2B_DIGEST)-2))

@@ -290,7 +290,7 @@ tpm2_createak -C ek_rsa.ctx -G rsa -g sha256 -s rsassa -c ak_rsa.ctx
 tpm2_evictcontrol -c ak_rsa.ctx 0x81000000
 ```
 
-Keys restricted to `rsapss` will be handled as RSA-PSS, otherwise as RSA.
+Keys restricted to `rsapss` will be handled as RSA-PSS, all other keys as RSA.
 
 ### Key Parameter Retrieval
 
