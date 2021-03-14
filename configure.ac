@@ -30,6 +30,10 @@ AM_PROG_CC_C_O
 AC_C_BIGENDIAN
 LT_INIT([disable-static])
 
+AC_ARG_ENABLE([asan],
+    AS_HELP_STRING([--enable-asan], [Enable asan build, useful for testing]))
+AM_CONDITIONAL(WITH_ASAN, test "x$enable_asan" = "xyes")
+
 AC_ARG_ENABLE([tss2-rc],
     AS_HELP_STRING([--disable-tss2-rc], [Disable verbose TSS2 return code reporting]))
 AM_CONDITIONAL(TSS2_RC, test "x$enable_tss2_rc" != "xno")

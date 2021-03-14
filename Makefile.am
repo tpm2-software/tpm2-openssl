@@ -28,17 +28,25 @@ else
 @CODE_COVERAGE_RULES@
 endif
 
-tpm2_la_CFLAGS = $(TSS2_ESYS_CFLAGS) $(TSS2_TCTILDR_CFLAGS) $(CRYPTO_CFLAGS) $(CODE_COVERAGE_CFLAGS)
+COMMON_CFLAGS = $(CRYPTO_CFLAGS)
+COMMON_LDFLAGS =
+if WITH_ASAN
+COMMON_CFLAGS += -O1 -g -fsanitize=address -fno-omit-frame-pointer
+COMMON_LDFLAGS += -fsanitize=address
+endif
+
+tpm2_la_CFLAGS = $(TSS2_ESYS_CFLAGS) $(TSS2_TCTILDR_CFLAGS) $(COMMON_CFLAGS) $(CODE_COVERAGE_CFLAGS)
 tpm2_la_LIBADD = $(TSS2_ESYS_LIBS) $(TSS2_TCTILDR_LIBS) $(CODE_COVERAGE_LIBS)
 if TSS2_RC
 tpm2_la_LIBADD += $(TSS2_RC_LIBS)
 endif
-tpm2_la_LDFLAGS = -module -avoid-version -no-undefined -export-symbols-regex 'OSSL_provider_init' $(CODE_COVERAGE_LDFLAGS)
+tpm2_la_LDFLAGS = -module -avoid-version -no-undefined -export-symbols-regex 'OSSL_provider_init' $(COMMON_LDFLAGS) $(CODE_COVERAGE_LDFLAGS)
 
 check_PROGRAMS = test/selftest
 test_selftest_SOURCES = test/selftest.c
-test_selftest_CFLAGS = $(CRYPTO_CFLAGS)
+test_selftest_CFLAGS = $(COMMON_CFLAGS)
 test_selftest_LDADD = $(CRYPTO_LIBS)
+test_selftest_LDFLAGS = $(COMMON_LDFLAGS)
 
 TESTS = $(TESTS_SHELL) $(check_PROGRAMS)
 
@@ -50,7 +58,6 @@ TESTS_SHELL = test/list.sh \
               test/rsa_genrsa_check.sh \
               test/rsa_genpkey_sign.sh \
               test/rsa_genpkey_sign_rawin.sh \
-              test/rsapss_genpkey_sign_rawin.sh \
               test/rsa_genpkey_auth_parent.sh \
               test/rsa_createak_auth.sh \
               test/rsa_createak_sign_object.sh \
@@ -59,7 +66,8 @@ TESTS_SHELL = test/list.sh \
               test/rsa_genpkey_x509_cert.sh \
               test/rsa_genpkey_tls_server.sh \
               test/rsa_createak_x509_csr.sh \
-              test/rsa_createak_tls_server.sh
+              test/rsapss_genpkey_sign_rawin.sh \
+              test/rsapss_createak_tls_server.sh
 
 TEST_EXTENSIONS = .sh
 SH_LOG_COMPILER = $(srcdir)/test/run

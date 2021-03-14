@@ -118,7 +118,7 @@ tpm2_object_set_params(void *loaderctx, const OSSL_PARAM params[])
 }
 
 static int
-read_until_eof(BIO *bio, char **buffer)
+read_until_eof(BIO *bio, uint8_t **buffer)
 {
     int size = 1024;
     int len = 0;
@@ -130,7 +130,7 @@ read_until_eof(BIO *bio, char **buffer)
         int res;
 
         if (size - len < 64) {
-            char *newbuff;
+            uint8_t *newbuff;
 
             size += 1024;
             if ((newbuff = OPENSSL_realloc(*buffer, size)) == NULL)
@@ -170,7 +170,7 @@ tpm2_object_load(void *ctx,
     pkey->esys_ctx = sctx->esys_ctx;
 
     if (sctx->bio) {
-        char *buffer;
+        uint8_t *buffer;
         int buffer_size;
 
         if ((buffer_size = read_until_eof(sctx->bio, &buffer)) < 0)
@@ -192,7 +192,7 @@ tpm2_object_load(void *ctx,
         size_t plen = 0;
 
         /* request password; this might open an interactive user prompt */
-        if (!pw_cb(userauth.buffer, sizeof(TPMU_HA), &plen, NULL, pw_cbarg)) {
+        if (!pw_cb((char *)userauth.buffer, sizeof(TPMU_HA), &plen, NULL, pw_cbarg)) {
             TPM2_ERROR_raise(sctx->core, TPM2_ERR_AUTHORIZATION_FAILURE);
             goto error2;
         }
@@ -244,7 +244,7 @@ static int
 tpm2_object_eof(void *ctx)
 {
     TPM2_OBJECT_CTX *sctx = ctx;
-    return sctx->bio && BIO_eof(sctx->bio) || sctx->load_done;
+    return (sctx->bio && BIO_eof(sctx->bio)) || sctx->load_done;
 }
 
 static int
@@ -256,7 +256,7 @@ tpm2_object_close(void *ctx)
         return 0;
 
     DBG("STORE/OBJECT CLOSE\n");
-    OPENSSL_free(sctx->bio);
+    BIO_free(sctx->bio);
 
     OPENSSL_clear_free(ctx, sizeof(TPM2_OBJECT_CTX));
     return 1;

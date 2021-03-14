@@ -152,7 +152,7 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
         size_t plen = 0;
 
         /* request password; this might open an interactive user prompt */
-        if (!pw_cb(userauth.buffer, sizeof(TPMU_HA), &plen, NULL, pw_cbarg)) {
+        if (!pw_cb((char *)userauth.buffer, sizeof(TPMU_HA), &plen, NULL, pw_cbarg)) {
             TPM2_ERROR_raise(dctx->core, TPM2_ERR_AUTHORIZATION_FAILURE);
             goto error2;
         }

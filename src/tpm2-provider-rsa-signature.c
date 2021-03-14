@@ -109,6 +109,12 @@ rsa_signature_sign(void *ctx, unsigned char *sig, size_t *siglen, size_t sigsize
     };
 
     DBG("SIGN SIGN\n");
+    if (sctx->signature) {
+        /* we are about to perform another signature in this context */
+        free(sctx->signature);
+        sctx->signature = NULL;
+    }
+
     if (tbslen > sizeof(TPMU_HA))
         return 0;
     digest.size = tbslen;
@@ -280,6 +286,12 @@ rsa_signature_digest_sign(void *ctx, unsigned char *sig, size_t *siglen,
     TPMT_TK_HASHCHECK *validation = NULL;
 
     DBG("SIGN DIGEST_SIGN\n");
+    if (sctx->signature) {
+        /* we are about to perform another signature in this context */
+        free(sctx->signature);
+        sctx->signature = NULL;
+    }
+
     if (data != NULL) {
         if (datalen > TPM2_MAX_DIGEST_BUFFER)
             return 0;

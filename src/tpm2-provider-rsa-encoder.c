@@ -170,9 +170,6 @@ tpm2_get_rsa_pubkey(const TPM2_PKEY *pkey)
         goto error1;
 
     /* set n */
-    if ((tpk->n = ASN1_INTEGER_new()) == NULL)
-        goto error2;
-
     if ((nbig = BN_bin2bn(pkey->data.pub.publicArea.unique.rsa.buffer,
                           pkey->data.pub.publicArea.unique.rsa.size, NULL)) == NULL
             || !BN_to_ASN1_INTEGER(nbig, tpk->n))
@@ -185,8 +182,7 @@ tpm2_get_rsa_pubkey(const TPM2_PKEY *pkey)
     if (!exponent)
         exponent = 0x10001;
 
-    if ((tpk->e = ASN1_INTEGER_new()) == NULL
-            || !ASN1_INTEGER_set(tpk->e, exponent))
+    if (!ASN1_INTEGER_set(tpk->e, exponent))
         goto error2;
 
     return tpk;
