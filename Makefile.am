@@ -67,7 +67,8 @@ TESTS_SHELL = test/list.sh \
               test/rsa_genpkey_tls_server.sh \
               test/rsa_createak_x509_csr.sh \
               test/rsapss_genpkey_sign_rawin.sh \
-              test/rsapss_createak_tls_server.sh
+              test/rsapss_createak_tls_server.sh \
+              test/store_errors.sh
 
 TEST_EXTENSIONS = .sh
 SH_LOG_COMPILER = $(srcdir)/test/run
