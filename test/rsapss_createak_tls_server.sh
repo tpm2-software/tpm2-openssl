@@ -49,7 +49,8 @@ openssl x509 -text -noout -in testcert.pem
 
 # start SSL server with RSA-PSS-PSS signing
 openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.digest!=yes \
-                 -accept 4443 -www -key handle:${HANDLE} -cert testcert.pem -sigalgs "rsa_pss_pss_sha256" &
+                 -accept 4443 -www -key handle:${HANDLE} -cert testcert.pem \
+                 -sigalgs "rsa_pss_pss_sha256" &
 SERVER=$!
 trap "cleanup" EXIT
 sleep 1

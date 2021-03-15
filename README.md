@@ -164,7 +164,7 @@ command.
 The following algorithms are supported by the tpm2 provider, although your
 TPM may support only a subset of these:
 
-| openssl | tpm2             |
+| digest  | tpm2             |
 | ------- | ---------------- |
 | sha1    | TPM2_ALG_SHA1    |
 | sha256  | TPM2_ALG_SHA256  |
@@ -252,7 +252,7 @@ command.
 
 The following public key algorithms are supported:
 
-| openssl | X.509         |
+| key     | X.509 OID     |
 | ------- | ------------- |
 | RSA     | rsaEncryption |
 | RSA-PSS | id-RSASSA-PSS |
@@ -538,19 +538,38 @@ To perform the TLS handshake you need to:
 
 When using a restricted signing key, which is associated with a specific hash
 algorithm, you also need to limit the signature algorithms (using `-sigalgs`
-or `SSL_CTX_set1_sigalgs`) to those supported by the key.
+or `SSL_CTX_set1_sigalgs`) to those supported by the key. The argument should
+be a colon separated list of SSL3 algorithm names in order of decreasing
+preference.
+
+The following TLSv1.2 and TLSv1.3 signature algorithms are supported:
+
+| key     | pad-mode | digest | SSL3 name           |
+| ------- | -------- | ------ | ------------------- |
+| RSA     | pkcs1    | sha1   | rsa_pkcs1_sha1      |
+| RSA     | pkcs1    | sha256 | rsa_pkcs1_sha256    |
+| RSA     | pkcs1    | sha384 | rsa_pkcs1_sha384    |
+| RSA     | pkcs1    | sha512 | rsa_pkcs1_sha512    |
+| RSA     | pss      | sha256 | rsa_pss_rsae_sha256 |
+| RSA     | pss      | sha384 | rsa_pss_rsae_sha384 |
+| RSA     | pss      | sha512 | rsa_pss_rsae_sha512 |
+| RSA-PSS | pss      | sha256 | rsa_pss_pss_sha256  |
+| RSA-PSS | pss      | sha384 | rsa_pss_pss_sha384  |
+| RSA-PSS | pss      | sha512 | rsa_pss_pss_sha512  |
+
+Please note that the **pkcs1** pad-modes are ignored in TLSv1.3 and will not be
+negotiated.
 
 To start a test server using the key and X.509 certificate created in the
 previous section do:
 ```
 openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.digest!=yes \
-                 -accept 4443 -www -key testkey.pem -cert testcert.pem -sigalgs "RSA+SHA256"
+                 -accept 4443 -www -key testkey.pem -cert testcert.pem -sigalgs "rsa_pkcs1_sha256"
 ```
 
-You can then access it using the standard `curl`:
+The `-key` can be also specified using a persistent key handle.
+
+Once the server is started you can access it using the standard `curl`:
 ```
 curl --cacert testcert.pem https://localhost:4443/
 ```
-
-You can also use a persistent key at a given handle, but the key can only be
-associated with the `rsapss` sign scheme, which is preferred by the TLS standard.

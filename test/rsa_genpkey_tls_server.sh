@@ -37,7 +37,8 @@ openssl x509 -text -noout -in testcert.pem
 
 # start SSL server with RSA-PSS-RSAE signing
 openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.digest!=yes \
-                 -accept 4443 -www -key testkey.pem -cert testcert.pem -sigalgs "RSA-PSS+SHA256" &
+                 -accept 4443 -www -key testkey.pem -cert testcert.pem \
+                 -sigalgs "rsa_pkcs1_sha256:rsa_pss_rsae_sha256" &
 SERVER=$!
 trap "cleanup" EXIT
 sleep 1
