@@ -4,8 +4,9 @@ openssl_modulesdir = $(MODULESDIR)
 openssl_modules_LTLIBRARIES = tpm2.la
 
 tpm2_la_SOURCES = src/tpm2-provider.c \
-                  src/tpm2-provider-algorithms.c \
                   src/tpm2-provider-core.c \
+                  src/tpm2-provider-types.c \
+                  src/tpm2-provider-x509.c \
                   src/tpm2-provider-digest.c \
                   src/tpm2-provider-cipher.c \
                   src/tpm2-provider-rand.c \
@@ -14,10 +15,12 @@ tpm2_la_SOURCES = src/tpm2-provider.c \
                   src/tpm2-provider-store-object.c \
                   src/tpm2-provider-decoder-der.c \
                   src/tpm2-provider-decoder-tss2.c \
-                  src/tpm2-provider-rsa-asymcipher.c \
-                  src/tpm2-provider-rsa-encoder.c \
-                  src/tpm2-provider-rsa-keymgmt.c \
-                  src/tpm2-provider-rsa-signature.c
+                  src/tpm2-provider-encoder.c \
+                  src/tpm2-provider-keymgmt-rsa.c \
+                  src/tpm2-provider-keymgmt-ec.c \
+                  src/tpm2-provider-keyexch.c \
+                  src/tpm2-provider-asymcipher-rsa.c \
+                  src/tpm2-provider-signature.c
 
 # https://www.gnu.org/software/autoconf-archive/ax_code_coverage.html
 if AUTOCONF_CODE_COVERAGE_2019_01_06
@@ -68,6 +71,13 @@ TESTS_SHELL = test/list.sh \
               test/rsa_createak_x509_csr.sh \
               test/rsapss_genpkey_sign_rawin.sh \
               test/rsapss_createak_tls_server.sh \
+              test/ec_genpkey_check.sh \
+              test/ecdsa_genpkey_auth.sh \
+              test/ecdsa_genpkey_sign_rawin.sh \
+              test/ecdsa_createak_sign_handle.sh \
+              test/ecdh_genpkey_keyexch.sh \
+              test/ec_createak_x509_csr.sh \
+              test/ec_genpkey_tls_server.sh \
               test/store_errors.sh
 
 TEST_EXTENSIONS = .sh

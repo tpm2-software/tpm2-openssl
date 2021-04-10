@@ -10,11 +10,11 @@
 #include "tpm2-provider-pkey.h"
 
 typedef struct {
-	ASN1_OBJECT *type;
-	ASN1_BOOLEAN emptyAuth;
-	ASN1_INTEGER *parent;
-	ASN1_OCTET_STRING *pubkey;
-	ASN1_OCTET_STRING *privkey;
+    ASN1_OBJECT *type;
+    ASN1_BOOLEAN emptyAuth;
+    ASN1_INTEGER *parent;
+    ASN1_OCTET_STRING *pubkey;
+    ASN1_OCTET_STRING *privkey;
 } TSSPRIVKEY;
 
 ASN1_SEQUENCE(TSSPRIVKEY) = {
@@ -344,6 +344,8 @@ tpm2_openssl_type(TPM2_KEYDATA *keydata)
             }
         } else
             return "RSA";
+    } else if (keydata->pub.publicArea.type == TPM2_ALG_ECC) {
+        return "EC";
     } else
         return NULL;
 }

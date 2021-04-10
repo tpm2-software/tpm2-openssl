@@ -46,9 +46,11 @@ typedef struct {
     ESYS_TR object;
 } TPM2_PKEY;
 
-#define TPM2_PKEY_BITS(pkey) ((pkey)->data.pub.publicArea.parameters.rsaDetail.keyBits)
+#define TPM2_PKEY_RSA_BITS(pkey) ((pkey)->data.pub.publicArea.parameters.rsaDetail.keyBits)
 #define TPM2_PKEY_RSA_SCHEME(pkey) ((pkey)->data.pub.publicArea.parameters.rsaDetail.scheme.scheme)
 #define TPM2_PKEY_RSA_HASH(pkey) ((pkey)->data.pub.publicArea.parameters.rsaDetail.scheme.details.anySig.hashAlg)
+
+#define TPM2_PKEY_EC_CURVE(pkey) ((pkey)->data.pub.publicArea.parameters.eccDetail.curveID)
 
 enum {
     TPM2_ERR_MEMORY_FAILURE = 1,
@@ -63,6 +65,7 @@ enum {
     TPM2_ERR_CANNOT_CREATE_PRIMARY,
     TPM2_ERR_CANNOT_CREATE_KEY,
     TPM2_ERR_CANNOT_LOAD_KEY,
+    TPM2_ERR_CANNOT_GENERATE,
     TPM2_ERR_CANNOT_HASH,
     TPM2_ERR_CANNOT_SIGN,
     TPM2_ERR_CANNOT_ENCRYPT,

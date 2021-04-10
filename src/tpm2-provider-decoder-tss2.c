@@ -190,7 +190,7 @@ error1:
     return 0;
 }
 
-const OSSL_DISPATCH tpm2_tss2_decoder_functions[] = {
+const OSSL_DISPATCH tpm2_tss_decoder_functions[] = {
     { OSSL_FUNC_DECODER_NEWCTX, (void (*)(void))tpm2_tss2_decoder_newctx },
     { OSSL_FUNC_DECODER_FREECTX, (void (*)(void))tpm2_tss2_decoder_freectx },
     { OSSL_FUNC_DECODER_GETTABLE_PARAMS, (void (*)(void))tpm2_tss2_decoder_gettable_params },

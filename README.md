@@ -4,6 +4,9 @@
 
 # Provider for integration of TPM 2.0 to OpenSSL 3.0
 
+Makes the TPM 2.0 accessible via the standard OpenSSL API and command-line tools,
+so one can add TPM support to (almost) any OpenSSL 3.0 based application.
+
 The tpm2-openssl project
 
 * Implements a
@@ -61,14 +64,6 @@ openssl pkeyutl -provider tpm2 -inkey handle:0x81000000 -sign -rawin -in testdat
   [strongSwan](https://www.strongswan.org/)
   [TPM Plugin](https://wiki.strongswan.org/projects/strongswan/wiki/TpmPlugin).
   Therefore, OpenSSL could be used to create and deploy VPN keys/certificates.
-
-
-**Warning!** This is work in progress. It's main purpose is to validate the
-OpenSSL API and obtain community feedback.
-Nothing will be stable until the final OpenSSL 3.0 is released.
-
-(At least) the following features are not yet implemented:
-* ECDSA keys
 
 
 ## Integration with OpenSSL
@@ -240,10 +235,12 @@ Gettable parameters (API only):
 The tpm2 provider implements a
 [OSSL_OP_KEYMGMT](https://www.openssl.org/docs/manmaster/man7/provider-keymgmt.html)
 operation for creation and manipulation of TPM-based
-[RSA](https://www.openssl.org/docs/manmaster/man7/RSA.html) and
-[RSA-PSS](https://www.openssl.org/docs/manmaster/man7/RSA-PSS.html) keys.
-These can be used via the
-[EVP_PKEY](https://www.openssl.org/docs/manmaster/man7/EVP_PKEY-RSA.html)
+[RSA](https://www.openssl.org/docs/manmaster/man7/RSA.html),
+[RSA-PSS](https://www.openssl.org/docs/manmaster/man7/RSA-PSS.html)
+or EC keys.
+These can be used via the EVP_PKEY
+[RSA](https://www.openssl.org/docs/manmaster/man7/EVP_PKEY-RSA.html) or
+[EC](https://www.openssl.org/docs/manmaster/man7/EVP_PKEY-EC.html)
 API functions and the
 [`openssl genpkey`](https://www.openssl.org/docs/manmaster/man1/openssl-genpkey.html)
 command.
@@ -252,17 +249,16 @@ command.
 
 The following public key algorithms are supported:
 
-| key     | X.509 OID     |
-| ------- | ------------- |
-| RSA     | rsaEncryption |
-| RSA-PSS | id-RSASSA-PSS |
+| key     | X.509 OID      |
+| ------- | -------------- |
+| RSA     | rsaEncryption  |
+| RSA-PSS | id-RSASSA-PSS  |
+| EC      | id-ecPublicKey |
 
 The RSA-PSS key is a restricted version of RSA which only supports signing,
 verification and key generation using the PSS padding scheme.
 
 Settable key generation parameters (`-pkeyopt`):
- * `bits` (size_t) defines a desired size of the key.
- * `e` (integer) defines a public exponent, by default 65537 (0x10001).
  * `digest` (utf8_string) associates the key with a specific hash.
  * `user-auth` (utf8_string) defines a password, which will be used to authorize
    private key operations.
@@ -270,16 +266,32 @@ Settable key generation parameters (`-pkeyopt`):
    by default 0x40000001 (TPM2_RH_OWNER).
  * `parent-auth` (utf8_string) defines an (optional) parent password.
 
+The RSA or RSA-PSS keys support also:
+ * `bits` (size_t) defines a desired size of the key.
+ * `e` (integer) defines a public exponent, by default 65537 (0x10001).
+
 For example, to define a 1024-bit RSA key without authorization under
 TPM2_RH_OWNER:
 ```
 openssl genpkey -provider tpm2 -algorithm RSA -pkeyopt bits:1024 -out testkey.priv
 ```
 
-Or, to define a 2048-bit RSA key with password `abc`:
+The EC keys support the following key generation parameters:
+ * `group` (utf8_string) specifies the curve to be used. You may use either the
+   NIST names or the short OID names:
+
+   | NIST    | OID name   | TPM2               |
+   | ------- | ---------- | ------------------ |
+   | P-192   | prime192v1 | TPM2_ECC_NIST_P192 |
+   | P-224   | secp224r1  | TPM2_ECC_NIST_P224 |
+   | P-256   | prime256v1 | TPM2_ECC_NIST_P256 |
+   | P-384   | secp384r1  | TPM2_ECC_NIST_P384 |
+   | P-521   | secp521r1  | TPM2_ECC_NIST_P521 |
+
+To create an EC key with the P-256 curve, protected by the password `abc`:
 ```
-openssl genpkey -provider tpm2 -algorithm RSA \
-    -pkeyopt bits:2048 -pkeyopt user-auth:abc -out testkey.priv
+openssl genpkey -provider tpm2 -algorithm EC -pkeyopt group:P-256 \
+    -pkeyopt user-auth:abc -out testkey.priv
 ```
 
 You may also generate the key using standard TPM2 tools and then make the key
@@ -295,13 +307,10 @@ Keys restricted to `rsapss` will be handled as RSA-PSS, all other keys as RSA.
 
 ### Key Parameter Retrieval
 
-The following parameters of the generated EVP_PKEY can be retrieved (via API
-only):
+The following parameters of the generated EVP_PKEY can be retrieved from an
+RSA or RSA-PSS key (via API only):
  * `bits` (integer), size of the key
  * `max-size` (integer) of the signature
-
-In addition to that, the following public key parameters can be exported from
-the EVP_PKEY:
  * `n` (integer), the RSA modulus
  * `e` (integer), the RSA exponent
 
@@ -310,7 +319,21 @@ The modulus can be displayed using:
 openssl rsa -provider tpm2 -in testkey.priv -modulus -noout
 ```
 
-Naturally, parameters of the private key cannot be retrieved.
+Similarly, the following parameters can be retrieved from an EC key:
+ * `group` (utf8_string) short OID name of the curve used
+ * `bits` (integer), size of one key coordinate
+ * `max-size` (integer) of the signature
+ * `pub` (octet_string) public key with both x and y encoded
+ * `x` and `y` (integer) individual components of the public key
+
+The EC key also supports retrieval of the entire curve definition:
+ * `p` (integer) defines the finite field
+ * `a` and `b` (integer) define the elliptic curve
+ * `generator` (octet_string) is the (encoded) base point G
+ * `order` (integer) of G
+ * `cofactor` (integer)
+
+Naturally, parameters of the private key cannot be retrieved from any key.
 
 
 ## Storing the Private or a Public Key
@@ -455,7 +478,7 @@ The digest (hash) algorithm is selected as follows:
    `sha1`, `sha256`, `sha384` and `sha512` may be used.
  * If not set, the sha256 algorithm is used as a default.
 
-The sign scheme is selected as follows:
+The sign scheme of an RSA key is selected as follows:
  * The sign scheme associated with the private key is used.
  * When `null`, the scheme may be set using the `-pkeyopt pad-mode:XXX` argument.
    The values follow the OpenSSL terminology:
@@ -472,6 +495,8 @@ For example, to sign using sha512 and pss:
 openssl pkeyutl -provider tpm2 -sign -inkey testkey.priv -rawin -in testdata \
     -digest sha512 -pkeyopt pad-mode:pss -out testdata.sig
 ```
+
+The sign scheme of an EC key is always TPM_ALG_ECDSA.
 
 Signature verification using the public key is then done using the default
 provider and the public key:
@@ -491,7 +516,7 @@ openssl pkeyutl -encrypt -pubin -inkey testkey.pub -in testdata -out testdata.cr
 
 The tpm2 provider implements a
 [OSSL_OP_ASYM_CIPHER](https://www.openssl.org/docs/manmaster/man7/provider-asym_cipher.html)
-operation that is made available via the
+operation for RSA keys that is made available via the
 [EVP_PKEY_decrypt](https://www.openssl.org/docs/manmaster/man3/EVP_PKEY_decrypt.html)
 API function and the
 [`openssl pkeyutl -decrypt`](https://www.openssl.org/docs/manmaster/man1/openssl-pkeyutl.html)
@@ -500,6 +525,26 @@ command.
 For example, to decrypt the "testdata" file using a decryption private key:
 ```
 openssl pkeyutl -provider tpm2 -inkey testkey.priv -decrypt -in testdata.crypt -out testdata
+```
+
+The EC keys cannot be used for encryption. You need to derive a shared secret
+first using ECDH and then use a symmetric cipher.
+
+
+## Shared Secret Derivation
+
+The tpm2 provider implements a
+[OSSL_OP_KEYEXCH](https://www.openssl.org/docs/manmaster/man7/provider-keyexch.html)
+operation for EC keys (ECDH) that is made available via the
+[EVP_PKEY_derive](https://www.openssl.org/docs/manmaster/man3/EVP_PKEY_derive.html)
+API function and the
+[`openssl pkeyutl -derive`](https://www.openssl.org/docs/manmaster/man1/openssl-pkeyutl.html)
+command.
+
+For example, to derive a shared `secret.key` from a (TPM-based) private key
+`testkey1.priv` and a peer public key `testkey2.pub`:
+```
+openssl pkeyutl -provider tpm2 -derive -inkey testkey1.priv -peerkey testkey2.pub -out secret.key
 ```
 
 
@@ -539,23 +584,26 @@ To perform the TLS handshake you need to:
 When using a restricted signing key, which is associated with a specific hash
 algorithm, you also need to limit the signature algorithms (using `-sigalgs`
 or `SSL_CTX_set1_sigalgs`) to those supported by the key. The argument should
-be a colon separated list of SSL3 algorithm names in order of decreasing
+be a colon separated list of TLSv1.3 algorithm names in order of decreasing
 preference.
 
 The following TLSv1.2 and TLSv1.3 signature algorithms are supported:
 
-| key     | pad-mode | digest | SSL3 name           |
-| ------- | -------- | ------ | ------------------- |
-| RSA     | pkcs1    | sha1   | rsa_pkcs1_sha1      |
-| RSA     | pkcs1    | sha256 | rsa_pkcs1_sha256    |
-| RSA     | pkcs1    | sha384 | rsa_pkcs1_sha384    |
-| RSA     | pkcs1    | sha512 | rsa_pkcs1_sha512    |
-| RSA     | pss      | sha256 | rsa_pss_rsae_sha256 |
-| RSA     | pss      | sha384 | rsa_pss_rsae_sha384 |
-| RSA     | pss      | sha512 | rsa_pss_rsae_sha512 |
-| RSA-PSS | pss      | sha256 | rsa_pss_pss_sha256  |
-| RSA-PSS | pss      | sha384 | rsa_pss_pss_sha384  |
-| RSA-PSS | pss      | sha512 | rsa_pss_pss_sha512  |
+| key      | pad-mode | digest | TLSv1.3 name           |
+| -------- | -------- | ------ | ---------------------- |
+| RSA      | pkcs1    | sha1   | rsa_pkcs1_sha1         |
+| RSA      | pkcs1    | sha256 | rsa_pkcs1_sha256       |
+| RSA      | pkcs1    | sha384 | rsa_pkcs1_sha384       |
+| RSA      | pkcs1    | sha512 | rsa_pkcs1_sha512       |
+| RSA      | pss      | sha256 | rsa_pss_rsae_sha256    |
+| RSA      | pss      | sha384 | rsa_pss_rsae_sha384    |
+| RSA      | pss      | sha512 | rsa_pss_rsae_sha512    |
+| RSA-PSS  | pss      | sha256 | rsa_pss_pss_sha256     |
+| RSA-PSS  | pss      | sha384 | rsa_pss_pss_sha384     |
+| RSA-PSS  | pss      | sha512 | rsa_pss_pss_sha512     |
+| EC P-256 | ecdsa    | sha256 | ecdsa_secp256r1_sha256 |
+| EC P-384 | ecdsa    | sha384 | ecdsa_secp384r1_sha384 |
+| EC P-512 | ecdsa    | sha512 | ecdsa_secp521r1_sha512 |
 
 Please note that the **pkcs1** pad-modes are ignored in TLSv1.3 and will not be
 negotiated.

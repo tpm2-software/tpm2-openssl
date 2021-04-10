@@ -2,31 +2,33 @@
 
 #include <string.h>
 
+#include <openssl/asn1.h>
 #include <openssl/core_dispatch.h>
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 
-#include "tpm2-provider-algorithms.h"
 #include "tpm2-provider-pkey.h"
+#include "tpm2-provider-types.h"
+#include "tpm2-provider-x509.h"
 
-typedef struct tpm2_rsa_encoder_ctx_st TPM2_RSA_ENCODER_CTX;
+typedef struct tpm2_encoder_ctx_st TPM2_ENCODER_CTX;
 
-struct tpm2_rsa_encoder_ctx_st {
+struct tpm2_encoder_ctx_st {
     const OSSL_CORE_HANDLE *core;
     BIO_METHOD *corebiometh;
 };
 
-static OSSL_FUNC_encoder_newctx_fn tpm2_rsa_encoder_newctx;
-static OSSL_FUNC_encoder_freectx_fn tpm2_rsa_encoder_freectx;
-static OSSL_FUNC_encoder_gettable_params_fn tpm2_rsa_encoder_gettable_params_text;
-static OSSL_FUNC_encoder_get_params_fn tpm2_rsa_encoder_get_params_text;
-static OSSL_FUNC_encoder_encode_fn tpm2_rsa_encoder_encode_text;
+static OSSL_FUNC_encoder_newctx_fn tpm2_encoder_newctx;
+static OSSL_FUNC_encoder_freectx_fn tpm2_encoder_freectx;
+static OSSL_FUNC_encoder_gettable_params_fn tpm2_encoder_gettable_params_text;
+static OSSL_FUNC_encoder_get_params_fn tpm2_encoder_get_params_text;
+static OSSL_FUNC_encoder_encode_fn tpm2_encoder_encode_text;
 
 static void *
-tpm2_rsa_encoder_newctx(void *provctx)
+tpm2_encoder_newctx(void *provctx)
 {
     TPM2_PROVIDER_CTX *cprov = provctx;
-    TPM2_RSA_ENCODER_CTX *ectx = OPENSSL_zalloc(sizeof(TPM2_RSA_ENCODER_CTX));
+    TPM2_ENCODER_CTX *ectx = OPENSSL_zalloc(sizeof(TPM2_ENCODER_CTX));
 
     if (ectx == NULL)
         return NULL;
@@ -37,18 +39,18 @@ tpm2_rsa_encoder_newctx(void *provctx)
 }
 
 static void
-tpm2_rsa_encoder_freectx(void *ctx)
+tpm2_encoder_freectx(void *ctx)
 {
-    TPM2_RSA_ENCODER_CTX *ectx = ctx;
+    TPM2_ENCODER_CTX *ectx = ctx;
 
     if (ectx == NULL)
         return;
 
-    OPENSSL_clear_free(ectx, sizeof(TPM2_RSA_ENCODER_CTX));
+    OPENSSL_clear_free(ectx, sizeof(TPM2_ENCODER_CTX));
 }
 
 static const OSSL_PARAM *
-tpm2_rsa_encoder_gettable_params(void *provctx)
+tpm2_encoder_gettable_params(void *provctx)
 {
     static const OSSL_PARAM gettables[] = {
         { OSSL_ENCODER_PARAM_OUTPUT_TYPE, OSSL_PARAM_UTF8_PTR, NULL, 0, 0 },
@@ -60,7 +62,7 @@ tpm2_rsa_encoder_gettable_params(void *provctx)
 }
 
 static int
-tpm2_rsa_encoder_get_params_int(OSSL_PARAM params[],
+tpm2_encoder_get_params_int(OSSL_PARAM params[],
                                 const char *otype, const char *ostructure)
 {
     OSSL_PARAM *p;
@@ -85,7 +87,7 @@ tpm2_rsa_encoder_get_params_int(OSSL_PARAM params[],
     tpm2_##otype##_encoder_get_params_##ostructure##_##oformat(OSSL_PARAM params[]) \
     { \
         TRACE_PARAMS("ENCODER " #otype " " #ostructure "/" #oformat " GET_PARAMS", params); \
-        return tpm2_rsa_encoder_get_params_int(params, #oformat, #ostructure); \
+        return tpm2_encoder_get_params_int(params, #oformat, #ostructure); \
     }
 
 #define IMPLEMENT_ENCODER_ENCODE(otype, ostructure, oformat) \
@@ -95,7 +97,7 @@ tpm2_rsa_encoder_get_params_int(OSSL_PARAM params[],
             OSSL_CORE_BIO *cout, const void *key, const OSSL_PARAM key_abstract[], \
             int selection, OSSL_PASSPHRASE_CALLBACK *cb, void *cbarg) \
     { \
-        TPM2_RSA_ENCODER_CTX *ectx = ctx; \
+        TPM2_ENCODER_CTX *ectx = ctx; \
         TPM2_PKEY *pkey = (TPM2_PKEY *)key; \
         BIO *bout; \
         int ret; \
@@ -110,9 +112,9 @@ tpm2_rsa_encoder_get_params_int(OSSL_PARAM params[],
 
 #define IMPLEMENT_ENCODER_DISPATCH(otype, ostructure, oformat) \
     const OSSL_DISPATCH tpm2_##otype##_encoder_##ostructure##_##oformat##_functions[] = { \
-        { OSSL_FUNC_ENCODER_NEWCTX, (void (*)(void))tpm2_rsa_encoder_newctx }, \
-        { OSSL_FUNC_ENCODER_FREECTX, (void (*)(void))tpm2_rsa_encoder_freectx }, \
-        { OSSL_FUNC_ENCODER_GETTABLE_PARAMS, (void (*)(void))tpm2_rsa_encoder_gettable_params }, \
+        { OSSL_FUNC_ENCODER_NEWCTX, (void (*)(void))tpm2_encoder_newctx }, \
+        { OSSL_FUNC_ENCODER_FREECTX, (void (*)(void))tpm2_encoder_freectx }, \
+        { OSSL_FUNC_ENCODER_GETTABLE_PARAMS, (void (*)(void))tpm2_encoder_gettable_params }, \
         { OSSL_FUNC_ENCODER_GET_PARAMS, (void (*)(void))tpm2_##otype##_encoder_get_params_##ostructure##_##oformat }, \
         { OSSL_FUNC_ENCODER_ENCODE, (void (*)(void))tpm2_##otype##_encoder_encode_##ostructure##_##oformat }, \
         { 0, NULL } \
@@ -124,23 +126,23 @@ tpm2_rsa_encoder_get_params_int(OSSL_PARAM params[],
     IMPLEMENT_ENCODER_DISPATCH(otype, ostructure, oformat)
 
 
-/* RSA PRIVATE KEY encoders */
+/* TSS2 PRIVATE KEY encoders */
 
 static int
-tpm2_rsa_encode_pkcs8_der(TPM2_RSA_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
+tpm2_tss_encode_pkcs8_der(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
 {
     return tpm2_keydata_write(&pkey->data, bout, KEY_FORMAT_DER);
 }
 
-DECLARE_ENCODER(rsa, pkcs8, der)
+DECLARE_ENCODER(tss, pkcs8, der)
 
 static int
-tpm2_rsa_encode_pkcs8_pem(TPM2_RSA_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
+tpm2_tss_encode_pkcs8_pem(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
 {
     return tpm2_keydata_write(&pkey->data, bout, KEY_FORMAT_PEM);
 }
 
-DECLARE_ENCODER(rsa, pkcs8, pem)
+DECLARE_ENCODER(tss, pkcs8, pem)
 
 
 /* RSA PUBLIC KEY encoders */
@@ -207,54 +209,8 @@ tpm2_get_rsa_pubkey_der(const TPM2_PKEY *pkey, unsigned char **penc)
     return penclen;
 }
 
-static X509_PUBKEY *
-tpm2_get_x509_rsa_pubkey(const TPM2_PKEY *pkey)
-{
-    unsigned char *penc = NULL;
-    int penclen;
-    X509_PUBKEY *pubkey;
-
-    if ((penclen = tpm2_get_rsa_pubkey_der(pkey, &penc)) < 0)
-        return NULL;
-
-    if ((pubkey = X509_PUBKEY_new()) == NULL) {
-        free(penc);
-        return NULL;
-    }
-
-    /* per RFC3279 the parameters must be NULL */
-    X509_PUBKEY_set0_param(pubkey, OBJ_nid2obj(NID_rsaEncryption), V_ASN1_NULL, NULL, penc, penclen);
-    return pubkey;
-}
-
-static X509_PUBKEY *
-tpm2_get_x509_rsapss_pubkey(const TPM2_PKEY *pkey)
-{
-    X509_PUBKEY *pubkey;
-    ASN1_STRING *params;
-    unsigned char *penc = NULL;
-    int penclen;
-
-    if ((pubkey = X509_PUBKEY_new()) == NULL)
-        return NULL;
-
-    if ((penclen = tpm2_get_rsa_pubkey_der(pkey, &penc)) < 0)
-        goto error1;
-    if ((params = tpm2_get_rsapss_params(TPM2_PKEY_BITS(pkey), TPM2_PKEY_RSA_HASH(pkey))) == NULL)
-        goto error2;
-
-    /* per RFC4055 the parameters must be present */
-    X509_PUBKEY_set0_param(pubkey, OBJ_nid2obj(NID_rsassaPss), V_ASN1_SEQUENCE, params, penc, penclen);
-    return pubkey;
-error2:
-    free(penc);
-error1:
-    X509_PUBKEY_free(pubkey);
-    return NULL;
-}
-
 static int
-tpm2_rsa_encode_pkcs1_der(TPM2_RSA_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
+tpm2_rsa_encode_pkcs1_der(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
 {
     TPM2_RSA_PUBKEY *tpk;
     int ret;
@@ -272,7 +228,7 @@ DECLARE_ENCODER(rsa, pkcs1, der)
 
 
 static int
-tpm2_rsa_encode_pkcs1_pem(TPM2_RSA_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
+tpm2_rsa_encode_pkcs1_pem(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
 {
     TPM2_RSA_PUBKEY *tpk;
     int ret;
@@ -289,76 +245,131 @@ tpm2_rsa_encode_pkcs1_pem(TPM2_RSA_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey
 DECLARE_ENCODER(rsa, pkcs1, pem)
 
 
-static int
-tpm2_rsa_encode_SubjectPublicKeyInfo_der(TPM2_RSA_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
+#define DECLARE_ENCODE_X509_PUBKEY_DER(type) \
+    static int \
+    tpm2_##type##_encode_SubjectPublicKeyInfo_der(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey) \
+    { \
+        X509_PUBKEY *pubkey; \
+        int ret; \
+\
+        if ((pubkey = tpm2_get_x509_##type##_pubkey(pkey)) == NULL) \
+            return 0; \
+        ret = i2d_X509_PUBKEY_bio(bout, pubkey); \
+        X509_PUBKEY_free(pubkey); \
+        return ret; \
+    }
+
+#define DECLARE_ENCODE_X509_PUBKEY_PEM(type) \
+    static int \
+    tpm2_##type##_encode_SubjectPublicKeyInfo_pem(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey) \
+    { \
+        X509_PUBKEY *pubkey; \
+        int ret; \
+\
+        if ((pubkey = tpm2_get_x509_##type##_pubkey(pkey)) == NULL) \
+            return 0; \
+        ret = PEM_write_bio_X509_PUBKEY(bout, pubkey); \
+        X509_PUBKEY_free(pubkey); \
+        return ret; \
+    }
+
+#define DECLARE_ENCODER_X509_PUBKEY(type) \
+    DECLARE_ENCODE_X509_PUBKEY_DER(type) \
+    DECLARE_ENCODER(type, SubjectPublicKeyInfo, der) \
+    DECLARE_ENCODE_X509_PUBKEY_PEM(type) \
+    DECLARE_ENCODER(type, SubjectPublicKeyInfo, pem)
+
+static X509_PUBKEY *
+tpm2_get_x509_rsa_pubkey(const TPM2_PKEY *pkey)
 {
+    unsigned char *penc = NULL;
+    int penclen;
     X509_PUBKEY *pubkey;
-    int ret;
 
-    if ((pubkey = tpm2_get_x509_rsa_pubkey(pkey)) == NULL)
-        return 0;
-    /* export X.509 DER */
-    ret = i2d_X509_PUBKEY_bio(bout, pubkey);
+    if ((penclen = tpm2_get_rsa_pubkey_der(pkey, &penc)) < 0)
+        return NULL;
 
-    X509_PUBKEY_free(pubkey);
-    return ret;
+    if ((pubkey = X509_PUBKEY_new()) == NULL) {
+        free(penc);
+        return NULL;
+    }
+
+    /* per RFC3279 the parameters must be NULL */
+    X509_PUBKEY_set0_param(pubkey,
+                           OBJ_nid2obj(NID_rsaEncryption),
+                           V_ASN1_NULL, NULL, penc, penclen);
+    return pubkey;
 }
 
-DECLARE_ENCODER(rsa, SubjectPublicKeyInfo, der)
+DECLARE_ENCODER_X509_PUBKEY(rsa)
 
 
-static int
-tpm2_rsa_encode_SubjectPublicKeyInfo_pem(TPM2_RSA_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
+static X509_PUBKEY *
+tpm2_get_x509_rsapss_pubkey(const TPM2_PKEY *pkey)
 {
     X509_PUBKEY *pubkey;
-    int ret;
+    ASN1_STRING *params;
+    unsigned char *penc = NULL;
+    int penclen;
 
-    if ((pubkey = tpm2_get_x509_rsa_pubkey(pkey)) == NULL)
-        return 0;
-    /* export X.509 PEM */
-    ret = PEM_write_bio_X509_PUBKEY(bout, pubkey);
+    if ((pubkey = X509_PUBKEY_new()) == NULL)
+        return NULL;
 
+    if ((penclen = tpm2_get_rsa_pubkey_der(pkey, &penc)) < 0)
+        goto error1;
+    if ((params = tpm2_get_x509_rsapss_params(TPM2_PKEY_RSA_BITS(pkey),
+                                              TPM2_PKEY_RSA_HASH(pkey))) == NULL)
+        goto error2;
+
+    /* per RFC4055 the parameters must be present */
+    X509_PUBKEY_set0_param(pubkey,
+                           OBJ_nid2obj(NID_rsassaPss),
+                           V_ASN1_SEQUENCE, params, penc, penclen);
+    return pubkey;
+error2:
+    OPENSSL_free(penc);
+error1:
     X509_PUBKEY_free(pubkey);
-    return ret;
+    return NULL;
 }
 
-DECLARE_ENCODER(rsa, SubjectPublicKeyInfo, pem)
+DECLARE_ENCODER_X509_PUBKEY(rsapss)
 
 
-static int
-tpm2_rsapss_encode_SubjectPublicKeyInfo_der(TPM2_RSA_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
+/* EC PUBLIC KEY encoders */
+
+static X509_PUBKEY *
+tpm2_get_x509_ec_pubkey(const TPM2_PKEY *pkey)
 {
     X509_PUBKEY *pubkey;
-    int ret;
+    unsigned char *penc;
+    int penclen;
 
-    if ((pubkey = tpm2_get_x509_rsapss_pubkey(pkey)) == NULL)
-        return 0;
-    /* export X.509 DER */
-    ret = i2d_X509_PUBKEY_bio(bout, pubkey);
+    if ((pubkey = X509_PUBKEY_new()) == NULL)
+        return NULL;
 
+    if ((penclen = tpm2_ecc_point_to_uncompressed(
+            &pkey->data.pub.publicArea.unique.ecc.x,
+            &pkey->data.pub.publicArea.unique.ecc.y, (void **)&penc)) == 0)
+        goto error1;
+
+    /* per RFC5480 the parameter indicates the curve name */
+    if (!X509_PUBKEY_set0_param(pubkey,
+                                OBJ_nid2obj(NID_X9_62_id_ecPublicKey),
+                                V_ASN1_OBJECT, OBJ_nid2obj(tpm2_ecc_curve_to_nid(
+                                                    TPM2_PKEY_EC_CURVE(pkey))),
+                                penc, penclen))
+        goto error2;
+
+    return pubkey;
+error2:
+    OPENSSL_free(penc);
+error1:
     X509_PUBKEY_free(pubkey);
-    return ret;
+    return NULL;
 }
 
-DECLARE_ENCODER(rsapss, SubjectPublicKeyInfo, der)
-
-
-static int
-tpm2_rsapss_encode_SubjectPublicKeyInfo_pem(TPM2_RSA_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
-{
-    X509_PUBKEY *pubkey;
-    int ret;
-
-    if ((pubkey = tpm2_get_x509_rsapss_pubkey(pkey)) == NULL)
-        return 0;
-    /* export X.509 PEM */
-    ret = PEM_write_bio_X509_PUBKEY(bout, pubkey);
-
-    X509_PUBKEY_free(pubkey);
-    return ret;
-}
-
-DECLARE_ENCODER(rsapss, SubjectPublicKeyInfo, pem)
+DECLARE_ENCODER_X509_PUBKEY(ec)
 
 
 /* RSA TEXT encoder */
@@ -402,7 +413,7 @@ static int print_labeled_buf(BIO *out, const char *label,
 }
 
 static const OSSL_PARAM *
-tpm2_rsa_encoder_gettable_params_text(void *provctx)
+tpm2_encoder_gettable_params_text(void *provctx)
 {
     static const OSSL_PARAM gettables[] = {
         { OSSL_ENCODER_PARAM_OUTPUT_TYPE, OSSL_PARAM_UTF8_PTR, NULL, 0, 0 },
@@ -413,7 +424,7 @@ tpm2_rsa_encoder_gettable_params_text(void *provctx)
 }
 
 static int
-tpm2_rsa_encoder_get_params_text(OSSL_PARAM params[])
+tpm2_encoder_get_params_text(OSSL_PARAM params[])
 {
     OSSL_PARAM *p;
 
@@ -429,9 +440,7 @@ tpm2_rsa_encoder_get_params_text(OSSL_PARAM params[])
 }
 
 static int
-tpm2_rsa_encoder_encode_text(void *ctx, OSSL_CORE_BIO *cout, const void *key,
-        const OSSL_PARAM key_abstract[], int selection,
-        OSSL_PASSPHRASE_CALLBACK *cb, void *cbarg)
+print_object_attributes(BIO *bout, TPMA_OBJECT objectAttributes)
 {
     struct { TPMA_OBJECT in; char *name; } tab[] = {
         { TPMA_OBJECT_FIXEDTPM, "fixedTPM" },
@@ -446,18 +455,34 @@ tpm2_rsa_encoder_encode_text(void *ctx, OSSL_CORE_BIO *cout, const void *key,
         { TPMA_OBJECT_DECRYPT, "decrypt" },
         { TPMA_OBJECT_SIGN_ENCRYPT, "sign / encrypt" },
     };
-    TPM2_RSA_ENCODER_CTX *ectx = ctx;
+
+    BIO_printf(bout, "Object Attributes:\n");
+    for (size_t i = 0; i < sizeof(tab) / sizeof(tab[0]); i++) {
+        if (objectAttributes & tab[i].in)
+            BIO_printf(bout, "  %s\n", tab[i].name);
+    }
+
+    return 0;
+}
+
+static int
+tpm2_rsa_encoder_encode_text(void *ctx, OSSL_CORE_BIO *cout, const void *key,
+        const OSSL_PARAM key_abstract[], int selection,
+        OSSL_PASSPHRASE_CALLBACK *cb, void *cbarg)
+{
+    TPM2_ENCODER_CTX *ectx = ctx;
     TPM2_PKEY *pkey = (TPM2_PKEY *)key;
     BIO *bout;
     UINT32 exponent;
 
-    DBG("ENCODER ENCODE text\n");
+    DBG("ENCODER ENCODE rsa text\n");
 
     bout = bio_new_from_core_bio(ectx->corebiometh, cout);
     if (bout == NULL)
         return 0;
 
-    BIO_printf(bout, "Private-Key: (%i bit, TPM 2.0)\n", TPM2_PKEY_BITS(pkey));
+    BIO_printf(bout, "Private-Key: (RSA %i bit, TPM 2.0)\n",
+        TPM2_PKEY_RSA_BITS(pkey));
 
     print_labeled_buf(bout, "Modulus:",
                       pkey->data.pub.publicArea.unique.rsa.buffer,
@@ -469,11 +494,7 @@ tpm2_rsa_encoder_encode_text(void *ctx, OSSL_CORE_BIO *cout, const void *key,
 
     BIO_printf(bout, "Exponent: %i (0x%x)\n", exponent, exponent);
 
-    BIO_printf(bout, "Object Attributes:\n");
-    for (size_t i = 0; i < sizeof(tab) / sizeof(tab[0]); i++) {
-        if (pkey->data.pub.publicArea.objectAttributes & tab[i].in)
-            BIO_printf(bout, "  %s\n", tab[i].name);
-    }
+    print_object_attributes(bout, pkey->data.pub.publicArea.objectAttributes);
 
     BIO_printf(bout, "Signature Scheme: %s\n",
         tpm2_rsa_scheme_alg_to_name(TPM2_PKEY_RSA_SCHEME(pkey)));
@@ -485,11 +506,56 @@ tpm2_rsa_encoder_encode_text(void *ctx, OSSL_CORE_BIO *cout, const void *key,
 }
 
 const OSSL_DISPATCH tpm2_rsa_encoder_text_functions[] = {
-    { OSSL_FUNC_ENCODER_NEWCTX, (void (*)(void))tpm2_rsa_encoder_newctx },
-    { OSSL_FUNC_ENCODER_FREECTX, (void (*)(void))tpm2_rsa_encoder_freectx },
-    { OSSL_FUNC_ENCODER_GETTABLE_PARAMS, (void (*)(void))tpm2_rsa_encoder_gettable_params_text },
-    { OSSL_FUNC_ENCODER_GET_PARAMS, (void (*)(void))tpm2_rsa_encoder_get_params_text },
+    { OSSL_FUNC_ENCODER_NEWCTX, (void (*)(void))tpm2_encoder_newctx },
+    { OSSL_FUNC_ENCODER_FREECTX, (void (*)(void))tpm2_encoder_freectx },
+    { OSSL_FUNC_ENCODER_GETTABLE_PARAMS, (void (*)(void))tpm2_encoder_gettable_params_text },
+    { OSSL_FUNC_ENCODER_GET_PARAMS, (void (*)(void))tpm2_encoder_get_params_text },
     { OSSL_FUNC_ENCODER_ENCODE, (void (*)(void))tpm2_rsa_encoder_encode_text },
+    { 0, NULL }
+};
+
+static int
+tpm2_ec_encoder_encode_text(void *ctx, OSSL_CORE_BIO *cout, const void *key,
+        const OSSL_PARAM key_abstract[], int selection,
+        OSSL_PASSPHRASE_CALLBACK *cb, void *cbarg)
+{
+    TPM2_ENCODER_CTX *ectx = ctx;
+    TPM2_PKEY *pkey = (TPM2_PKEY *)key;
+    BIO *bout;
+    int curve_nid;
+    size_t size;
+    void *buffer;
+
+    DBG("ENCODER ENCODE ec text\n");
+
+    bout = bio_new_from_core_bio(ectx->corebiometh, cout);
+    if (bout == NULL)
+        return 0;
+
+    curve_nid = tpm2_ecc_curve_to_nid(TPM2_PKEY_EC_CURVE(pkey));
+    BIO_printf(bout, "Private-Key: (EC %s, TPM 2.0)\n", EC_curve_nid2nist(curve_nid));
+
+    size = tpm2_ecc_point_to_uncompressed(
+                &pkey->data.pub.publicArea.unique.ecc.x,
+                &pkey->data.pub.publicArea.unique.ecc.y, &buffer);
+
+    print_labeled_buf(bout, "pub:", buffer, size);
+    OPENSSL_free(buffer);
+
+    BIO_printf(bout, "ASN1 OID: %s\n", OBJ_nid2sn(curve_nid));
+
+    print_object_attributes(bout, pkey->data.pub.publicArea.objectAttributes);
+
+    BIO_free(bout);
+    return 1;
+}
+
+const OSSL_DISPATCH tpm2_ec_encoder_text_functions[] = {
+    { OSSL_FUNC_ENCODER_NEWCTX, (void (*)(void))tpm2_encoder_newctx },
+    { OSSL_FUNC_ENCODER_FREECTX, (void (*)(void))tpm2_encoder_freectx },
+    { OSSL_FUNC_ENCODER_GETTABLE_PARAMS, (void (*)(void))tpm2_encoder_gettable_params_text },
+    { OSSL_FUNC_ENCODER_GET_PARAMS, (void (*)(void))tpm2_encoder_get_params_text },
+    { OSSL_FUNC_ENCODER_ENCODE, (void (*)(void))tpm2_ec_encoder_encode_text },
     { 0, NULL }
 };
 

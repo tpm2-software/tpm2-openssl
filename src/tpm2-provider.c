@@ -83,18 +83,28 @@ static const OSSL_ALGORITHM tpm2_rands[] = {
 
 extern const OSSL_DISPATCH tpm2_rsa_keymgmt_functions[];
 extern const OSSL_DISPATCH tpm2_rsapss_keymgmt_functions[];
+extern const OSSL_DISPATCH tpm2_ec_keymgmt_functions[];
 
 static const OSSL_ALGORITHM tpm2_keymgmts[] = {
     { "RSA:rsaEncryption", "provider=tpm2", tpm2_rsa_keymgmt_functions },
     { "RSA-PSS:RSASSA-PSS", "provider=tpm2", tpm2_rsapss_keymgmt_functions },
+    { "EC:id-ecPublicKey", "provider=tpm2", tpm2_ec_keymgmt_functions },
+    { NULL, NULL, NULL }
+};
+
+extern const OSSL_DISPATCH tpm2_ecdh_keyexch_functions[];
+
+static const OSSL_ALGORITHM tpm2_keyexchs[] = {
+    { "ECDH", "provider=tpm2", tpm2_ecdh_keyexch_functions },
     { NULL, NULL, NULL }
 };
 
 extern const OSSL_DISPATCH tpm2_rsa_signature_functions[];
+extern const OSSL_DISPATCH tpm2_ecdsa_signature_functions[];
 
 static const OSSL_ALGORITHM tpm2_signatures[] = {
     { "RSA:rsaEncryption", TPM2_PROPS(signature), tpm2_rsa_signature_functions },
-    { "RSA-PSS:RSASSA-PSS", TPM2_PROPS(signature), tpm2_rsa_signature_functions },
+    { "ECDSA", TPM2_PROPS(signature), tpm2_ecdsa_signature_functions },
     { NULL, NULL, NULL }
 };
 
@@ -105,8 +115,8 @@ static const OSSL_ALGORITHM tpm2_asymciphers[] = {
     { NULL, NULL, NULL }
 };
 
-extern const OSSL_DISPATCH tpm2_rsa_encoder_pkcs8_der_functions[];
-extern const OSSL_DISPATCH tpm2_rsa_encoder_pkcs8_pem_functions[];
+extern const OSSL_DISPATCH tpm2_tss_encoder_pkcs8_der_functions[];
+extern const OSSL_DISPATCH tpm2_tss_encoder_pkcs8_pem_functions[];
 extern const OSSL_DISPATCH tpm2_rsa_encoder_pkcs1_der_functions[];
 extern const OSSL_DISPATCH tpm2_rsa_encoder_pkcs1_pem_functions[];
 extern const OSSL_DISPATCH tpm2_rsa_encoder_SubjectPublicKeyInfo_der_functions[];
@@ -114,13 +124,18 @@ extern const OSSL_DISPATCH tpm2_rsa_encoder_SubjectPublicKeyInfo_pem_functions[]
 extern const OSSL_DISPATCH tpm2_rsapss_encoder_SubjectPublicKeyInfo_der_functions[];
 extern const OSSL_DISPATCH tpm2_rsapss_encoder_SubjectPublicKeyInfo_pem_functions[];
 extern const OSSL_DISPATCH tpm2_rsa_encoder_text_functions[];
+extern const OSSL_DISPATCH tpm2_ec_encoder_SubjectPublicKeyInfo_der_functions[];
+extern const OSSL_DISPATCH tpm2_ec_encoder_SubjectPublicKeyInfo_pem_functions[];
+extern const OSSL_DISPATCH tpm2_ec_encoder_text_functions[];
 
 static const OSSL_ALGORITHM tpm2_encoders[] = {
     /* private key */
-    { "RSA", "provider=tpm2,output=der,structure=pkcs8", tpm2_rsa_encoder_pkcs8_der_functions },
-    { "RSA", "provider=tpm2,output=pem,structure=pkcs8", tpm2_rsa_encoder_pkcs8_pem_functions },
-    { "RSA-PSS", "provider=tpm2,output=der,structure=pkcs8", tpm2_rsa_encoder_pkcs8_der_functions },
-    { "RSA-PSS", "provider=tpm2,output=pem,structure=pkcs8", tpm2_rsa_encoder_pkcs8_pem_functions },
+    { "RSA", "provider=tpm2,output=der,structure=pkcs8", tpm2_tss_encoder_pkcs8_der_functions },
+    { "RSA", "provider=tpm2,output=pem,structure=pkcs8", tpm2_tss_encoder_pkcs8_pem_functions },
+    { "RSA-PSS", "provider=tpm2,output=der,structure=pkcs8", tpm2_tss_encoder_pkcs8_der_functions },
+    { "RSA-PSS", "provider=tpm2,output=pem,structure=pkcs8", tpm2_tss_encoder_pkcs8_pem_functions },
+    { "EC", "provider=tpm2,output=der,structure=pkcs8", tpm2_tss_encoder_pkcs8_der_functions },
+    { "EC", "provider=tpm2,output=pem,structure=pkcs8", tpm2_tss_encoder_pkcs8_pem_functions },
     /* public key */
     { "RSA", "provider=tpm2,output=der,structure=pkcs1", tpm2_rsa_encoder_pkcs1_der_functions },
     { "RSA", "provider=tpm2,output=pem,structure=pkcs1", tpm2_rsa_encoder_pkcs1_pem_functions },
@@ -132,15 +147,18 @@ static const OSSL_ALGORITHM tpm2_encoders[] = {
     { "RSA-PSS", "provider=tpm2,output=der,structure=SubjectPublicKeyInfo", tpm2_rsapss_encoder_SubjectPublicKeyInfo_der_functions },
     { "RSA-PSS", "provider=tpm2,output=pem,structure=SubjectPublicKeyInfo", tpm2_rsapss_encoder_SubjectPublicKeyInfo_pem_functions },
     { "RSA-PSS", "provider=tpm2,output=text", tpm2_rsa_encoder_text_functions },
+    { "EC", "provider=tpm2,output=der,structure=SubjectPublicKeyInfo", tpm2_ec_encoder_SubjectPublicKeyInfo_der_functions },
+    { "EC", "provider=tpm2,output=pem,structure=SubjectPublicKeyInfo", tpm2_ec_encoder_SubjectPublicKeyInfo_pem_functions },
+    { "EC", "provider=tpm2,output=text", tpm2_ec_encoder_text_functions },
     { NULL, NULL, NULL }
 };
 
 extern const OSSL_DISPATCH tpm2_der_decoder_functions[];
-extern const OSSL_DISPATCH tpm2_tss2_decoder_functions[];
+extern const OSSL_DISPATCH tpm2_tss_decoder_functions[];
 
 static const OSSL_ALGORITHM tpm2_decoders[] = {
     { "DER", "provider=tpm2,input=pem", tpm2_der_decoder_functions },
-    { "RSA:rsaEncryption", "provider=tpm2,input=der,structure=TSS2", tpm2_tss2_decoder_functions },
+    { "RSA:rsaEncryption", "provider=tpm2,input=der,structure=TSS2", tpm2_tss_decoder_functions },
     { NULL, NULL, NULL }
 };
 
@@ -168,6 +186,8 @@ tpm2_query_operation(void *provctx, int operation_id, int *no_cache)
         return tpm2_rands;
     case OSSL_OP_KEYMGMT:
         return tpm2_keymgmts;
+    case OSSL_OP_KEYEXCH:
+        return tpm2_keyexchs;
     case OSSL_OP_SIGNATURE:
         return tpm2_signatures;
     case OSSL_OP_ASYM_CIPHER:
@@ -198,6 +218,7 @@ tpm2_get_reason_strings(void *provctx)
         {TPM2_ERR_CANNOT_CREATE_PRIMARY, "cannot create primary"},
         {TPM2_ERR_CANNOT_CREATE_KEY, "cannot create key"},
         {TPM2_ERR_CANNOT_LOAD_KEY, "cannot load key"},
+        {TPM2_ERR_CANNOT_GENERATE, "cannot generate"},
         {TPM2_ERR_CANNOT_HASH, "cannot hash"},
         {TPM2_ERR_CANNOT_SIGN, "cannot sign"},
         {TPM2_ERR_CANNOT_ENCRYPT, "cannot encrypt"},
