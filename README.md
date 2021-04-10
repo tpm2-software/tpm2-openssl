@@ -188,14 +188,17 @@ function and the
 [`openssl enc`](https://www.openssl.org/docs/manmaster/man1/openssl-enc.html)
 command.
 
-The AES-128-CBC (`aes128`), AES-192-CBC (`aes192`) and AES-256-CBC (`aes256`)
-are supported by the tpm2 provider, although your TPM may support only a subset
-of these.
+To use a cipher you need to specify the cipher name, desired key size and
+a mode of operation. Although your TPM may implement only a limited subset,
+the tpm2 provider supports any combination of:
+ * `AES` and `CAMELLIA` cipher
+ * Key size `128`, `192` and `256`
+ * `ECB`, `CBC` (default), `OFB`, `CFB` and `CTR` modes of operation
 
 For example, to encrypt the `data.txt` file using AES-128-CBC and a given key
 and initialization vector (IV):
 ```
-openssl enc -provider tpm2 -aes128 -e -K $KEY -iv $IV -in data.txt -out data.enc
+openssl enc -provider tpm2 -aes-128-cbc -e -K $KEY -iv $IV -in data.txt -out data.enc
 ```
 
 The key (`-K`) used for the operation will be imported into a temporary object

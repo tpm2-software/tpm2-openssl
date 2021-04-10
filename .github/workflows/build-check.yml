@@ -32,7 +32,7 @@ jobs:
         fi
         # disable all unnecessary features
         ./Configure no-deprecated no-aria no-async no-autoload-config no-bf \
-                    no-blake2 no-camellia no-cast no-chacha no-cms no-cmp \
+                    no-blake2 no-cast no-chacha no-cms no-cmp \
                     no-comp no-ct no-des no-dgram no-dh no-dsa no-ec2m \
                     no-filenames no-fips no-fips-securitychecks no-gost no-idea \
                     no-ktls no-makedepend no-md4 no-multiblock no-nextprotoneg \

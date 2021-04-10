@@ -27,8 +27,8 @@ struct tpm2_cipher_ctx_st {
 static OSSL_FUNC_cipher_freectx_fn tpm2_cipher_freectx;
 static OSSL_FUNC_cipher_encrypt_init_fn tpm2_cipher_encrypt_init;
 static OSSL_FUNC_cipher_decrypt_init_fn tpm2_cipher_decrypt_init;
-static OSSL_FUNC_cipher_update_fn tpm2_cipher_update;
-static OSSL_FUNC_cipher_final_fn tpm2_cipher_final;
+static OSSL_FUNC_cipher_update_fn tpm2_cipher_update_block;
+static OSSL_FUNC_cipher_final_fn tpm2_cipher_final_block;
 static OSSL_FUNC_cipher_gettable_params_fn tpm2_cipher_gettable_params;
 static OSSL_FUNC_cipher_gettable_ctx_params_fn tpm2_cipher_gettable_ctx_params;
 static OSSL_FUNC_cipher_settable_ctx_params_fn tpm2_cipher_settable_ctx_params;
@@ -61,7 +61,7 @@ tpm2_cipher_all_newctx(void *provctx,
         TPMT_SYM_DEF_OBJECT algdef = { \
             .algorithm = TPM2_ALG_##alg, \
             .keyBits = { \
-                .aes = kbits, \
+                .sym = kbits, \
             }, \
             .mode = { \
                 .sym = TPM2_ALG_##amode, \
@@ -198,6 +198,26 @@ tpm2_cipher_decrypt_init(void *ctx,
     return tpm2_cipher_init(cctx, key, keylen, iv, ivlen, params);
 }
 
+static TSS2_RC
+encrypt_decrypt(TPM2_CIPHER_CTX *cctx,
+                TPM2B_MAX_BUFFER **outbuff, TPM2B_IV **ivector)
+{
+    TSS2_RC r;
+
+    r = Esys_EncryptDecrypt2(cctx->esys_ctx, cctx->object,
+                             ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                             &cctx->buffer, cctx->decrypt, TPM2_ALG_NULL,
+                             cctx->ivector, outbuff, ivector);
+    if ((r & 0xFFFF) == TPM2_RC_COMMAND_CODE) {
+        r = Esys_EncryptDecrypt(cctx->esys_ctx, cctx->object,
+                                ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                                cctx->decrypt, TPM2_ALG_NULL, cctx->ivector,
+                                &cctx->buffer, outbuff, ivector);
+    }
+
+    return r;
+}
+
 static int
 tpm2_cipher_process_buffer(TPM2_CIPHER_CTX *cctx, int padded,
                            unsigned char *out, size_t *outl, size_t outsize)
@@ -214,16 +234,7 @@ tpm2_cipher_process_buffer(TPM2_CIPHER_CTX *cctx, int padded,
         cctx->buffer.size += padlen;
     }
 
-    r = Esys_EncryptDecrypt2(cctx->esys_ctx, cctx->object,
-                             ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
-                             &cctx->buffer, cctx->decrypt, TPM2_ALG_NULL,
-                             cctx->ivector, &outbuff, &ivector);
-    if ((r & 0xFFFF) == TPM2_RC_COMMAND_CODE) {
-        r = Esys_EncryptDecrypt(cctx->esys_ctx, cctx->object,
-                                ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
-                                cctx->decrypt, TPM2_ALG_NULL, cctx->ivector,
-                                &cctx->buffer, &outbuff, &ivector);
-    }
+    r = encrypt_decrypt(cctx, &outbuff, &ivector);
     TPM2_CHECK_RC(cctx->core, r, TPM2_ERR_CANNOT_ENCRYPT, return 0);
 
     OPENSSL_clear_free(cctx->ivector, sizeof(TPM2B_IV));
@@ -241,6 +252,8 @@ tpm2_cipher_process_buffer(TPM2_CIPHER_CTX *cctx, int padded,
             goto error;
 
         padlen = outbuff->buffer[outbuff->size - 1];
+        if (padlen > outbuff->size)
+            goto error;
         outbuff->size -= padlen;
         /* check the padding */
         for (i = 0; i < padlen; i++)
@@ -262,13 +275,13 @@ error:
 }
 
 static int
-tpm2_cipher_update(void *ctx,
-                   unsigned char *out, size_t *outl, size_t outsize,
-                   const unsigned char *in, size_t inlen)
+tpm2_cipher_update_block(void *ctx,
+                         unsigned char *out, size_t *outl, size_t outsize,
+                         const unsigned char *in, size_t inlen)
 {
     TPM2_CIPHER_CTX *cctx = ctx;
 
-    DBG("CIPHER UPDATE %zu\n", inlen);
+    DBG("CIPHER UPDATE block %zu\n", inlen);
     *outl = 0;
 
     while (inlen > 0) {
@@ -299,12 +312,12 @@ tpm2_cipher_update(void *ctx,
 }
 
 static int
-tpm2_cipher_final(void *ctx,
-                  unsigned char *out, size_t *outl, size_t outsize)
+tpm2_cipher_final_block(void *ctx,
+                        unsigned char *out, size_t *outl, size_t outsize)
 {
     TPM2_CIPHER_CTX *cctx = ctx;
 
-    DBG("CIPHER FINAL\n");
+    DBG("CIPHER FINAL block\n");
     *outl = 0;
 
     if (!cctx->padding) {
@@ -316,6 +329,66 @@ tpm2_cipher_final(void *ctx,
         if (!tpm2_cipher_process_buffer(cctx, 1, out, outl, outsize))
             return 0;
     }
+
+    return 1;
+}
+
+static int
+tpm2_cipher_update_stream(void *ctx,
+                          unsigned char *out, size_t *outl, size_t outsize,
+                          const unsigned char *in, size_t inlen)
+{
+    TPM2_CIPHER_CTX *cctx = ctx;
+    TPM2B_MAX_BUFFER *outbuff = NULL;
+    TPM2B_IV *ivector = NULL;
+    TSS2_RC r;
+
+    DBG("CIPHER UPDATE stream %zu\n", inlen);
+    *outl = 0;
+
+    while (inlen > 0) {
+        size_t consume = cctx->block_size;
+        int padlen;
+
+        if (inlen < consume)
+            consume = inlen;
+
+        memcpy(cctx->buffer.buffer, in + *outl, consume);
+        /* add some padding */
+        padlen = cctx->block_size - consume;
+        memset(cctx->buffer.buffer + consume, 0, padlen);
+
+        cctx->buffer.size = cctx->block_size;
+        inlen -= consume;
+
+        r = encrypt_decrypt(cctx, &outbuff, &ivector);
+        TPM2_CHECK_RC(cctx->core, r, TPM2_ERR_CANNOT_ENCRYPT, return 0);
+
+        OPENSSL_clear_free(cctx->ivector, sizeof(TPM2B_IV));
+        cctx->ivector = ivector;
+
+        if (outbuff->size < consume
+                || *outl + consume > outsize) {
+            free(outbuff);
+            return 0;
+        }
+        /* in a stream cipher we may skip the padding bytes */
+        memcpy(out + *outl, outbuff->buffer, consume);
+        *outl += consume;
+
+        free(outbuff);
+    }
+
+    return 1;
+}
+
+static int
+tpm2_cipher_final_stream(void *ctx,
+                         unsigned char *out, size_t *outl, size_t outsize)
+{
+    DBG("CIPHER FINAL stream\n");
+    /* nothing to do */
+    *outl = 0;
 
     return 1;
 }
@@ -414,14 +487,14 @@ tpm2_cipher_set_ctx_params(void *ctx, const OSSL_PARAM params[])
     return 1;
 }
 
-#define IMPLEMENT_CIPHER_DISPATCH(alg,kbits,lcmode) \
+#define IMPLEMENT_CIPHER_DISPATCH(alg,kbits,lcmode,type) \
     const OSSL_DISPATCH tpm2_cipher_##alg##kbits##lcmode##_functions[] = { \
         { OSSL_FUNC_CIPHER_NEWCTX, (void(*)(void))tpm2_cipher_##alg##kbits##lcmode##_newctx }, \
         { OSSL_FUNC_CIPHER_FREECTX, (void(*)(void))tpm2_cipher_freectx }, \
         { OSSL_FUNC_CIPHER_ENCRYPT_INIT, (void(*)(void))tpm2_cipher_encrypt_init }, \
         { OSSL_FUNC_CIPHER_DECRYPT_INIT, (void(*)(void))tpm2_cipher_decrypt_init }, \
-        { OSSL_FUNC_CIPHER_UPDATE, (void(*)(void))tpm2_cipher_update }, \
-        { OSSL_FUNC_CIPHER_FINAL, (void(*)(void))tpm2_cipher_final }, \
+        { OSSL_FUNC_CIPHER_UPDATE, (void(*)(void))tpm2_cipher_update_##type }, \
+        { OSSL_FUNC_CIPHER_FINAL, (void(*)(void))tpm2_cipher_final_##type }, \
         { OSSL_FUNC_CIPHER_GETTABLE_PARAMS, (void(*)(void))tpm2_cipher_gettable_params }, \
         { OSSL_FUNC_CIPHER_GET_PARAMS, (void(*)(void))tpm2_cipher_##alg##kbits##lcmode##_get_params }, \
         { OSSL_FUNC_CIPHER_GETTABLE_CTX_PARAMS, (void(*)(void))tpm2_cipher_gettable_ctx_params }, \
@@ -431,13 +504,25 @@ tpm2_cipher_set_ctx_params(void *ctx, const OSSL_PARAM params[])
         { 0, NULL } \
     };
 
-#define DECLARE_CIPHER(alg,lcmode,kbits,blkbits,ivbits) \
+#define DECLARE_CIPHER(alg,lcmode,kbits,blkbits,ivbits,type) \
     IMPLEMENT_CIPHER_NEWCTX(alg,kbits,lcmode,blkbits) \
     IMPLEMENT_CIPHER_GET_PARAMS(alg,kbits,lcmode,blkbits,ivbits) \
     IMPLEMENT_CIPHER_GET_CTX_PARAMS(alg,kbits,lcmode,blkbits,ivbits) \
-    IMPLEMENT_CIPHER_DISPATCH(alg,kbits,lcmode)
+    IMPLEMENT_CIPHER_DISPATCH(alg,kbits,lcmode,type)
 
-DECLARE_CIPHER(AES,CBC,128,128,128)
-DECLARE_CIPHER(AES,CBC,192,128,128)
-DECLARE_CIPHER(AES,CBC,256,128,128)
+#define DECLARE_3CIPHERS(alg,lcmode,blkbits,ivbits,type) \
+    DECLARE_CIPHER(alg,lcmode,128,blkbits,ivbits,type) \
+    DECLARE_CIPHER(alg,lcmode,192,blkbits,ivbits,type) \
+    DECLARE_CIPHER(alg,lcmode,256,blkbits,ivbits,type)
+
+DECLARE_3CIPHERS(AES,ECB,128,0,block)
+DECLARE_3CIPHERS(AES,CBC,128,128,block)
+DECLARE_3CIPHERS(AES,OFB,128,128,stream)
+DECLARE_3CIPHERS(AES,CFB,128,128,stream)
+DECLARE_3CIPHERS(AES,CTR,128,128,stream)
+DECLARE_3CIPHERS(CAMELLIA,ECB,128,0,block)
+DECLARE_3CIPHERS(CAMELLIA,CBC,128,128,block)
+DECLARE_3CIPHERS(CAMELLIA,OFB,128,128,stream)
+DECLARE_3CIPHERS(CAMELLIA,CFB,128,128,stream)
+DECLARE_3CIPHERS(CAMELLIA,CTR,128,128,stream)
 

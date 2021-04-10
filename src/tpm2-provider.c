@@ -20,6 +20,7 @@ tpm2_gettable_params(void *provctx)
         OSSL_PARAM_DEFN(OSSL_PROV_PARAM_NAME, OSSL_PARAM_UTF8_PTR, NULL, 0),
         OSSL_PARAM_DEFN(OSSL_PROV_PARAM_VERSION, OSSL_PARAM_UTF8_PTR, NULL, 0),
         OSSL_PARAM_DEFN(OSSL_PROV_PARAM_BUILDINFO, OSSL_PARAM_UTF8_PTR, NULL, 0),
+        OSSL_PARAM_DEFN(OSSL_PROV_PARAM_STATUS, OSSL_PARAM_INTEGER, NULL, 0),
         OSSL_PARAM_END
     };
 
@@ -39,6 +40,9 @@ tpm2_get_params(void *provctx, OSSL_PARAM params[])
         return 0;
     p = OSSL_PARAM_locate(params, OSSL_PROV_PARAM_BUILDINFO);
     if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, TPM2TSS_PROV_BUILDINFO))
+        return 0;
+    p = OSSL_PARAM_locate(params, OSSL_PROV_PARAM_STATUS);
+    if (p != NULL && !OSSL_PARAM_set_int(p, 1)) /* always in running state */
         return 0;
 
     return 1;
@@ -61,14 +65,42 @@ static const OSSL_ALGORITHM tpm2_digests[] = {
     { NULL, NULL, NULL }
 };
 
-extern const OSSL_DISPATCH tpm2_cipher_AES128CBC_functions[];
-extern const OSSL_DISPATCH tpm2_cipher_AES192CBC_functions[];
-extern const OSSL_DISPATCH tpm2_cipher_AES256CBC_functions[];
+#define DECLARE_3CIPHERS_FUNCTIONS(alg,lcmode) \
+    extern const OSSL_DISPATCH tpm2_cipher_##alg##128##lcmode##_functions[]; \
+    extern const OSSL_DISPATCH tpm2_cipher_##alg##192##lcmode##_functions[]; \
+    extern const OSSL_DISPATCH tpm2_cipher_##alg##256##lcmode##_functions[];
+
+#define DECLARE_3CIPHERS_ALGORITHMS(alg,lcmode) \
+    { #alg "-128-" #lcmode, TPM2_PROPS(cipher), tpm2_cipher_##alg##128##lcmode##_functions }, \
+    { #alg "-192-" #lcmode, TPM2_PROPS(cipher), tpm2_cipher_##alg##192##lcmode##_functions }, \
+    { #alg "-256-" #lcmode, TPM2_PROPS(cipher), tpm2_cipher_##alg##256##lcmode##_functions },
+
+DECLARE_3CIPHERS_FUNCTIONS(AES,ECB)
+DECLARE_3CIPHERS_FUNCTIONS(AES,CBC)
+DECLARE_3CIPHERS_FUNCTIONS(AES,OFB)
+DECLARE_3CIPHERS_FUNCTIONS(AES,CFB)
+DECLARE_3CIPHERS_FUNCTIONS(AES,CTR)
+DECLARE_3CIPHERS_FUNCTIONS(CAMELLIA,ECB)
+DECLARE_3CIPHERS_FUNCTIONS(CAMELLIA,CBC)
+DECLARE_3CIPHERS_FUNCTIONS(CAMELLIA,OFB)
+DECLARE_3CIPHERS_FUNCTIONS(CAMELLIA,CFB)
+DECLARE_3CIPHERS_FUNCTIONS(CAMELLIA,CTR)
 
 static const OSSL_ALGORITHM tpm2_ciphers[] = {
+    DECLARE_3CIPHERS_ALGORITHMS(AES,ECB)
     { "AES-128-CBC:AES128", TPM2_PROPS(cipher), tpm2_cipher_AES128CBC_functions },
     { "AES-192-CBC:AES192", TPM2_PROPS(cipher), tpm2_cipher_AES192CBC_functions },
     { "AES-256-CBC:AES256", TPM2_PROPS(cipher), tpm2_cipher_AES256CBC_functions },
+    DECLARE_3CIPHERS_ALGORITHMS(AES,OFB)
+    DECLARE_3CIPHERS_ALGORITHMS(AES,CFB)
+    DECLARE_3CIPHERS_ALGORITHMS(AES,CTR)
+    DECLARE_3CIPHERS_ALGORITHMS(CAMELLIA,ECB)
+    { "CAMELLIA-128-CBC:CAMELLIA128", TPM2_PROPS(cipher), tpm2_cipher_CAMELLIA128CBC_functions },
+    { "CAMELLIA-192-CBC:CAMELLIA192", TPM2_PROPS(cipher), tpm2_cipher_CAMELLIA192CBC_functions },
+    { "CAMELLIA-256-CBC:CAMELLIA256", TPM2_PROPS(cipher), tpm2_cipher_CAMELLIA256CBC_functions },
+    DECLARE_3CIPHERS_ALGORITHMS(CAMELLIA,OFB)
+    DECLARE_3CIPHERS_ALGORITHMS(CAMELLIA,CFB)
+    DECLARE_3CIPHERS_ALGORITHMS(CAMELLIA,CTR)
     { NULL, NULL, NULL }
 };
 

@@ -55,8 +55,11 @@ TESTS = $(TESTS_SHELL) $(check_PROGRAMS)
 
 TESTS_SHELL = test/list.sh \
               test/digest.sh \
-              test/cipher_aes128.sh \
+              test/cipher_aes128_ecb.sh \
+              test/cipher_aes128_cbc.sh \
+              test/cipher_aes256.sh \
               test/cipher_aes256_nopad.sh \
+              test/cipher_camellia128.sh \
               test/rand.sh \
               test/rsa_genrsa_check.sh \
               test/rsa_genpkey_sign.sh \
