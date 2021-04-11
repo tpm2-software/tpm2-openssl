@@ -21,6 +21,7 @@ struct tpm2_provider_ctx_st {
 };
 
 typedef enum {
+    KEY_TYPE_NONE = 0,
     KEY_TYPE_BLOB,
     KEY_TYPE_HANDLE
 } KEY_TYPE;

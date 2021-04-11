@@ -75,6 +75,7 @@ TESTS_SHELL = test/list.sh \
               test/rsapss_genpkey_sign_rawin.sh \
               test/rsapss_createak_tls_server.sh \
               test/ec_genpkey_check.sh \
+              test/ec_genpkey_parameters.sh \
               test/ecdsa_genpkey_auth.sh \
               test/ecdsa_genpkey_sign_rawin.sh \
               test/ecdsa_createak_sign_handle.sh \

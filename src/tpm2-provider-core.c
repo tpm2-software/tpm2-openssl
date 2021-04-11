@@ -18,6 +18,8 @@ static OSSL_FUNC_BIO_read_ex_fn *c_bio_read_ex = NULL;
 static OSSL_FUNC_BIO_write_ex_fn *c_bio_write_ex = NULL;
 static OSSL_FUNC_BIO_gets_fn *c_bio_gets = NULL;
 static OSSL_FUNC_BIO_puts_fn *c_bio_puts = NULL;
+static OSSL_FUNC_BIO_up_ref_fn *c_bio_up_ref = NULL;
+static OSSL_FUNC_BIO_free_fn *c_bio_free = NULL;
 static OSSL_FUNC_BIO_ctrl_fn *c_bio_ctrl = NULL;
 
 int
@@ -62,6 +64,14 @@ init_core_func_from_dispatch(const OSSL_DISPATCH *fns)
         case OSSL_FUNC_BIO_PUTS:
             if (c_bio_puts == NULL)
                 c_bio_puts = OSSL_FUNC_BIO_puts(fns);
+            break;
+        case OSSL_FUNC_BIO_UP_REF:
+            if (c_bio_up_ref == NULL)
+                c_bio_up_ref = OSSL_FUNC_BIO_up_ref(fns);
+            break;
+        case OSSL_FUNC_BIO_FREE:
+            if (c_bio_free == NULL)
+                c_bio_free = OSSL_FUNC_BIO_free(fns);
             break;
         case OSSL_FUNC_BIO_CTRL:
             if (c_bio_ctrl == NULL)
@@ -132,12 +142,13 @@ bio_new_from_core_bio(const BIO_METHOD *corebiometh, OSSL_CORE_BIO *corebio)
 {
     BIO *outbio = NULL;
 
-    if (corebiometh == NULL)
+    if (corebiometh == NULL || c_bio_up_ref == NULL)
         return NULL;
 
-    outbio = BIO_new(corebiometh);
-    if (outbio != NULL)
+    if ((outbio = BIO_new(corebiometh)) != NULL) {
+        c_bio_up_ref(corebio);
         BIO_set_data(outbio, corebio);
+    }
 
     return outbio;
 }
@@ -196,6 +207,8 @@ static int
 bio_core_free(BIO *bio)
 {
     BIO_set_init(bio, 0);
+    if (c_bio_free != NULL)
+        c_bio_free(BIO_get_data(bio));
 
     return 1;
 }

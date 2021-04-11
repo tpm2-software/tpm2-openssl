@@ -81,6 +81,7 @@ tpm2_rsa_keymgmt_new(void *provctx)
 
     pkey->core = cprov->core;
     pkey->esys_ctx = cprov->esys_ctx;
+    pkey->object = ESYS_TR_NONE;
 
     pkey->data.pub = keyTemplate;
     return pkey;
@@ -339,10 +340,12 @@ tpm2_rsa_keymgmt_free(void *keydata)
     if (pkey == NULL)
         return;
 
-    if (pkey->data.privatetype == KEY_TYPE_HANDLE)
-        Esys_TR_Close(pkey->esys_ctx, &pkey->object);
-    else
-        Esys_FlushContext(pkey->esys_ctx, pkey->object);
+    if (pkey->object != ESYS_TR_NONE) {
+        if (pkey->data.privatetype == KEY_TYPE_HANDLE)
+            Esys_TR_Close(pkey->esys_ctx, &pkey->object);
+        else
+            Esys_FlushContext(pkey->esys_ctx, pkey->object);
+    }
 
     OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
 }
@@ -411,14 +414,15 @@ static int
 tpm2_rsa_keymgmt_has(const void *keydata, int selection)
 {
     TPM2_PKEY *pkey = (TPM2_PKEY *)keydata;
-    int ok = 0;
+    int ok = 1;
 
     DBG("RSA HAS %x\n", selection);
     if (pkey != NULL) {
-        /* we always have a full keypair,
-           although the private portion is not exportable */
-        if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0)
-            ok = 1;
+        /* although not exportable we may have the the private portion */
+        if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
+            ok = ok && (pkey->data.privatetype != KEY_TYPE_NONE);
+        if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0)
+            ok = ok && (pkey->data.pub.publicArea.unique.rsa.size > 0);
     }
     return ok;
 }

@@ -297,6 +297,12 @@ openssl genpkey -provider tpm2 -algorithm EC -pkeyopt group:P-256 \
     -pkeyopt user-auth:abc -out testkey.priv
 ```
 
+You may use the `EC PARAMETERS` file, but only the curve name is allowed:
+```
+openssl ecparam -name prime256v1 -out testparam.pem
+openssl genpkey -provider tpm2 -paramfile testparam.pem -out testkey.priv
+```
+
 You may also generate the key using standard TPM2 tools and then make the key
 persistent under a given handle using `tpm2_evictcontrol`. For example to create
 a new key Attestation Key (AK) with a handle 0x81000000:

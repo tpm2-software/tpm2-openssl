@@ -13,6 +13,7 @@
 #include <openssl/params.h>
 
 #include "tpm2-provider-pkey.h"
+#include "tpm2-provider-types.h"
 
 typedef struct tpm2_tss2_decoder_ctx_st TPM2_TSS2_DECODER_CTX;
 
@@ -83,34 +84,15 @@ tpm2_tss2_decoder_get_params(OSSL_PARAM params[])
     return 1;
 }
 
-static int
-tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
-                         OSSL_CALLBACK *object_cb, void *object_cbarg,
-                         OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+static const char *
+decode_privkey(TPM2_TSS2_DECODER_CTX *dctx, TPM2_PKEY *pkey,
+               BIO *bin, OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
-    TPM2_TSS2_DECODER_CTX *dctx = ctx;
-    TPM2_PKEY *pkey;
-    BIO *bin;
-    OSSL_PARAM params[4];
-    int object_type, res;
-    const char *keytype;
     TSS2_RC r = 0;
+    const char *keytype;
 
-    DBG("TSS2 DECODER DECODE\n");
-    if ((pkey = OPENSSL_zalloc(sizeof(TPM2_PKEY))) == NULL)
-        return 0;
-
-    if ((bin = bio_new_from_core_bio(dctx->corebiometh, cin)) == NULL)
-        goto error1;
-
-    pkey->core = dctx->core;
-    pkey->esys_ctx = dctx->esys_ctx;
-    pkey->object = ESYS_TR_NONE;
-
-    res = tpm2_keydata_read(bin, &pkey->data, KEY_FORMAT_DER);
-    BIO_free(bin);
-    if (!res)
-        goto error1;
+    if (!tpm2_keydata_read(bin, &pkey->data, KEY_FORMAT_DER))
+        return NULL;
 
     if (pkey->data.privatetype == KEY_TYPE_BLOB) {
         ESYS_TR parent = ESYS_TR_NONE;
@@ -162,14 +144,71 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
         TPM2_CHECK_RC(dctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error2);
     }
 
-    /* submit the loaded key */
-    object_type = OSSL_OBJECT_PKEY;
-    params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
-
     if ((keytype = tpm2_openssl_type(&pkey->data)) == NULL) {
         TPM2_ERROR_raise(dctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
         goto error2;
     }
+
+    return keytype;
+error2:
+    if (pkey->data.privatetype == KEY_TYPE_HANDLE)
+        Esys_TR_Close(pkey->esys_ctx, &pkey->object);
+    else
+        Esys_FlushContext(pkey->esys_ctx, pkey->object);
+error1:
+    pkey->object = ESYS_TR_NONE;
+    return NULL;
+}
+
+static int
+tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
+                         OSSL_CALLBACK *object_cb, void *object_cbarg,
+                         OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+{
+    TPM2_TSS2_DECODER_CTX *dctx = ctx;
+    TPM2_PKEY *pkey;
+    BIO *bin;
+    const char *keytype = NULL;
+    OSSL_PARAM params[4];
+    int fpos, object_type;
+
+    DBG("TSS2 DECODER DECODE 0x%x\n", selection);
+    if ((pkey = OPENSSL_zalloc(sizeof(TPM2_PKEY))) == NULL)
+        return 0;
+
+    if ((bin = bio_new_from_core_bio(dctx->corebiometh, cin)) == NULL)
+        goto error1;
+
+    if ((fpos = BIO_tell(bin)) == -1)
+        goto error2;
+
+    pkey->core = dctx->core;
+    pkey->esys_ctx = dctx->esys_ctx;
+    pkey->object = ESYS_TR_NONE;
+
+    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
+        keytype = decode_privkey(dctx, pkey, bin, pw_cb, pw_cbarg);
+
+    if (keytype == NULL && (selection & OSSL_KEYMGMT_SELECT_ALL_PARAMETERS) != 0) {
+        EC_GROUP *group = NULL;
+
+        /* rewind back */
+        if (BIO_seek(bin, fpos) == -1)
+            goto error2;
+
+        if (d2i_ECPKParameters_bio(bin, &group)) {
+            if ((TPM2_PKEY_EC_CURVE(pkey) = tpm2_nid_to_ecc_curve(
+                        EC_GROUP_get_curve_name(group))) != TPM2_ECC_NONE) {
+                pkey->data.pub.publicArea.type = TPM2_ALG_ECC;
+                keytype = "EC";
+            }
+            EC_GROUP_free(group);
+        }
+    }
+
+    object_type = OSSL_OBJECT_PKEY;
+    params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
+
     DBG("TSS2 DECODER DECODE found %s\n", keytype);
     params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
                                                  (char *)keytype, 0);
@@ -178,13 +217,12 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
                                                   &pkey, sizeof(pkey));
     params[3] = OSSL_PARAM_construct_end();
 
-    if (object_cb(params, object_cbarg))
+    if (object_cb(params, object_cbarg)) {
+        BIO_free(bin);
         return 1;
+    }
 error2:
-    if (pkey->data.privatetype == KEY_TYPE_HANDLE)
-        Esys_TR_Close(pkey->esys_ctx, &pkey->object);
-    else
-        Esys_FlushContext(pkey->esys_ctx, pkey->object);
+    BIO_free(bin);
 error1:
     OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
     return 0;

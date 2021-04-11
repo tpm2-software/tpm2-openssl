@@ -51,6 +51,7 @@ struct tpm2_ecgen_ctx_st {
 
 static OSSL_FUNC_keymgmt_new_fn tpm2_ec_keymgmt_new;
 static OSSL_FUNC_keymgmt_gen_init_fn tpm2_ec_keymgmt_gen_init;
+static OSSL_FUNC_keymgmt_gen_set_template_fn tpm2_ec_keymgmt_gen_set_template;
 static OSSL_FUNC_keymgmt_gen_set_params_fn tpm2_ec_keymgmt_gen_set_params;
 static OSSL_FUNC_keymgmt_gen_settable_params_fn tpm2_ec_keymgmt_gen_settable_params;
 static OSSL_FUNC_keymgmt_gen_fn tpm2_ec_keymgmt_gen;
@@ -79,6 +80,7 @@ tpm2_ec_keymgmt_new(void *provctx)
 
     pkey->core = cprov->core;
     pkey->esys_ctx = cprov->esys_ctx;
+    pkey->object = ESYS_TR_NONE;
 
     pkey->data.pub = keyTemplate;
     return pkey;
@@ -111,6 +113,18 @@ tpm2_ec_keymgmt_gen_init(void *provctx, int selection, const OSSL_PARAM params[]
         return gen;
     OPENSSL_clear_free(gen, sizeof(TPM2_ECGEN_CTX));
     return NULL;
+}
+
+static int
+tpm2_ec_keymgmt_gen_set_template(void *ctx, void *templ)
+{
+    TPM2_ECGEN_CTX *gen = ctx;
+    TPM2_PKEY *pkey = templ;
+
+    DBG("EC GEN_SET_TEMPLATE\n");
+    gen->inPublic.publicArea.parameters.eccDetail.curveID = TPM2_PKEY_EC_CURVE(pkey);
+
+    return 1;
 }
 
 static int
@@ -282,10 +296,12 @@ tpm2_ec_keymgmt_free(void *keydata)
     if (pkey == NULL)
         return;
 
-    if (pkey->data.privatetype == KEY_TYPE_HANDLE)
-        Esys_TR_Close(pkey->esys_ctx, &pkey->object);
-    else
-        Esys_FlushContext(pkey->esys_ctx, pkey->object);
+    if (pkey->object != ESYS_TR_NONE) {
+        if (pkey->data.privatetype == KEY_TYPE_HANDLE)
+            Esys_TR_Close(pkey->esys_ctx, &pkey->object);
+        else
+            Esys_FlushContext(pkey->esys_ctx, pkey->object);
+    }
 
     OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
 }
@@ -410,14 +426,18 @@ static int
 tpm2_ec_keymgmt_has(const void *keydata, int selection)
 {
     TPM2_PKEY *pkey = (TPM2_PKEY *)keydata;
-    int ok = 0;
+    int ok = 1;
 
-    DBG("EC HAS %x\n", selection);
+    DBG("EC HAS 0x%x\n", selection);
     if (pkey != NULL) {
-        /* we always have a full keypair,
-           although the private portion is not exportable */
-        if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0)
-            ok = 1;
+        /* although not exportable we may have the the private portion */
+        if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
+            ok = ok && (pkey->data.privatetype != KEY_TYPE_NONE);
+        if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0)
+            ok = ok && (pkey->data.pub.publicArea.unique.ecc.x.size > 0)
+                    && (pkey->data.pub.publicArea.unique.ecc.y.size > 0);
+        if ((selection & OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS) != 0)
+            ok = ok && (TPM2_PKEY_EC_CURVE(pkey) != 0);
     }
     return ok;
 }
@@ -534,6 +554,7 @@ tpm2_ec_keymgmt_eximport_types(int selection)
 const OSSL_DISPATCH tpm2_ec_keymgmt_functions[] = {
     { OSSL_FUNC_KEYMGMT_NEW, (void(*)(void))tpm2_ec_keymgmt_new },
     { OSSL_FUNC_KEYMGMT_GEN_INIT, (void(*)(void))tpm2_ec_keymgmt_gen_init },
+    { OSSL_FUNC_KEYMGMT_GEN_SET_TEMPLATE, (void(*)(void))tpm2_ec_keymgmt_gen_set_template },
     { OSSL_FUNC_KEYMGMT_GEN_SET_PARAMS, (void(*)(void))tpm2_ec_keymgmt_gen_set_params },
     { OSSL_FUNC_KEYMGMT_GEN_SETTABLE_PARAMS, (void(*)(void))tpm2_ec_keymgmt_gen_settable_params },
     { OSSL_FUNC_KEYMGMT_GEN, (void(*)(void))tpm2_ec_keymgmt_gen },

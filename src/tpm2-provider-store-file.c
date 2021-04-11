@@ -62,8 +62,22 @@ tpm2_file_open(void *provctx, const char *uri)
 static void *
 tpm2_file_attach(void *provctx, OSSL_CORE_BIO *cin)
 {
+    TPM2_PROVIDER_CTX *cprov = provctx;
+    TPM2_FILE_CTX *ctx;
+
     DBG("STORE/FILE ATTACH\n");
-    // attach operation is required, but not supported
+    if ((ctx = OPENSSL_zalloc(sizeof(TPM2_FILE_CTX))) == NULL)
+        return NULL;
+
+    ctx->core = cprov->core;
+    ctx->esys_ctx = cprov->esys_ctx;
+
+    if ((ctx->bin = bio_new_from_core_bio(cprov->corebiometh, cin)) == NULL)
+        goto error;
+
+    return ctx;
+error:
+    OPENSSL_clear_free(ctx, sizeof(TPM2_FILE_CTX));
     return NULL;
 }
 
