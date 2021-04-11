@@ -3,4 +3,32 @@ extraction:
     prepare:
       packages:
       - autoconf-archive
-      - libtss2-dev
+      - acl
+    after_prepare:
+    - cd "$LGTM_WORKSPACE"
+    - mkdir installdir
+    - export PKG_CONFIG_PATH="$LGTM_WORKSPACE/installdir/usr/lib/pkgconfig:$PKG_CONFIG_PATH"
+    - export LD_LIBRARY_PATH="$LGTM_WORKSPACE/installdir/usr/lib:$LD_LIBRARY_PATH"
+
+    - wget https://github.com/openssl/openssl/archive/master.tar.gz
+    - tar xf master.tar.gz
+    - cd openssl-master
+    - ./Configure --prefix="$LGTM_WORKSPACE/installdir/usr"
+                  no-aria no-async no-autoload-config no-bf no-blake2 no-cast
+                  no-chacha no-cms no-cmp no-comp no-ct no-des no-dgram no-dh
+                  no-dsa no-ec2m no-filenames no-fips no-fips-securitychecks
+                  no-gost no-idea no-ktls no-makedepend no-md4 no-multiblock
+                  no-nextprotoneg no-ocb no-ocsp no-poly1305 no-psk no-rc2 no-rc4
+                  no-rfc3779 no-rmd160 no-seed no-siphash no-siv no-sm3 no-sm4
+                  no-srp no-srtp no-ssl3-method no-tests no-ts no-ui-console
+                  no-whirlpool
+    - make build_sw
+    - make install_sw
+
+    - wget https://github.com/tpm2-software/tpm2-tss/archive/master.tar.gz
+    - tar xf master.tar.gz
+    - cd tpm2-tss-master
+    - ./bootstrap
+    - ./configure --prefix="$LGTM_WORKSPACE/installdir/usr"
+                  --disable-fapi --disable-doxygen-doc
+    - make install
