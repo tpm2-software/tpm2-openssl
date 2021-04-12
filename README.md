@@ -1,6 +1,8 @@
 [![Build and Check](https://github.com/tpm2-software/tpm2-openssl/workflows/build%20and%20check/badge.svg)](https://github.com/tpm2-software/tpm2-openssl/actions)
 [![codecov](https://codecov.io/gh/tpm2-software/tpm2-openssl/branch/master/graph/badge.svg)](https://codecov.io/gh/tpm2-software/tpm2-openssl)
 [![Coverity Scan](https://scan.coverity.com/projects/22739/badge.svg)](https://scan.coverity.com/projects/tpm2-openssl)
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/tpm2-software/tpm2-openssl.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/tpm2-software/tpm2-openssl/alerts/)
+[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/tpm2-software/tpm2-openssl.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/tpm2-software/tpm2-openssl/context:cpp)
 
 # Provider for integration of TPM 2.0 to OpenSSL 3.0
 

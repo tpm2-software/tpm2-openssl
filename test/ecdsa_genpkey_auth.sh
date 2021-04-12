@@ -9,7 +9,8 @@ openssl genpkey -provider tpm2 -algorithm EC -pkeyopt group:P-256 \
     -pkeyopt user-auth:abc -pkeyopt digest:sha256 -out testkey.priv
 
 # read PEM and export public key as PEM
-openssl pkey -provider tpm2 -in testkey.priv -pubout -out testkey.pub
+# note: openssl requests the password although it will not be needed in this case
+openssl pkey -provider tpm2 -in testkey.priv -passin pass: -pubout -out testkey.pub
 
 # sign using ECDSA and a defined hash
 openssl pkeyutl -provider tpm2 -sign -inkey testkey.priv -in testdata \

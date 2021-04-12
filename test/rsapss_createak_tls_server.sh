@@ -56,5 +56,4 @@ trap "cleanup" EXIT
 sleep 1
 
 # start SSL client
-curl --tlsv1.2 --cacert testcert.pem https://localhost:4443/
-curl --tlsv1.3 --cacert testcert.pem https://localhost:4443/
+curl --cacert testcert.pem https://localhost:4443/
