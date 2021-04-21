@@ -171,6 +171,7 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
     const char *keytype = NULL;
     OSSL_PARAM params[4];
     int fpos, object_type;
+    int res = 0;
 
     DBG("TSS2 DECODER DECODE 0x%x\n", selection);
     if ((pkey = OPENSSL_zalloc(sizeof(TPM2_PKEY))) == NULL)
@@ -206,26 +207,31 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
         }
     }
 
-    object_type = OSSL_OBJECT_PKEY;
-    params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
+    if (keytype != NULL) {
+        object_type = OSSL_OBJECT_PKEY;
+        params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
 
-    DBG("TSS2 DECODER DECODE found %s\n", keytype);
-    params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
-                                                 (char *)keytype, 0);
-    /* The address of the key becomes the octet string */
-    params[2] = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_REFERENCE,
-                                                  &pkey, sizeof(pkey));
-    params[3] = OSSL_PARAM_construct_end();
+        DBG("TSS2 DECODER DECODE found %s\n", keytype);
+        params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
+                                                     (char *)keytype, 0);
+        /* The address of the key becomes the octet string */
+        params[2] = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_REFERENCE,
+                                                      &pkey, sizeof(pkey));
+        params[3] = OSSL_PARAM_construct_end();
 
-    if (object_cb(params, object_cbarg)) {
-        BIO_free(bin);
-        return 1;
+        if (object_cb(params, object_cbarg)) {
+            BIO_free(bin);
+            return 1;
+        }
+    } else {
+        /* We return "empty handed". This is not an error. */
+        res = 1;
     }
 error2:
     BIO_free(bin);
 error1:
     OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
-    return 0;
+    return res;
 }
 
 const OSSL_DISPATCH tpm2_tss_decoder_functions[] = {

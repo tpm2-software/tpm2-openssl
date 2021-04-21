@@ -88,27 +88,27 @@ tpm2_der_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
     unsigned char *der_data = NULL;
     long der_len;
     OSSL_PARAM params[3];
-    int res = 0;
+    int res;
 
     DBG("DER DECODER DECODE\n");
     if ((bin = bio_new_from_core_bio(dctx->corebiometh, cin)) == NULL)
         return 0;
 
-    if (!PEM_read_bio(bin, &pem_name, &pem_header, &der_data, &der_len))
-        goto end;
+    if (PEM_read_bio(bin, &pem_name, &pem_header, &der_data, &der_len) > 0
+            && strcmp(pem_name, TSSPRIVKEY_PEM_STRING) == 0) {
+        /* submit the loaded key */
+        params[0] = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_DATA,
+                                                      der_data, der_len);
+        params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_STRUCTURE,
+                                                     "TSS2", 0);
+        params[2] = OSSL_PARAM_construct_end();
 
-    if (strcmp(pem_name, TSSPRIVKEY_PEM_STRING) != 0)
-        goto end;
+        res = object_cb(params, object_cbarg);
+    } else {
+        /* We return "empty handed". This is not an error. */
+        res = 1;
+    }
 
-    /* submit the loaded key */
-    params[0] = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_DATA,
-                                                  der_data, der_len);
-    params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_STRUCTURE,
-                                                 "TSS2", 0);
-    params[2] = OSSL_PARAM_construct_end();
-
-    res = object_cb(params, object_cbarg);
-end:
     OPENSSL_free(pem_name);
     OPENSSL_free(pem_header);
     OPENSSL_free(der_data);
