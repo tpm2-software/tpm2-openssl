@@ -95,7 +95,7 @@ jobs:
       if: ${{ success() || failure() }}
       uses: actions/upload-artifact@v2
       with:
-        name: test-report
+        name: test-report-${{ matrix.compiler }}
         path: |
           *.log
           test/*.log
