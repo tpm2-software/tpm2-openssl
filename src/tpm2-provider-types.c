@@ -198,11 +198,14 @@ tpm2_buffer_to_ecc_point(int curve_nid, const unsigned char *buf, size_t len, TP
             || !EC_POINT_get_affine_coordinates(group, pt, x, y, NULL))
         goto final;
 
-    if ((tolen = BN_bn2bin(x, point->x.buffer)) < 0)
+    /* TPM2 will check the length, expecting padded numbers */
+    tolen = (EC_GROUP_order_bits(group) + 7) / 8;
+
+    if (BN_bn2binpad(x, point->x.buffer, tolen) != tolen)
         goto final;
     point->x.size = tolen;
 
-    if ((tolen = BN_bn2bin(y, point->y.buffer)) < 0)
+    if (BN_bn2binpad(y, point->y.buffer, tolen) != tolen)
         goto final;
     point->y.size = tolen;
 
