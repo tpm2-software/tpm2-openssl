@@ -90,6 +90,22 @@ tpm2_encoder_get_params_int(OSSL_PARAM params[],
         return tpm2_encoder_get_params_int(params, #oformat, #ostructure); \
     }
 
+#define IMPLEMENT_ENCODER_DOES_SELECTION(otype, ostructure, oformat) \
+    static OSSL_FUNC_encoder_does_selection_fn tpm2_##otype##_encoder_##ostructure##_##oformat##_does_selection; \
+    static int \
+    tpm2_##otype##_encoder_##ostructure##_##oformat##_does_selection(void *ctx, int selection) \
+    { \
+        DBG("ENCODER " #otype " " #ostructure "/" #oformat " DOES_SELECTION 0x%x\n", selection); \
+        if (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) { \
+            return (tpm2_##otype##_encode_private_##ostructure##_##oformat != NULL); \
+        } else if (selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) { \
+            return (tpm2_##otype##_encode_public_##ostructure##_##oformat != NULL); \
+        } else if (selection & OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS) { \
+            return (tpm2_##otype##_encode_parameters_##ostructure##_##oformat != NULL); \
+        } \
+        return 0; \
+    }
+
 #define IMPLEMENT_ENCODER_ENCODE(otype, ostructure, oformat) \
     static OSSL_FUNC_encoder_encode_fn tpm2_##otype##_encoder_encode_##ostructure##_##oformat; \
     static int \
@@ -100,12 +116,21 @@ tpm2_encoder_get_params_int(OSSL_PARAM params[],
         TPM2_ENCODER_CTX *ectx = ctx; \
         TPM2_PKEY *pkey = (TPM2_PKEY *)key; \
         BIO *bout; \
-        int ret; \
+        int ret = 0; \
 \
-        DBG("ENCODER " #otype " " #ostructure "/" #oformat " ENCODE\n"); \
+        DBG("ENCODER " #otype " " #ostructure "/" #oformat " ENCODE 0x%x\n", selection); \
         if ((bout = bio_new_from_core_bio(ectx->corebiometh, cout)) == NULL) \
             return 0; \
-        ret = tpm2_##otype##_encode_##ostructure##_##oformat(ectx, bout, pkey); \
+        if (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) { \
+            if (tpm2_##otype##_encode_private_##ostructure##_##oformat) \
+                ret = tpm2_##otype##_encode_private_##ostructure##_##oformat(ectx, bout, pkey); \
+        } else if (selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) { \
+            if (tpm2_##otype##_encode_public_##ostructure##_##oformat) \
+                ret = tpm2_##otype##_encode_public_##ostructure##_##oformat(ectx, bout, pkey); \
+        } else if (selection & OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS) { \
+            if (tpm2_##otype##_encode_parameters_##ostructure##_##oformat) \
+                ret = tpm2_##otype##_encode_parameters_##ostructure##_##oformat(ectx, bout, pkey); \
+        } \
         BIO_free(bout); \
         return ret; \
     }
@@ -116,31 +141,43 @@ tpm2_encoder_get_params_int(OSSL_PARAM params[],
         { OSSL_FUNC_ENCODER_FREECTX, (void (*)(void))tpm2_encoder_freectx }, \
         { OSSL_FUNC_ENCODER_GETTABLE_PARAMS, (void (*)(void))tpm2_encoder_gettable_params }, \
         { OSSL_FUNC_ENCODER_GET_PARAMS, (void (*)(void))tpm2_##otype##_encoder_get_params_##ostructure##_##oformat }, \
+        { OSSL_FUNC_ENCODER_DOES_SELECTION, (void (*)(void))tpm2_##otype##_encoder_##ostructure##_##oformat##_does_selection }, \
         { OSSL_FUNC_ENCODER_ENCODE, (void (*)(void))tpm2_##otype##_encoder_encode_##ostructure##_##oformat }, \
         { 0, NULL } \
     };
 
 #define DECLARE_ENCODER(otype, ostructure, oformat) \
     IMPLEMENT_ENCODER_GET_PARAMS(otype, ostructure, oformat) \
+    IMPLEMENT_ENCODER_DOES_SELECTION(otype, ostructure, oformat) \
     IMPLEMENT_ENCODER_ENCODE(otype, ostructure, oformat) \
     IMPLEMENT_ENCODER_DISPATCH(otype, ostructure, oformat)
+
+typedef int (*tpm2_tss_encode_fun)(TPM2_ENCODER_CTX *, BIO *, TPM2_PKEY *);
+#define NO_ENCODE ((tpm2_tss_encode_fun)NULL)
 
 
 /* TSS2 PRIVATE KEY encoders */
 
 static int
-tpm2_tss_encode_pkcs8_der(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
+tpm2_tss_encode_private_pkcs8_der(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
 {
     return tpm2_keydata_write(&pkey->data, bout, KEY_FORMAT_DER);
 }
 
+#define tpm2_tss_encode_public_pkcs8_der NO_ENCODE
+#define tpm2_tss_encode_parameters_pkcs8_der NO_ENCODE
+
 DECLARE_ENCODER(tss, pkcs8, der)
 
+
 static int
-tpm2_tss_encode_pkcs8_pem(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
+tpm2_tss_encode_private_pkcs8_pem(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
 {
     return tpm2_keydata_write(&pkey->data, bout, KEY_FORMAT_PEM);
 }
+
+#define tpm2_tss_encode_public_pkcs8_pem NO_ENCODE
+#define tpm2_tss_encode_parameters_pkcs8_pem NO_ENCODE
 
 DECLARE_ENCODER(tss, pkcs8, pem)
 
@@ -210,7 +247,7 @@ tpm2_get_rsa_pubkey_der(const TPM2_PKEY *pkey, unsigned char **penc)
 }
 
 static int
-tpm2_rsa_encode_pkcs1_der(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
+tpm2_rsa_encode_public_pkcs1_der(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
 {
     TPM2_RSA_PUBKEY *tpk;
     int ret;
@@ -224,11 +261,14 @@ tpm2_rsa_encode_pkcs1_der(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
     return ret;
 }
 
+#define tpm2_rsa_encode_private_pkcs1_der NO_ENCODE
+#define tpm2_rsa_encode_parameters_pkcs1_der NO_ENCODE
+
 DECLARE_ENCODER(rsa, pkcs1, der)
 
 
 static int
-tpm2_rsa_encode_pkcs1_pem(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
+tpm2_rsa_encode_public_pkcs1_pem(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
 {
     TPM2_RSA_PUBKEY *tpk;
     int ret;
@@ -242,12 +282,15 @@ tpm2_rsa_encode_pkcs1_pem(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
     return ret;
 }
 
+#define tpm2_rsa_encode_private_pkcs1_pem NO_ENCODE
+#define tpm2_rsa_encode_parameters_pkcs1_pem NO_ENCODE
+
 DECLARE_ENCODER(rsa, pkcs1, pem)
 
 
 #define DECLARE_ENCODE_X509_PUBKEY_DER(type) \
     static int \
-    tpm2_##type##_encode_SubjectPublicKeyInfo_der(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey) \
+    tpm2_##type##_encode_public_SubjectPublicKeyInfo_der(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey) \
     { \
         X509_PUBKEY *pubkey; \
         int ret; \
@@ -261,7 +304,7 @@ DECLARE_ENCODER(rsa, pkcs1, pem)
 
 #define DECLARE_ENCODE_X509_PUBKEY_PEM(type) \
     static int \
-    tpm2_##type##_encode_SubjectPublicKeyInfo_pem(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey) \
+    tpm2_##type##_encode_public_SubjectPublicKeyInfo_pem(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey) \
     { \
         X509_PUBKEY *pubkey; \
         int ret; \
@@ -278,6 +321,7 @@ DECLARE_ENCODER(rsa, pkcs1, pem)
     DECLARE_ENCODER(type, SubjectPublicKeyInfo, der) \
     DECLARE_ENCODE_X509_PUBKEY_PEM(type) \
     DECLARE_ENCODER(type, SubjectPublicKeyInfo, pem)
+
 
 static X509_PUBKEY *
 tpm2_get_x509_rsa_pubkey(const TPM2_PKEY *pkey)
@@ -300,6 +344,11 @@ tpm2_get_x509_rsa_pubkey(const TPM2_PKEY *pkey)
                            V_ASN1_NULL, NULL, penc, penclen);
     return pubkey;
 }
+
+#define tpm2_rsa_encode_private_SubjectPublicKeyInfo_der NO_ENCODE
+#define tpm2_rsa_encode_private_SubjectPublicKeyInfo_pem NO_ENCODE
+#define tpm2_rsa_encode_parameters_SubjectPublicKeyInfo_der NO_ENCODE
+#define tpm2_rsa_encode_parameters_SubjectPublicKeyInfo_pem NO_ENCODE
 
 DECLARE_ENCODER_X509_PUBKEY(rsa)
 
@@ -332,6 +381,11 @@ error1:
     X509_PUBKEY_free(pubkey);
     return NULL;
 }
+
+#define tpm2_rsapss_encode_private_SubjectPublicKeyInfo_der NO_ENCODE
+#define tpm2_rsapss_encode_private_SubjectPublicKeyInfo_pem NO_ENCODE
+#define tpm2_rsapss_encode_parameters_SubjectPublicKeyInfo_der NO_ENCODE
+#define tpm2_rsapss_encode_parameters_SubjectPublicKeyInfo_pem NO_ENCODE
 
 DECLARE_ENCODER_X509_PUBKEY(rsapss)
 
@@ -368,6 +422,48 @@ error1:
     X509_PUBKEY_free(pubkey);
     return NULL;
 }
+
+static EC_GROUP *
+get_ec_group(TPM2_PKEY *pkey)
+{
+    return EC_GROUP_new_by_curve_name(
+                tpm2_ecc_curve_to_nid(TPM2_PKEY_EC_CURVE(pkey)));
+}
+
+static int
+tpm2_ec_encode_parameters_SubjectPublicKeyInfo_der(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
+{
+    EC_GROUP *group;
+    int res;
+
+    if ((group = get_ec_group(pkey)) == NULL)
+        return 0;
+
+    res = i2d_ECPKParameters_bio(bout, group);
+
+    EC_GROUP_free(group);
+    return res;
+}
+
+IMPLEMENT_PEM_write_bio(ECPKParameters, EC_GROUP, PEM_STRING_ECPARAMETERS, ECPKParameters)
+
+static int
+tpm2_ec_encode_parameters_SubjectPublicKeyInfo_pem(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
+{
+    EC_GROUP *group;
+    int res;
+
+    if ((group = get_ec_group(pkey)) == NULL)
+        return 0;
+
+    res = PEM_write_bio_ECPKParameters(bout, group);
+
+    EC_GROUP_free(group);
+    return res;
+}
+
+#define tpm2_ec_encode_private_SubjectPublicKeyInfo_der NO_ENCODE
+#define tpm2_ec_encode_private_SubjectPublicKeyInfo_pem NO_ENCODE
 
 DECLARE_ENCODER_X509_PUBKEY(ec)
 
