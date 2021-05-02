@@ -21,6 +21,7 @@ typedef struct tpm2_file_ctx_st TPM2_FILE_CTX;
 struct tpm2_file_ctx_st {
     const OSSL_CORE_HANDLE *core;
     ESYS_CONTEXT *esys_ctx;
+    BIO *bufbin;
     BIO *bin;
 };
 
@@ -74,6 +75,16 @@ tpm2_file_attach(void *provctx, OSSL_CORE_BIO *cin)
 
     if ((ctx->bin = bio_new_from_core_bio(cprov->corebiometh, cin)) == NULL)
         goto error;
+
+    /* decoding will require tell-seek operations */
+    if (BIO_tell(ctx->bin) < 0) {
+        ctx->bufbin = BIO_new(BIO_f_readbuffer());
+        if (ctx->bufbin == NULL) {
+            BIO_free(ctx->bin);
+            goto error;
+        }
+        ctx->bin = BIO_push(ctx->bufbin, ctx->bin);
+    }
 
     return ctx;
 error:
@@ -191,6 +202,10 @@ tpm2_file_close(void *ctx)
     if (fctx == NULL)
         return 0;
 
+    if (fctx->bufbin != NULL) {
+        fctx->bin = BIO_pop(fctx->bufbin);
+        BIO_free(fctx->bufbin);
+    }
     BIO_free(fctx->bin);
     OPENSSL_clear_free(fctx, sizeof(TPM2_FILE_CTX));
 

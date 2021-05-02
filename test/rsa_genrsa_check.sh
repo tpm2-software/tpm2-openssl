@@ -28,8 +28,8 @@ openssl rsa -pubin -in testkey.pem -modulus -noout
 openssl rsa -pubin -in testkey.pem -text -noout
 
 
-# read PEM and export public key as DER, use our limited STORE
-openssl pkey -provider tpm2 -in pubkey.pem -pubout -outform der -out testkey.der
+# read PEM from stdin and export public key as DER, use our limited STORE
+cat pubkey.pem | openssl pkey -provider tpm2 -pubout -outform der -out testkey.der
 
 # print DER public key modulus
 openssl rsa -pubin -inform der -in testkey.der -modulus -noout
