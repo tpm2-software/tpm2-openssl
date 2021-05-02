@@ -83,6 +83,10 @@ tpm2_ec_keymgmt_new(void *provctx)
     pkey->object = ESYS_TR_NONE;
 
     pkey->data.pub = keyTemplate;
+    /* can be used in public key operations */
+    pkey->data.pub.publicArea.objectAttributes =
+            TPMA_OBJECT_SIGN_ENCRYPT;
+
     return pkey;
 }
 

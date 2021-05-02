@@ -1,0 +1,110 @@
+[ ca ]
+default_ca = ca_intermediate
+
+[ ca_root ]
+dir               = ${ENV::PKIDIR}/root
+certs             = $dir/certs
+crl_dir           = $dir/crl
+new_certs_dir     = $dir/newcerts
+database          = $dir/database
+serial            = $dir/serial
+crlnumber         = $dir/crlnumber
+private_key       = $dir/private/root.key.pem
+certificate       = $dir/certs/root.cert.pem
+crl               = $dir/crl/root.crl.pem
+crl_extensions    = ext_crl
+default_md        = sha512
+name_opt          = ca_default
+cert_opt          = ca_default
+default_crl_days  = 365
+default_days      = 3650
+preserve          = no
+policy            = policy_strict
+
+[ ca_intermediate ]
+dir               = ${ENV::PKIDIR}/intermediate
+certs             = $dir/certs
+crl_dir           = $dir/crl
+new_certs_dir     = $dir/newcerts
+database          = $dir/database
+serial            = $dir/serial
+crlnumber         = $dir/crlnumber
+private_key       = $dir/private/intermediate.key.pem
+certificate       = $dir/certs/intermediate.cert.pem
+crl               = $dir/crl/intermediate.crl.pem
+crl_extensions    = ext_crl
+default_md        = sha512
+name_opt          = ca_default
+cert_opt          = ca_default
+default_crl_days  = 365
+default_days      = 3650
+preserve          = no
+policy            = policy_loose
+
+[ policy_strict ]
+countryName             = match
+stateOrProvinceName     = match
+organizationName        = match
+organizationalUnitName  = optional
+commonName              = supplied
+emailAddress            = optional
+
+[ policy_loose ]
+countryName             = optional
+stateOrProvinceName     = optional
+localityName            = optional
+organizationName        = optional
+organizationalUnitName  = optional
+commonName              = supplied
+emailAddress            = optional
+
+[ req ]
+default_bits        = 4096
+string_mask         = utf8only
+default_md          = sha512
+distinguished_name  = req_distinguished_name
+
+[ req_distinguished_name ]
+countryName                     = Country Name (2 letter code)
+stateOrProvinceName             = State or Province Name
+localityName                    = Locality Name
+0.organizationName              = Organization Name
+organizationalUnitName          = Organizational Unit Name
+commonName                      = Common Name
+emailAddress                    = Email Address
+
+[ ext_root ]
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid:always, issuer
+basicConstraints        = critical, CA:true
+keyUsage                = critical, digitalSignature, cRLSign, keyCertSign
+
+[ ext_intermediate ]
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid:always, issuer
+basicConstraints        = critical, CA:true, pathlen:0
+keyUsage                = critical, digitalSignature, cRLSign, keyCertSign
+
+[ ext_client ]
+basicConstraints        = CA:FALSE
+nsCertType              = client
+nsComment               = "OpenSSL Generated Client Certificate"
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid, issuer
+keyUsage                = critical, nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage        = clientAuth, emailProtection
+
+[ ext_server ]
+basicConstraints        = CA:FALSE
+nsCertType              = server
+nsComment               = "OpenSSL Generated Server Certificate"
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid, issuer:always
+keyUsage                = critical, digitalSignature, keyEncipherment
+extendedKeyUsage        = serverAuth
+
+[ ext_crl ]
+basicConstraints        = CA:FALSE
+authorityKeyIdentifier  = keyid:always
+keyUsage                = digitalSignature, keyEncipherment
+nsComment               = "OpenSSL generated CRL"

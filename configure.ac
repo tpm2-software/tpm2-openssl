@@ -30,6 +30,16 @@ AM_PROG_CC_C_O
 AC_C_BIGENDIAN
 LT_INIT([disable-static])
 
+AC_ARG_ENABLE([op-digest],
+    AS_HELP_STRING([--disable-op-digest], [Disable digest operations]))
+AM_CONDITIONAL(WITH_OP_DIGEST, test "x$enable_op_digest" != "xno")
+AS_IF([test "x$enable_op_digest" != "xno"], [AC_DEFINE([WITH_OP_DIGEST])])
+
+AC_ARG_ENABLE([op-cipher],
+    AS_HELP_STRING([--disable-op-cipher], [Disable symmetric cipher operations]))
+AM_CONDITIONAL(WITH_OP_CIPHER, test "x$enable_op_cipher" != "xno")
+AS_IF([test "x$enable_op_cipher" != "xno"], [AC_DEFINE([WITH_OP_CIPHER])])
+
 AC_ARG_ENABLE([asan],
     AS_HELP_STRING([--enable-asan], [Enable asan build, useful for testing]))
 AM_CONDITIONAL(WITH_ASAN, test "x$enable_asan" = "xyes")

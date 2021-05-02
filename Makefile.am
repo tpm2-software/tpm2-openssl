@@ -7,8 +7,6 @@ tpm2_la_SOURCES = src/tpm2-provider.c \
                   src/tpm2-provider-core.c \
                   src/tpm2-provider-types.c \
                   src/tpm2-provider-x509.c \
-                  src/tpm2-provider-digest.c \
-                  src/tpm2-provider-cipher.c \
                   src/tpm2-provider-rand.c \
                   src/tpm2-provider-pkey.c \
                   src/tpm2-provider-store-file.c \
@@ -21,6 +19,12 @@ tpm2_la_SOURCES = src/tpm2-provider.c \
                   src/tpm2-provider-keyexch.c \
                   src/tpm2-provider-asymcipher-rsa.c \
                   src/tpm2-provider-signature.c
+if WITH_OP_DIGEST
+tpm2_la_SOURCES += src/tpm2-provider-digest.c
+endif
+if WITH_OP_CIPHER
+tpm2_la_SOURCES += src/tpm2-provider-cipher.c
+endif
 
 # https://www.gnu.org/software/autoconf-archive/ax_code_coverage.html
 if AUTOCONF_CODE_COVERAGE_2019_01_06
@@ -54,12 +58,6 @@ test_selftest_LDFLAGS = $(COMMON_LDFLAGS)
 TESTS = $(TESTS_SHELL) $(check_PROGRAMS)
 
 TESTS_SHELL = test/list.sh \
-              test/digest.sh \
-              test/cipher_aes128_ecb.sh \
-              test/cipher_aes128_cbc.sh \
-              test/cipher_aes256.sh \
-              test/cipher_aes256_nopad.sh \
-              test/cipher_camellia128.sh \
               test/rand.sh \
               test/rsa_genrsa_check.sh \
               test/rsa_genpkey_sign.sh \
@@ -74,6 +72,7 @@ TESTS_SHELL = test/list.sh \
               test/rsa_createak_x509_csr.sh \
               test/rsapss_genpkey_sign_rawin.sh \
               test/rsapss_createak_tls_server.sh \
+              test/rsa_pki/rsa_pki.sh \
               test/ec_genpkey_check.sh \
               test/ec_genpkey_parameters.sh \
               test/ecdsa_genpkey_auth.sh \
@@ -82,7 +81,18 @@ TESTS_SHELL = test/list.sh \
               test/ecdh_genpkey_keyexch.sh \
               test/ec_createak_x509_csr.sh \
               test/ec_genpkey_tls_server.sh \
+              test/ec_pki/ec_pki.sh \
               test/store_errors.sh
+if WITH_OP_DIGEST
+TESTS_SHELL += test/digest.sh
+endif
+if WITH_OP_CIPHER
+TESTS_SHELL += test/cipher_aes128_ecb.sh \
+               test/cipher_aes128_cbc.sh \
+               test/cipher_aes256.sh \
+               test/cipher_aes256_nopad.sh \
+               test/cipher_camellia128.sh
+endif
 
 TEST_EXTENSIONS = .sh
 SH_LOG_COMPILER = $(srcdir)/test/run

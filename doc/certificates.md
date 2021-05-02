@@ -4,7 +4,9 @@
 
 The tpm2 provider implements all operations required for certificate signing.
 Therefore, the
-[`openssl req`](https://www.openssl.org/docs/manmaster/man1/openssl-req.html)
+[`openssl req`](https://www.openssl.org/docs/manmaster/man1/openssl-req.html),
+[`openssl ca`](https://www.openssl.org/docs/manmaster/man1/openssl-ca.html) and
+[`openssl x509`](https://www.openssl.org/docs/manmaster/man1/openssl-x509.html)
 commands work as usual.
 
 For example, to generate a new TPM-based key and a self-signed certificate:
@@ -22,6 +24,12 @@ openssl req -provider tpm2 -new -subj "/C=GB/CN=foo" -key handle:0x81000000 -out
 If the key is not associated with any specific algorithm you may define the
 hash algorithm using the `-digest` parameter and the padding scheme using the
 `-sigopt pad-mode:` parameter.
+
+For more details on PKI related openssl commands see the
+[OpenSSL PKI Tutorial](https://pki-tutorial.readthedocs.io).
+
+Please note that the `openssl pkcs12` tool doesn't work for TPM-based keys as
+there is no PKCS#12 file format for TPM keys.
 
 
 ## TLS Handshake

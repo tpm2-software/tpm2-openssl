@@ -84,6 +84,9 @@ tpm2_rsa_keymgmt_new(void *provctx)
     pkey->object = ESYS_TR_NONE;
 
     pkey->data.pub = keyTemplate;
+    pkey->data.pub.publicArea.objectAttributes =
+            TPMA_OBJECT_SIGN_ENCRYPT;
+
     return pkey;
 }
 
@@ -446,7 +449,7 @@ tpm2_rsa_keymgmt_match(const void *keydata1, const void *keydata2,
     TPM2_PKEY *pkey1 = (TPM2_PKEY *)keydata1;
     TPM2_PKEY *pkey2 = (TPM2_PKEY *)keydata2;
 
-    DBG("RSA MATCH %x\n", selection);
+    DBG("RSA MATCH 0x%x\n", selection);
     if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
         /* compare N */
         if (BUFFER_CMP(pkey1->data.pub.publicArea.unique.rsa,

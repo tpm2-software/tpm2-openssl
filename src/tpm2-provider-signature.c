@@ -27,10 +27,12 @@ static OSSL_FUNC_signature_freectx_fn tpm2_signature_freectx;
 static OSSL_FUNC_signature_sign_init_fn tpm2_rsa_signature_sign_init;
 static OSSL_FUNC_signature_sign_init_fn tpm2_ecdsa_signature_sign_init;
 static OSSL_FUNC_signature_sign_fn tpm2_signature_sign;
-static OSSL_FUNC_signature_digest_sign_init_fn tpm2_signature_digest_sign_init;
-static OSSL_FUNC_signature_digest_sign_update_fn tpm2_signature_digest_sign_update;
+static OSSL_FUNC_signature_digest_sign_init_fn tpm2_rsa_signature_digest_init;
+static OSSL_FUNC_signature_digest_sign_init_fn tpm2_ecdsa_signature_digest_init;
+static OSSL_FUNC_signature_digest_sign_update_fn tpm2_signature_digest_update;
 static OSSL_FUNC_signature_digest_sign_final_fn tpm2_signature_digest_sign_final;
 static OSSL_FUNC_signature_digest_sign_fn tpm2_signature_digest_sign;
+static OSSL_FUNC_signature_digest_verify_final_fn tpm2_signature_digest_verify_final;
 static OSSL_FUNC_signature_get_ctx_params_fn tpm2_signature_get_ctx_params;
 static OSSL_FUNC_signature_gettable_ctx_params_fn tpm2_signature_gettable_ctx_params;
 static OSSL_FUNC_signature_set_ctx_params_fn tpm2_rsa_signature_set_ctx_params;
@@ -182,6 +184,31 @@ encode_ecdsa_sig(const TPMS_SIGNATURE_ECC *sig, unsigned char **str)
 }
 
 static int
+decode_ecdsa_sig(TPMS_SIGNATURE_ECC *sig, const unsigned char *buf, size_t buflen)
+{
+    const BIGNUM *r, *s;
+    int tolen, res = 0;
+    ECDSA_SIG *data = d2i_ECDSA_SIG(NULL, &buf, buflen);
+
+    if (data == NULL)
+        return 0;
+    ECDSA_SIG_get0(data, &r, &s);
+
+    if ((tolen = BN_bn2bin(r, sig->signatureR.buffer)) < 0)
+        goto final;
+    sig->signatureR.size = tolen;
+
+    if ((tolen = BN_bn2bin(s, sig->signatureS.buffer)) < 0)
+        goto final;
+    sig->signatureS.size = tolen;
+
+    res = 1;
+final:
+    ECDSA_SIG_free(data);
+    return res;
+}
+
+static int
 get_signature_buffer(const TPMT_SIGNATURE *signature,
                      unsigned char *sig, size_t *siglen, size_t sigsize)
 {
@@ -211,6 +238,29 @@ get_signature_buffer(const TPMT_SIGNATURE *signature,
         }
         free(str);
         return 1;
+    } else
+        return 0;
+}
+
+static int
+set_signature_buffer(TPMT_SIGNATURE *signature,
+                     const TPMT_PUBLIC *public, TPMT_SIG_SCHEME *signScheme,
+                     const unsigned char *sig, size_t siglen)
+{
+    signature->sigAlg = signScheme->scheme;
+
+    if (signature->sigAlg == TPM2_ALG_RSASSA ||
+            signature->sigAlg == TPM2_ALG_RSAPSS) {
+        signature->signature.rsassa.hash = signScheme->details.any.hashAlg;
+        /* copy buffer */
+        if (siglen > TPM2_MAX_RSA_KEY_BYTES)
+            return 0;
+        signature->signature.rsassa.sig.size = siglen;
+        memcpy(signature->signature.rsassa.sig.buffer, sig, siglen);
+        return 1;
+    } else if (signature->sigAlg == TPM2_ALG_ECDSA) {
+        signature->signature.ecdsa.hash = signScheme->details.any.hashAlg;
+        return decode_ecdsa_sig(&signature->signature.ecdsa, sig, siglen);
     } else
         return 0;
 }
@@ -260,13 +310,13 @@ tpm2_signature_sign(void *ctx, unsigned char *sig, size_t *siglen, size_t sigsiz
 }
 
 static int
-tpm2_rsa_signature_digest_sign_init(void *ctx, const char *mdname, void *provkey,
-                                const OSSL_PARAM params[])
+tpm2_rsa_signature_digest_init(void *ctx, const char *mdname, void *provkey,
+                               const OSSL_PARAM params[])
 {
     TSS2_RC r;
     TPM2_SIGNATURE_CTX *sctx = ctx;
 
-    DBG("SIGN DIGEST_SIGN_INIT rsa MD=%s\n", mdname);
+    DBG("SIGN DIGEST_INIT rsa MD=%s\n", mdname);
     sctx->pkey = provkey;
 
     return (tpm2_rsa_signature_set_ctx_params(sctx, params)
@@ -274,13 +324,13 @@ tpm2_rsa_signature_digest_sign_init(void *ctx, const char *mdname, void *provkey
 }
 
 static int
-tpm2_ecdsa_signature_digest_sign_init(void *ctx, const char *mdname, void *provkey,
-                                const OSSL_PARAM params[])
+tpm2_ecdsa_signature_digest_init(void *ctx, const char *mdname, void *provkey,
+                                 const OSSL_PARAM params[])
 {
     TSS2_RC r;
     TPM2_SIGNATURE_CTX *sctx = ctx;
 
-    DBG("SIGN DIGEST_SIGN_INIT ecdsa MD=%s\n", mdname);
+    DBG("SIGN DIGEST_INIT ecdsa MD=%s\n", mdname);
     sctx->pkey = provkey;
 
     return (tpm2_ecdsa_signature_set_ctx_params(sctx, params)
@@ -288,17 +338,17 @@ tpm2_ecdsa_signature_digest_sign_init(void *ctx, const char *mdname, void *provk
 }
 
 static int
-digest_sign_start(TPM2_SIGNATURE_CTX *sctx)
+digest_start(TPM2_SIGNATURE_CTX *sctx)
 {
     TSS2_RC r;
     TPM2B_AUTH null_auth = { .size = 0 };
 
     if (sctx->signature) {
-        DBG("SIGN DIGEST_SIGN_RESTART\n");
+        DBG("SIGN DIGEST_RESTART\n");
         free(sctx->signature);
         sctx->signature = NULL;
     } else
-        DBG("SIGN DIGEST_SIGN_START\n");
+        DBG("SIGN DIGEST_START\n");
 
     r = Esys_HashSequenceStart(sctx->esys_ctx, ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                                &null_auth, sctx->digalg, &sctx->sequenceHandle);
@@ -308,17 +358,17 @@ digest_sign_start(TPM2_SIGNATURE_CTX *sctx)
 }
 
 static int
-tpm2_signature_digest_sign_update(void *ctx,
-                                  const unsigned char *data, size_t datalen)
+tpm2_signature_digest_update(void *ctx,
+                             const unsigned char *data, size_t datalen)
 {
     TSS2_RC r;
     TPM2_SIGNATURE_CTX *sctx = ctx;
     TPM2B_MAX_BUFFER buffer;
 
-    if (sctx->sequenceHandle == ESYS_TR_NONE && !digest_sign_start(sctx))
+    if (sctx->sequenceHandle == ESYS_TR_NONE && !digest_start(sctx))
         return 0;
 
-    DBG("SIGN DIGEST_SIGN_UPDATE\n");
+    DBG("SIGN DIGEST_UPDATE\n");
     if (data != NULL) {
         if (datalen > TPM2_MAX_DIGEST_BUFFER)
             return 0;
@@ -377,7 +427,7 @@ tpm2_signature_digest_sign_final(void *ctx,
 
     if (!sctx->signature) {
         /* it is possible to digest an empty sequence without calling update */
-        if (sctx->sequenceHandle == ESYS_TR_NONE && !digest_sign_start(sctx))
+        if (sctx->sequenceHandle == ESYS_TR_NONE && !digest_start(sctx))
             return 0;
 
         if (!digest_sign_calculate(sctx))
@@ -446,6 +496,43 @@ tpm2_signature_digest_sign(void *ctx, unsigned char *sig, size_t *siglen,
 
     if (!get_signature_buffer(sctx->signature, sig, siglen, sigsize))
         return 0;
+
+    return 1;
+}
+
+static int
+tpm2_signature_digest_verify_final(void *ctx, const unsigned char *sig, size_t siglen)
+{
+    TSS2_RC r;
+    TPMT_SIGNATURE signature;
+    TPM2B_DIGEST *digest = NULL;
+    TPMT_TK_VERIFIED *validation = NULL;
+    TPM2_SIGNATURE_CTX *sctx = ctx;
+
+    DBG("SIGN DIGEST_VERIFY_FINAL\n");
+    if (!set_signature_buffer(&signature, &sctx->pkey->data.pub.publicArea,
+                              &sctx->signScheme, sig, siglen))
+        return 0;
+
+    r = Esys_SequenceComplete(sctx->esys_ctx, sctx->sequenceHandle,
+                              ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                              NULL,
+#ifdef HAVE_TSS2_ESYS3
+                              ESYS_TR_RH_OWNER,
+#else
+                              TPM2_RH_OWNER,
+#endif
+                              &digest, NULL);
+    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_HASH, return 0);
+    /* the update may be called again to sign another data block */
+    sctx->sequenceHandle = ESYS_TR_NONE;
+
+    r = Esys_VerifySignature(sctx->esys_ctx, sctx->pkey->object,
+                             ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
+                             digest, &signature, &validation);
+    free(digest);
+    free(validation);
+    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_VERIFICATION_FAILED, return 0);
 
     return 1;
 }
@@ -592,10 +679,13 @@ const OSSL_DISPATCH tpm2_rsa_signature_functions[] = {
     { OSSL_FUNC_SIGNATURE_FREECTX, (void (*)(void))tpm2_signature_freectx },
     { OSSL_FUNC_SIGNATURE_SIGN_INIT, (void (*)(void))tpm2_rsa_signature_sign_init },
     { OSSL_FUNC_SIGNATURE_SIGN, (void (*)(void))tpm2_signature_sign },
-    { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_INIT, (void (*)(void))tpm2_rsa_signature_digest_sign_init },
-    { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_UPDATE, (void (*)(void))tpm2_signature_digest_sign_update },
+    { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_INIT, (void (*)(void))tpm2_rsa_signature_digest_init },
+    { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_UPDATE, (void (*)(void))tpm2_signature_digest_update },
     { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_FINAL, (void (*)(void))tpm2_signature_digest_sign_final },
     { OSSL_FUNC_SIGNATURE_DIGEST_SIGN, (void (*)(void))tpm2_signature_digest_sign },
+    { OSSL_FUNC_SIGNATURE_DIGEST_VERIFY_INIT, (void (*)(void))tpm2_rsa_signature_digest_init },
+    { OSSL_FUNC_SIGNATURE_DIGEST_VERIFY_UPDATE, (void (*)(void))tpm2_signature_digest_update },
+    { OSSL_FUNC_SIGNATURE_DIGEST_VERIFY_FINAL, (void (*)(void))tpm2_signature_digest_verify_final },
     { OSSL_FUNC_SIGNATURE_GET_CTX_PARAMS, (void(*)(void))tpm2_signature_get_ctx_params },
     { OSSL_FUNC_SIGNATURE_GETTABLE_CTX_PARAMS, (void(*)(void))tpm2_signature_gettable_ctx_params },
     { OSSL_FUNC_SIGNATURE_SET_CTX_PARAMS, (void(*)(void))tpm2_rsa_signature_set_ctx_params },
@@ -608,10 +698,13 @@ const OSSL_DISPATCH tpm2_ecdsa_signature_functions[] = {
     { OSSL_FUNC_SIGNATURE_FREECTX, (void (*)(void))tpm2_signature_freectx },
     { OSSL_FUNC_SIGNATURE_SIGN_INIT, (void (*)(void))tpm2_ecdsa_signature_sign_init },
     { OSSL_FUNC_SIGNATURE_SIGN, (void (*)(void))tpm2_signature_sign },
-    { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_INIT, (void (*)(void))tpm2_ecdsa_signature_digest_sign_init },
-    { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_UPDATE, (void (*)(void))tpm2_signature_digest_sign_update },
+    { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_INIT, (void (*)(void))tpm2_ecdsa_signature_digest_init },
+    { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_UPDATE, (void (*)(void))tpm2_signature_digest_update },
     { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_FINAL, (void (*)(void))tpm2_signature_digest_sign_final },
     { OSSL_FUNC_SIGNATURE_DIGEST_SIGN, (void (*)(void))tpm2_signature_digest_sign },
+    { OSSL_FUNC_SIGNATURE_DIGEST_VERIFY_INIT, (void (*)(void))tpm2_ecdsa_signature_digest_init },
+    { OSSL_FUNC_SIGNATURE_DIGEST_VERIFY_UPDATE, (void (*)(void))tpm2_signature_digest_update },
+    { OSSL_FUNC_SIGNATURE_DIGEST_VERIFY_FINAL, (void (*)(void))tpm2_signature_digest_verify_final },
     { OSSL_FUNC_SIGNATURE_GET_CTX_PARAMS, (void(*)(void))tpm2_signature_get_ctx_params },
     { OSSL_FUNC_SIGNATURE_GETTABLE_CTX_PARAMS, (void(*)(void))tpm2_signature_gettable_ctx_params },
     { OSSL_FUNC_SIGNATURE_SET_CTX_PARAMS, (void(*)(void))tpm2_ecdsa_signature_set_ctx_params },

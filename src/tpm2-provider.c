@@ -50,6 +50,7 @@ tpm2_get_params(void *provctx, OSSL_PARAM params[])
 
 #define TPM2_PROPS(op) ("provider=tpm2,tpm2." #op)
 
+#if WITH_OP_DIGEST
 extern const OSSL_DISPATCH tpm2_digest_SHA1_functions[];
 extern const OSSL_DISPATCH tpm2_digest_SHA256_functions[];
 extern const OSSL_DISPATCH tpm2_digest_SHA384_functions[];
@@ -64,7 +65,9 @@ static const OSSL_ALGORITHM tpm2_digests[] = {
     { "SM3", TPM2_PROPS(digest), tpm2_digest_SM3_256_functions },
     { NULL, NULL, NULL }
 };
+#endif /* WITH_OP_DIGEST */
 
+#if WITH_OP_CIPHER
 #define DECLARE_3CIPHERS_FUNCTIONS(alg,lcmode) \
     extern const OSSL_DISPATCH tpm2_cipher_##alg##128##lcmode##_functions[]; \
     extern const OSSL_DISPATCH tpm2_cipher_##alg##192##lcmode##_functions[]; \
@@ -103,6 +106,7 @@ static const OSSL_ALGORITHM tpm2_ciphers[] = {
     DECLARE_3CIPHERS_ALGORITHMS(CAMELLIA,CTR)
     { NULL, NULL, NULL }
 };
+#endif /* WITH_OP_CIPHER */
 
 extern const OSSL_DISPATCH tpm2_rand_functions[];
 
@@ -210,10 +214,14 @@ tpm2_query_operation(void *provctx, int operation_id, int *no_cache)
     *no_cache = 0;
 
     switch (operation_id) {
+#if WITH_OP_DIGEST
     case OSSL_OP_DIGEST:
         return tpm2_digests;
+#endif
+#if WITH_OP_CIPHER
     case OSSL_OP_CIPHER:
         return tpm2_ciphers;
+#endif
     case OSSL_OP_RAND:
         return tpm2_rands;
     case OSSL_OP_KEYMGMT:
@@ -253,6 +261,7 @@ tpm2_get_reason_strings(void *provctx)
         {TPM2_ERR_CANNOT_GENERATE, "cannot generate"},
         {TPM2_ERR_CANNOT_HASH, "cannot hash"},
         {TPM2_ERR_CANNOT_SIGN, "cannot sign"},
+        {TPM2_ERR_VERIFICATION_FAILED, "verification failed"},
         {TPM2_ERR_CANNOT_ENCRYPT, "cannot encrypt"},
         {TPM2_ERR_CANNOT_DECRYPT, "cannot decrypt"},
         {0, NULL}
