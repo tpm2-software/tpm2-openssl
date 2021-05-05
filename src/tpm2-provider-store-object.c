@@ -95,7 +95,7 @@ tpm2_object_attach(void *provctx, OSSL_CORE_BIO *cin)
     ctx->esys_ctx = cprov->esys_ctx;
     ctx->capability = cprov->capability;
 
-    if ((ctx->bio = bio_new_from_core_bio(cprov->corebiometh, cin)) == NULL)
+    if ((ctx->bio = BIO_new_from_core_bio(cprov->libctx, cin)) == NULL)
         goto error;
 
     return ctx;

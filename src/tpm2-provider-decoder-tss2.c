@@ -19,7 +19,7 @@ typedef struct tpm2_tss2_decoder_ctx_st TPM2_TSS2_DECODER_CTX;
 
 struct tpm2_tss2_decoder_ctx_st {
     const OSSL_CORE_HANDLE *core;
-    BIO_METHOD *corebiometh;
+    OSSL_LIB_CTX *libctx;
     ESYS_CONTEXT *esys_ctx;
     TPMS_CAPABILITY_DATA *capability;
     TPM2B_DIGEST parentAuth;
@@ -41,7 +41,7 @@ tpm2_tss2_decoder_newctx(void *provctx)
         return NULL;
 
     dctx->core = cprov->core;
-    dctx->corebiometh = cprov->corebiometh;
+    dctx->libctx = cprov->libctx;
     dctx->esys_ctx = cprov->esys_ctx;
     dctx->capability = cprov->capability;
     return dctx;
@@ -149,7 +149,7 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
     if ((pkey = OPENSSL_zalloc(sizeof(TPM2_PKEY))) == NULL)
         return 0;
 
-    if ((bin = bio_new_from_core_bio(dctx->corebiometh, cin)) == NULL)
+    if ((bin = BIO_new_from_core_bio(dctx->libctx, cin)) == NULL)
         goto error1;
 
     if ((fpos = BIO_tell(bin)) == -1)

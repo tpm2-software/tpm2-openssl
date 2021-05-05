@@ -349,7 +349,7 @@ tpm2_teardown(void *provctx)
 
     DBG("PROVIDER TEARDOWN\n");
     free(cprov->capability);
-    BIO_meth_free(cprov->corebiometh);
+    OSSL_LIB_CTX_free(cprov->libctx);
 
     r = Esys_GetTcti(cprov->esys_ctx, &tcti_ctx);
     Esys_Finalize(&cprov->esys_ctx);
@@ -379,18 +379,19 @@ OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
                    const OSSL_DISPATCH *in, const OSSL_DISPATCH **out,
                    void **provctx)
 {
-    TPM2_PROVIDER_CTX *cprov = OPENSSL_zalloc(sizeof(TPM2_PROVIDER_CTX));
+    TPM2_PROVIDER_CTX *cprov;
     char *tcti_nameconf = NULL;
     TSS2_TCTI_CONTEXT *tcti_ctx = NULL;
     TSS2_RC r;
 
     DBG("PROVIDER INIT\n");
-    if (cprov == NULL)
+    if ((cprov = OPENSSL_zalloc(sizeof(TPM2_PROVIDER_CTX))) == NULL)
         return 0;
 
     cprov->core = handle;
     init_core_func_from_dispatch(in);
-    cprov->corebiometh = bio_prov_init_bio_method();
+    if ((cprov->libctx = OSSL_LIB_CTX_new_from_dispatch(handle, in)) == NULL)
+        goto err1;
 
     tcti_nameconf = getenv("TPM2OPENSSL_TCTI");
     if (tcti_nameconf == NULL) {
@@ -424,6 +425,7 @@ err3:
 err2:
     Tss2_TctiLdr_Finalize(&tcti_ctx);
 err1:
+    OSSL_LIB_CTX_free(cprov->libctx);
     OPENSSL_clear_free(cprov, sizeof(TPM2_PROVIDER_CTX));
     return 0;
 }

@@ -16,7 +16,7 @@ typedef struct tpm2_provider_ctx_st TPM2_PROVIDER_CTX;
 
 struct tpm2_provider_ctx_st {
     const OSSL_CORE_HANDLE *core;
-    BIO_METHOD *corebiometh;
+    OSSL_LIB_CTX *libctx;
     ESYS_CONTEXT *esys_ctx;
     TPMS_CAPABILITY_DATA *capability;
 };
@@ -120,9 +120,6 @@ tpm2_list_params(const char *text, const OSSL_PARAM params[]);
 #define TRACE_PARAMS(text, params) tpm2_list_params((text), (params))
 #define TPM2_ERROR_set_debug(core) tpm2_set_error_debug((core), OPENSSL_FILE, OPENSSL_LINE, OPENSSL_FUNC)
 #endif
-
-BIO_METHOD *
-bio_prov_init_bio_method(void);
 
 int
 tpm2_supports_algorithm(const TPMS_CAPABILITY_DATA *caps, TPM2_ALG_ID algorithm);

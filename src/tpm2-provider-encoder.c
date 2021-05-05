@@ -15,7 +15,7 @@ typedef struct tpm2_encoder_ctx_st TPM2_ENCODER_CTX;
 
 struct tpm2_encoder_ctx_st {
     const OSSL_CORE_HANDLE *core;
-    BIO_METHOD *corebiometh;
+    OSSL_LIB_CTX *libctx;
 };
 
 static OSSL_FUNC_encoder_newctx_fn tpm2_encoder_newctx;
@@ -32,7 +32,7 @@ tpm2_encoder_newctx(void *provctx)
         return NULL;
 
     ectx->core = cprov->core;
-    ectx->corebiometh = cprov->corebiometh;
+    ectx->libctx = cprov->libctx;
     return ectx;
 }
 
@@ -76,7 +76,7 @@ tpm2_encoder_freectx(void *ctx)
         int ret = 0; \
 \
         DBG("ENCODER " #otype " " #ostructure "/" #oformat " ENCODE 0x%x\n", selection); \
-        if ((bout = bio_new_from_core_bio(ectx->corebiometh, cout)) == NULL) \
+        if ((bout = BIO_new_from_core_bio(ectx->libctx, cout)) == NULL) \
             return 0; \
         if (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) { \
             if (tpm2_##otype##_encode_private_##ostructure##_##oformat) \
@@ -502,7 +502,7 @@ tpm2_rsa_encoder_encode_text(void *ctx, OSSL_CORE_BIO *cout, const void *key,
 
     DBG("ENCODER ENCODE rsa text\n");
 
-    bout = bio_new_from_core_bio(ectx->corebiometh, cout);
+    bout = BIO_new_from_core_bio(ectx->libctx, cout);
     if (bout == NULL)
         return 0;
 
@@ -551,7 +551,7 @@ tpm2_ec_encoder_encode_text(void *ctx, OSSL_CORE_BIO *cout, const void *key,
 
     DBG("ENCODER ENCODE ec text\n");
 
-    bout = bio_new_from_core_bio(ectx->corebiometh, cout);
+    bout = BIO_new_from_core_bio(ectx->libctx, cout);
     if (bout == NULL)
         return 0;
 

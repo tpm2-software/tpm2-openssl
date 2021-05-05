@@ -14,14 +14,6 @@ static OSSL_FUNC_core_new_error_fn *c_new_error = NULL;
 static OSSL_FUNC_core_set_error_debug_fn *c_set_error_debug = NULL;
 static OSSL_FUNC_core_vset_error_fn *c_vset_error = NULL;
 
-static OSSL_FUNC_BIO_read_ex_fn *c_bio_read_ex = NULL;
-static OSSL_FUNC_BIO_write_ex_fn *c_bio_write_ex = NULL;
-static OSSL_FUNC_BIO_gets_fn *c_bio_gets = NULL;
-static OSSL_FUNC_BIO_puts_fn *c_bio_puts = NULL;
-static OSSL_FUNC_BIO_up_ref_fn *c_bio_up_ref = NULL;
-static OSSL_FUNC_BIO_free_fn *c_bio_free = NULL;
-static OSSL_FUNC_BIO_ctrl_fn *c_bio_ctrl = NULL;
-
 int
 init_core_func_from_dispatch(const OSSL_DISPATCH *fns)
 {
@@ -47,35 +39,6 @@ init_core_func_from_dispatch(const OSSL_DISPATCH *fns)
         case OSSL_FUNC_CORE_VSET_ERROR:
             if (c_vset_error == NULL)
                 c_vset_error = OSSL_FUNC_core_vset_error(fns);
-            break;
-
-        case OSSL_FUNC_BIO_READ_EX:
-            if (c_bio_read_ex == NULL)
-                c_bio_read_ex = OSSL_FUNC_BIO_read_ex(fns);
-            break;
-        case OSSL_FUNC_BIO_WRITE_EX:
-            if (c_bio_write_ex == NULL)
-                c_bio_write_ex = OSSL_FUNC_BIO_write_ex(fns);
-            break;
-        case OSSL_FUNC_BIO_GETS:
-            if (c_bio_gets == NULL)
-                c_bio_gets = OSSL_FUNC_BIO_gets(fns);
-            break;
-        case OSSL_FUNC_BIO_PUTS:
-            if (c_bio_puts == NULL)
-                c_bio_puts = OSSL_FUNC_BIO_puts(fns);
-            break;
-        case OSSL_FUNC_BIO_UP_REF:
-            if (c_bio_up_ref == NULL)
-                c_bio_up_ref = OSSL_FUNC_BIO_up_ref(fns);
-            break;
-        case OSSL_FUNC_BIO_FREE:
-            if (c_bio_free == NULL)
-                c_bio_free = OSSL_FUNC_BIO_free(fns);
-            break;
-        case OSSL_FUNC_BIO_CTRL:
-            if (c_bio_ctrl == NULL)
-                c_bio_ctrl = OSSL_FUNC_BIO_ctrl(fns);
             break;
         }
     }
@@ -135,103 +98,6 @@ tpm2_list_params(const char *text, const OSSL_PARAM params[])
     }
 
     fprintf(stderr, " ]\n");
-}
-
-BIO *
-bio_new_from_core_bio(const BIO_METHOD *corebiometh, OSSL_CORE_BIO *corebio)
-{
-    BIO *outbio = NULL;
-
-    if (corebiometh == NULL || c_bio_up_ref == NULL)
-        return NULL;
-
-    if ((outbio = BIO_new(corebiometh)) != NULL) {
-        c_bio_up_ref(corebio);
-        BIO_set_data(outbio, corebio);
-    }
-
-    return outbio;
-}
-
-static int
-bio_core_read_ex(BIO *bio, char *data, size_t data_len,
-                 size_t *bytes_read)
-{
-    if (c_bio_read_ex == NULL)
-        return 0;
-    return c_bio_read_ex(BIO_get_data(bio), data, data_len, bytes_read);
-}
-
-static int
-bio_core_write_ex(BIO *bio, const char *data, size_t data_len,
-                  size_t *written)
-{
-    if (c_bio_write_ex == NULL)
-        return 0;
-    return c_bio_write_ex(BIO_get_data(bio), data, data_len, written);
-}
-
-static int
-bio_core_gets(BIO *bio, char *buf, int size)
-{
-    if (c_bio_gets == NULL)
-        return -1;
-    return c_bio_gets(BIO_get_data(bio), buf, size);
-}
-
-static int
-bio_core_puts(BIO *bio, const char *str)
-{
-    if (c_bio_puts == NULL)
-        return -1;
-    return c_bio_puts(BIO_get_data(bio), str);
-}
-
-static long
-bio_core_ctrl(BIO *bio, int cmd, long num, void *ptr)
-{
-    if (c_bio_ctrl == NULL)
-        return -1;
-    return c_bio_ctrl(BIO_get_data(bio), cmd, num, ptr);
-}
-
-static int
-bio_core_new(BIO *bio)
-{
-    BIO_set_init(bio, 1);
-
-    return 1;
-}
-
-static int
-bio_core_free(BIO *bio)
-{
-    BIO_set_init(bio, 0);
-    if (c_bio_free != NULL)
-        c_bio_free(BIO_get_data(bio));
-
-    return 1;
-}
-
-BIO_METHOD *
-bio_prov_init_bio_method(void)
-{
-    BIO_METHOD *corebiometh = NULL;
-
-    corebiometh = BIO_meth_new(BIO_TYPE_CORE_TO_PROV, "BIO to Core filter");
-    if (corebiometh == NULL
-            || !BIO_meth_set_write_ex(corebiometh, bio_core_write_ex)
-            || !BIO_meth_set_read_ex(corebiometh, bio_core_read_ex)
-            || !BIO_meth_set_puts(corebiometh, bio_core_puts)
-            || !BIO_meth_set_gets(corebiometh, bio_core_gets)
-            || !BIO_meth_set_ctrl(corebiometh, bio_core_ctrl)
-            || !BIO_meth_set_create(corebiometh, bio_core_new)
-            || !BIO_meth_set_destroy(corebiometh, bio_core_free)) {
-        BIO_meth_free(corebiometh);
-        return NULL;
-    }
-
-    return corebiometh;
 }
 
 int

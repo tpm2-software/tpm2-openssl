@@ -18,7 +18,7 @@ typedef struct tpm2_der_decoder_ctx_st TPM2_DER_DECODER_CTX;
 
 struct tpm2_der_decoder_ctx_st {
     const OSSL_CORE_HANDLE *core;
-    BIO_METHOD *corebiometh;
+    OSSL_LIB_CTX *libctx;
 };
 
 static OSSL_FUNC_decoder_newctx_fn tpm2_der_decoder_newctx;
@@ -35,7 +35,7 @@ tpm2_der_decoder_newctx(void *provctx)
         return NULL;
 
     dctx->core = cprov->core;
-    dctx->corebiometh = cprov->corebiometh;
+    dctx->libctx = cprov->libctx;
     return dctx;
 }
 
@@ -62,7 +62,7 @@ tpm2_der_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
     int res;
 
     DBG("DER DECODER DECODE\n");
-    if ((bin = bio_new_from_core_bio(dctx->corebiometh, cin)) == NULL)
+    if ((bin = BIO_new_from_core_bio(dctx->libctx, cin)) == NULL)
         return 0;
 
     if (PEM_read_bio(bin, &pem_name, &pem_header, &der_data, &der_len) > 0
