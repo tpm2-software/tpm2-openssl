@@ -20,6 +20,7 @@ struct tpm2_digest_ctx_st {
 };
 
 static OSSL_FUNC_digest_freectx_fn tpm2_digest_freectx;
+static OSSL_FUNC_digest_dupctx_fn tpm2_digest_dupctx;
 static OSSL_FUNC_digest_init_fn tpm2_digest_init;
 static OSSL_FUNC_digest_update_fn tpm2_digest_update;
 static OSSL_FUNC_digest_final_fn tpm2_digest_final;
@@ -38,6 +39,7 @@ tpm2_digest_newctx_int(void *provctx, TPM2_ALG_ID algin)
     dctx->core = cprov->core;
     dctx->esys_ctx = cprov->esys_ctx;
     dctx->algorithm = algin;
+    dctx->sequenceHandle = ESYS_TR_NONE;
     return dctx;
 }
 
@@ -60,6 +62,38 @@ tpm2_digest_freectx(void *ctx)
 
     free(dctx->digest);
     OPENSSL_clear_free(dctx, sizeof(TPM2_DIGEST_CTX));
+}
+
+static void *
+tpm2_digest_dupctx(void *ctx)
+{
+    TPM2_DIGEST_CTX *src = ctx;
+    TPM2_DIGEST_CTX *dctx = OPENSSL_zalloc(sizeof(TPM2_DIGEST_CTX));
+    TPMS_CONTEXT *context = NULL;
+    TSS2_RC r;
+
+    DBG("DIGEST DUP\n");
+    if (dctx == NULL)
+        return NULL;
+
+    dctx->core = src->core;
+    dctx->esys_ctx = src->esys_ctx;
+    dctx->algorithm = src->algorithm;
+    if (src->sequenceHandle != ESYS_TR_NONE) {
+        /* duplicate the sequence */
+        r = Esys_ContextSave(src->esys_ctx, src->sequenceHandle, &context);
+        TPM2_CHECK_RC(src->core, r, TPM2_ERR_CANNOT_DUPLICATE, goto error);
+        r = Esys_ContextLoad(dctx->esys_ctx, context, &dctx->sequenceHandle);
+        TPM2_CHECK_RC(dctx->core, r, TPM2_ERR_CANNOT_DUPLICATE, goto error);
+        free(context);
+    } else {
+        dctx->sequenceHandle = ESYS_TR_NONE;
+    }
+    return dctx;
+error:
+    free(context);
+    OPENSSL_clear_free(dctx, sizeof(TPM2_DIGEST_CTX));
+    return NULL;
 }
 
 static int
@@ -181,6 +215,7 @@ tpm2_digest_get_params_int(OSSL_PARAM params[], size_t size)
     const OSSL_DISPATCH tpm2_digest_##alg##_functions[] = { \
         { OSSL_FUNC_DIGEST_NEWCTX, (void(*)(void))tpm2_digest_##alg##_newctx }, \
         { OSSL_FUNC_DIGEST_FREECTX, (void(*)(void))tpm2_digest_freectx }, \
+        { OSSL_FUNC_DIGEST_DUPCTX, (void(*)(void))tpm2_digest_dupctx }, \
         { OSSL_FUNC_DIGEST_INIT, (void(*)(void))tpm2_digest_init }, \
         { OSSL_FUNC_DIGEST_UPDATE, (void(*)(void))tpm2_digest_update }, \
         { OSSL_FUNC_DIGEST_FINAL, (void(*)(void))tpm2_digest_final }, \

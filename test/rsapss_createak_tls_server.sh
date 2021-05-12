@@ -48,7 +48,7 @@ openssl req -provider tpm2 -x509 -config testcert.conf -key handle:${HANDLE} -ou
 openssl x509 -text -noout -in testcert.pem
 
 # start SSL server with RSA-PSS-PSS signing
-openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.digest!=yes \
+openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2 \
                  -accept 4443 -www -key handle:${HANDLE} -cert testcert.pem \
                  -sigalgs "rsa_pss_pss_sha256" &
 SERVER=$!

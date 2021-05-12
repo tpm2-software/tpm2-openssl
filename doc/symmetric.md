@@ -27,10 +27,6 @@ For example, to calculate SHA-256 hash of the `data.txt` file:
 openssl dgst -provider tpm2 -sha256 data.txt
 ```
 
-Please note that TPM2 does not allow replication of hash sequences, so the
-`EVP_MD_CTX_copy` function cannot be supported. This causes inconveniences e.g.
-to the TLS Handshake implementation.
-
 
 ## Symmetric Ciphers
 

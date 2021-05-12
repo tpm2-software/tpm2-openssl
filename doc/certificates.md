@@ -39,7 +39,6 @@ TLS (e.g. HTTPS) connection authenticated using a TPM-based private key.
 To perform the TLS handshake you need to:
  * Load the tpm2 provider to get support of TPM-based private keys.
  * Load the default provider to get a faster and wider set of symmetric ciphers.
- * Exclude TPM2 hashes, which are incompatible with the TLS implementation.
 
 When using a restricted signing key, which is associated with a specific hash
 algorithm, you also need to limit the signature algorithms (using `-sigalgs`
@@ -71,7 +70,7 @@ negotiated.
 To start a test server using the key and X.509 certificate created in the
 previous section do:
 ```
-openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.digest!=yes \
+openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2 \
                  -accept 4443 -www -key testkey.pem -cert testcert.pem -sigalgs "rsa_pkcs1_sha256"
 ```
 

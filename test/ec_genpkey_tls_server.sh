@@ -35,7 +35,7 @@ openssl req -provider tpm2 -x509 -config testcert.conf -new -newkey ec -pkeyopt 
 openssl x509 -text -noout -in testcert.pem
 
 # start SSL server with ECDSA-SHA256 signing
-openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.digest!=yes \
+openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2 \
                  -accept 4443 -www -key testkey.pem -cert testcert.pem \
                  -sigalgs "ecdsa_secp256r1_sha256" &
 SERVER=$!

@@ -264,6 +264,7 @@ tpm2_get_reason_strings(void *provctx)
         {TPM2_ERR_VERIFICATION_FAILED, "verification failed"},
         {TPM2_ERR_CANNOT_ENCRYPT, "cannot encrypt"},
         {TPM2_ERR_CANNOT_DECRYPT, "cannot decrypt"},
+        {TPM2_ERR_CANNOT_DUPLICATE, "cannot duplicate context"},
         {0, NULL}
     };
 
