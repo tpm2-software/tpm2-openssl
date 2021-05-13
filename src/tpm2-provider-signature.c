@@ -71,6 +71,29 @@ tpm2_signature_freectx(void *ctx)
 }
 
 static int
+ensure_key_loaded(TPM2_PKEY *pkey)
+{
+    TSS2_RC r;
+
+    /* imported public keys are not auto-loaded by keymgmt */
+    if (pkey->object == ESYS_TR_NONE)
+    {
+        r = Esys_LoadExternal(pkey->esys_ctx,
+                              ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
+                              NULL, &pkey->data.pub,
+#ifdef HAVE_TSS2_ESYS3
+                              ESYS_TR_RH_NULL,
+#else
+                              TPM2_RH_NULL,
+#endif
+                              &pkey->object);
+        TPM2_CHECK_RC(pkey->core, r, TPM2_ERR_CANNOT_LOAD_KEY, return 0);
+    }
+
+    return 1;
+}
+
+static int
 rsa_signature_scheme_init(TPM2_SIGNATURE_CTX *sctx, const char *mdname)
 {
     /* determine hash algorithm */
@@ -100,7 +123,7 @@ rsa_signature_scheme_init(TPM2_SIGNATURE_CTX *sctx, const char *mdname)
     if (sctx->signScheme.details.any.hashAlg == TPM2_ALG_NULL)
         sctx->signScheme.details.any.hashAlg = sctx->digalg;
 
-    return 1;
+    return ensure_key_loaded(sctx->pkey);
 }
 
 static int
@@ -127,7 +150,7 @@ ecdsa_signature_scheme_init(TPM2_SIGNATURE_CTX *sctx, const char *mdname)
     if (sctx->signScheme.details.any.hashAlg == TPM2_ALG_NULL)
         sctx->signScheme.details.any.hashAlg = sctx->digalg;
 
-    return 1;
+    return ensure_key_loaded(sctx->pkey);
 }
 
 static int

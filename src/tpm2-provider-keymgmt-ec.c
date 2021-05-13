@@ -503,17 +503,6 @@ tpm2_ec_keymgmt_import(void *keydata,
             return 0;
     }
 
-    r = Esys_LoadExternal(pkey->esys_ctx,
-                          ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
-                          NULL, &pkey->data.pub,
-#ifdef HAVE_TSS2_ESYS3
-                          ESYS_TR_RH_NULL,
-#else
-                          TPM2_RH_NULL,
-#endif
-                          &pkey->object);
-    TPM2_CHECK_RC(pkey->core, r, TPM2_ERR_CANNOT_LOAD_KEY, return 0);
-
     return 1;
 }
 
