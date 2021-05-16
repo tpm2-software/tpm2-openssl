@@ -3,22 +3,27 @@ ACLOCAL_AMFLAGS = -I m4
 openssl_modulesdir = $(MODULESDIR)
 openssl_modules_LTLIBRARIES = tpm2.la
 
-tpm2_la_SOURCES = src/tpm2-provider.c \
-                  src/tpm2-provider-core.c \
-                  src/tpm2-provider-types.c \
-                  src/tpm2-provider-x509.c \
-                  src/tpm2-provider-rand.c \
-                  src/tpm2-provider-pkey.c \
-                  src/tpm2-provider-store-file.c \
-                  src/tpm2-provider-store-object.c \
-                  src/tpm2-provider-decoder-der.c \
-                  src/tpm2-provider-decoder-tss2.c \
-                  src/tpm2-provider-encoder.c \
-                  src/tpm2-provider-keymgmt-rsa.c \
-                  src/tpm2-provider-keymgmt-ec.c \
-                  src/tpm2-provider-keyexch.c \
-                  src/tpm2-provider-asymcipher-rsa.c \
-                  src/tpm2-provider-signature.c
+tpm2_la_SOURCES = \
+    src/tpm2-provider.c \
+    src/tpm2-provider.h \
+    src/tpm2-provider-core.c \
+    src/tpm2-provider-types.c \
+    src/tpm2-provider-types.h \
+    src/tpm2-provider-x509.c \
+    src/tpm2-provider-x509.h \
+    src/tpm2-provider-rand.c \
+    src/tpm2-provider-pkey.c \
+    src/tpm2-provider-pkey.h \
+    src/tpm2-provider-store-file.c \
+    src/tpm2-provider-store-object.c \
+    src/tpm2-provider-decoder-der.c \
+    src/tpm2-provider-decoder-tss2.c \
+    src/tpm2-provider-encoder.c \
+    src/tpm2-provider-keymgmt-rsa.c \
+    src/tpm2-provider-keymgmt-ec.c \
+    src/tpm2-provider-keyexch.c \
+    src/tpm2-provider-asymcipher-rsa.c \
+    src/tpm2-provider-signature.c
 if WITH_OP_DIGEST
 tpm2_la_SOURCES += src/tpm2-provider-digest.c
 endif
@@ -96,3 +101,20 @@ endif
 
 TEST_EXTENSIONS = .sh
 SH_LOG_COMPILER = $(srcdir)/test/run
+
+AM_TESTS_ENVIRONMENT = \
+    export OPENSSL_MODULES=$(abs_builddir)/.libs;
+
+AM_DISTCHECK_CONFIGURE_FLAGS = \
+    --with-modulesdir=$(abs_builddir)/$(distdir)/_inst \
+    PKG_CONFIG_PATH=${PKG_CONFIG_PATH}
+
+EXTRA_DIST = \
+    LICENSE \
+    README.md \
+    bootstrap \
+    doc \
+    $(TESTS_SHELL) \
+    $(SH_LOG_COMPILER) \
+    test/ec_pki/openssl.cnf \
+    test/rsa_pki/etc

@@ -47,6 +47,9 @@ The tpm2-openssl project
 Instructions for building and installing the tpm2 provider are provided in the
 [INSTALL.md](doc/INSTALL.md) file.
 
+Instructions for how releases are conducted, please see the
+[RELEASE.md](doc/RELEASE.md) file.
+
 ## Features and Documentation
 
 The tpm2 provider functions can be used via the
@@ -54,6 +57,15 @@ The tpm2 provider functions can be used via the
 command-line tool,
 or via the
 [libcrypto](https://www.openssl.org/docs/manmaster/man7/crypto.html) API.
+
+No TPM-specific API calls are needed: the applications may be completely unaware
+that the keys being used are stored within TPM.
+However, the application has to:
+ - Load the tpm2 provider, in some cases along with the default provider.
+ - (When both providers are loaded) use the `?provider=tpm2`
+[property](https://www.openssl.org/docs/manmaster/man7/property.html) query when
+fetching the [crypto](https://www.openssl.org/docs/manmaster/man7/crypto.html)
+algorithms.
 
 ### [Initialization](doc/initialization.md)
 

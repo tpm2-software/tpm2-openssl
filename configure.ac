@@ -48,10 +48,16 @@ AC_ARG_ENABLE([tss2-rc],
     AS_HELP_STRING([--disable-tss2-rc], [Disable verbose TSS2 return code reporting]))
 AM_CONDITIONAL(TSS2_RC, test "x$enable_tss2_rc" != "xno")
 
+AC_ARG_WITH([modulesdir],
+    AS_HELP_STRING([--with-modulesdir=PATH], [Set the directory with OpenSSL modules]))
+
 PKG_PROG_PKG_CONFIG([0.25])
 PKG_CHECK_MODULES([CRYPTO], [libcrypto >= 3.0.0],
                   [ac_cryptolibdir=`$PKG_CONFIG --variable=libdir libcrypto`])
-AC_SUBST(MODULESDIR, "$ac_cryptolibdir/ossl-modules")
+AS_IF([test -z "$with_modulesdir"],
+      [with_modulesdir=$ac_cryptolibdir/ossl-modules])
+AC_SUBST(MODULESDIR, "$with_modulesdir")
+
 PKG_CHECK_MODULES([TSS2_ESYS], [tss2-esys >= 3.0.0],
                   [AC_DEFINE([HAVE_TSS2_ESYS3], [1], [found tss2-esys 3.0.0 or above])],
                   [PKG_CHECK_MODULES([TSS2_ESYS], [tss2-esys >= 2.3.0])])

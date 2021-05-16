@@ -2,7 +2,7 @@
 default_ca = ca_intermediate
 
 [ ca_root ]
-dir               = ${ENV::PKIDIR}/root
+dir               = testdb/root
 certs             = $dir/certs
 crl_dir           = $dir/crl
 new_certs_dir     = $dir/newcerts
@@ -22,7 +22,7 @@ preserve          = no
 policy            = policy_strict
 
 [ ca_intermediate ]
-dir               = ${ENV::PKIDIR}/intermediate
+dir               = testdb/intermediate
 certs             = $dir/certs
 crl_dir           = $dir/crl
 new_certs_dir     = $dir/newcerts
