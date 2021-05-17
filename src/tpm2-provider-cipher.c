@@ -15,6 +15,7 @@ typedef struct tpm2_cipher_ctx_st TPM2_CIPHER_CTX;
 struct tpm2_cipher_ctx_st {
     const OSSL_CORE_HANDLE *core;
     ESYS_CONTEXT *esys_ctx;
+    TPMS_CAPABILITY_DATA *capability;
     ESYS_TR object;
     TPMT_SYM_DEF_OBJECT algorithm;
     size_t block_size;
@@ -46,6 +47,7 @@ tpm2_cipher_all_newctx(void *provctx,
 
     cctx->core = cprov->core;
     cctx->esys_ctx = cprov->esys_ctx;
+    cctx->capability = cprov->capability;
     cctx->algorithm = algdef;
     cctx->block_size = block_bits/8;
     cctx->padding = 1;
@@ -150,7 +152,7 @@ tpm2_cipher_init(TPM2_CIPHER_CTX *cctx,
         DBG("CIPHER %sCRYPT_INIT load key %zu bytes\n",
             cctx->decrypt ? "DE" : "EN", keylen);
 
-        if (!tpm2_build_primary(cctx->core, cctx->esys_ctx,
+        if (!tpm2_build_primary(cctx->core, cctx->esys_ctx, cctx->capability,
                                 ESYS_TR_RH_NULL, NULL, &parent))
             return 0;
 
@@ -487,7 +489,7 @@ tpm2_cipher_set_ctx_params(void *ctx, const OSSL_PARAM params[])
     return 1;
 }
 
-#define IMPLEMENT_CIPHER_DISPATCH(alg,kbits,lcmode,type) \
+#define IMPLEMENT_CIPHER_FUNCTIONS(alg,kbits,lcmode,type) \
     const OSSL_DISPATCH tpm2_cipher_##alg##kbits##lcmode##_functions[] = { \
         { OSSL_FUNC_CIPHER_NEWCTX, (void(*)(void))tpm2_cipher_##alg##kbits##lcmode##_newctx }, \
         { OSSL_FUNC_CIPHER_FREECTX, (void(*)(void))tpm2_cipher_freectx }, \
@@ -504,11 +506,22 @@ tpm2_cipher_set_ctx_params(void *ctx, const OSSL_PARAM params[])
         { 0, NULL } \
     };
 
+#define IMPLEMENT_CIPHER_DISPATCH(alg,kbits,lcmode) \
+    const OSSL_DISPATCH *tpm2_cipher_##alg##kbits##lcmode##_dispatch(const TPMS_CAPABILITY_DATA *capability) \
+    { \
+        if (tpm2_supports_algorithm(capability, TPM2_ALG_##alg) \
+                && tpm2_supports_algorithm(capability, TPM2_ALG_##lcmode)) \
+            return tpm2_cipher_##alg##kbits##lcmode##_functions; \
+        else \
+            return NULL; \
+    }
+
 #define DECLARE_CIPHER(alg,lcmode,kbits,blkbits,ivbits,type) \
     IMPLEMENT_CIPHER_NEWCTX(alg,kbits,lcmode,blkbits) \
     IMPLEMENT_CIPHER_GET_PARAMS(alg,kbits,lcmode,blkbits,ivbits) \
     IMPLEMENT_CIPHER_GET_CTX_PARAMS(alg,kbits,lcmode,blkbits,ivbits) \
-    IMPLEMENT_CIPHER_DISPATCH(alg,kbits,lcmode,type)
+    IMPLEMENT_CIPHER_FUNCTIONS(alg,kbits,lcmode,type) \
+    IMPLEMENT_CIPHER_DISPATCH(alg,kbits,lcmode)
 
 #define DECLARE_3CIPHERS(alg,lcmode,blkbits,ivbits,type) \
     DECLARE_CIPHER(alg,lcmode,128,blkbits,ivbits,type) \

@@ -2,6 +2,10 @@
 set -eufx
 export PKIDIR=`dirname $0`
 
+# try using P384 for better test coverage
+# fall-back to P256
+tpm2_getcap algorithms | grep TPM2_ECC_NIST_P384 && CURVE=secp384r1 || CURVE=secp256r1
+
 # Based on the blog "ECC Certificates and mTLS with Nginx"
 # CC-BY-SA by agd
 # https://andrew.dunn.dev/posts/ecc-certificates-and-mtls-with-nginx/
@@ -14,7 +18,7 @@ echo 1000 | tee testdb/{root,intermediate}/{serial,crlnumber}
 chmod 700 testdb/{root,intermediate,client,server}/private
 
 # Create the Root CA Key
-openssl ecparam -provider tpm2 -name secp384r1 -genkey -out testdb/root/private/root.key.pem
+openssl ecparam -provider tpm2 -name $CURVE -genkey -out testdb/root/private/root.key.pem
 chmod 600 testdb/root/private/root.key.pem
 
 # Create a Self Signed Root Certificate
@@ -26,7 +30,7 @@ openssl req -provider tpm2 -config $PKIDIR/openssl.cnf -key testdb/root/private/
 openssl x509 -noout -text -in testdb/root/certs/root.cert.pem
 
 # Create an Intermediary CA Key
-openssl ecparam -provider tpm2 -name secp384r1 -genkey -out testdb/intermediate/private/intermediate.key.pem
+openssl ecparam -provider tpm2 -name $CURVE -genkey -out testdb/intermediate/private/intermediate.key.pem
 chmod 600 testdb/intermediate/private/intermediate.key.pem
 
 # Create an Intermediary CSR
@@ -47,7 +51,7 @@ cat testdb/intermediate/certs/intermediate.cert.pem testdb/root/certs/root.cert.
 chmod 444 testdb/intermediate/certs/chain.cert.pem
 
 # Create a Client Key
-openssl ecparam -provider tpm2 -name secp384r1 -genkey -out testdb/client/private/agd.key.pem
+openssl ecparam -provider tpm2 -name $CURVE -genkey -out testdb/client/private/agd.key.pem
 chmod 400 testdb/client/private/agd.key.pem
 
 # Create a Client CSR

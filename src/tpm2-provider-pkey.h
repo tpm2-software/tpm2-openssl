@@ -33,7 +33,8 @@ tpm2_load_parent(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
 
 int
 tpm2_build_primary(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
-                   ESYS_TR hierarchy, const TPM2B_DIGEST *auth, ESYS_TR *object);
+                   TPMS_CAPABILITY_DATA *capability, ESYS_TR hierarchy,
+                   const TPM2B_DIGEST *auth, ESYS_TR *object);
 
 const char *
 tpm2_openssl_type(TPM2_KEYDATA *keydata);

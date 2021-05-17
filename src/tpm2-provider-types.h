@@ -12,7 +12,7 @@
 #define BUFFER_CMP(b1,b2) (b1.size != b2.size || memcmp(&b1.buffer, &b2.buffer, b1.size) != 0)
 
 TPMI_ALG_HASH
-tpm2_hash_name_to_alg(const char *name);
+tpm2_hash_name_to_alg(const TPMS_CAPABILITY_DATA *caps, const char *name);
 
 const char *
 tpm2_hash_alg_to_name(const TPMI_ALG_HASH alg);

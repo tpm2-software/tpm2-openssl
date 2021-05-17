@@ -211,7 +211,7 @@ tpm2_digest_get_params_int(OSSL_PARAM params[], size_t size)
         return tpm2_digest_get_params_int(params, TPM2_##alg##_DIGEST_SIZE); \
     }
 
-#define IMPLEMENT_DIGEST_DISPATCH(alg) \
+#define IMPLEMENT_DIGEST_FUNCTIONS(alg) \
     const OSSL_DISPATCH tpm2_digest_##alg##_functions[] = { \
         { OSSL_FUNC_DIGEST_NEWCTX, (void(*)(void))tpm2_digest_##alg##_newctx }, \
         { OSSL_FUNC_DIGEST_FREECTX, (void(*)(void))tpm2_digest_freectx }, \
@@ -224,9 +224,19 @@ tpm2_digest_get_params_int(OSSL_PARAM params[], size_t size)
         { 0, NULL } \
     };
 
+#define IMPLEMENT_DIGEST_DISPATCH(alg) \
+    const OSSL_DISPATCH *tpm2_digest_##alg##_dispatch(const TPMS_CAPABILITY_DATA *capability) \
+    { \
+        if (tpm2_supports_algorithm(capability, TPM2_ALG_##alg)) \
+            return tpm2_digest_##alg##_functions; \
+        else \
+            return NULL; \
+    }
+
 #define DECLARE_DIGEST(alg) \
     IMPLEMENT_DIGEST_NEW_CTX(alg) \
     IMPLEMENT_DIGEST_GET_PARAMS(alg) \
+    IMPLEMENT_DIGEST_FUNCTIONS(alg) \
     IMPLEMENT_DIGEST_DISPATCH(alg)
 
 DECLARE_DIGEST(SHA1)

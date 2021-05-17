@@ -14,6 +14,7 @@ typedef struct tpm2_object_ctx_st TPM2_OBJECT_CTX;
 struct tpm2_object_ctx_st {
     const OSSL_CORE_HANDLE *core;
     ESYS_CONTEXT *esys_ctx;
+    TPMS_CAPABILITY_DATA *capability;
     int has_pass;
     TPM2_HANDLE handle;
     BIO *bio;
@@ -41,6 +42,7 @@ tpm2_object_open(void *provctx, const char *uri)
 
     ctx->core = cprov->core;
     ctx->esys_ctx = cprov->esys_ctx;
+    ctx->capability = cprov->capability;
 
     if ((baseuri = OPENSSL_strdup(uri)) == NULL)
         goto error1;
@@ -91,6 +93,7 @@ tpm2_object_attach(void *provctx, OSSL_CORE_BIO *cin)
 
     ctx->core = cprov->core;
     ctx->esys_ctx = cprov->esys_ctx;
+    ctx->capability = cprov->capability;
 
     if ((ctx->bio = bio_new_from_core_bio(cprov->corebiometh, cin)) == NULL)
         goto error;
@@ -168,6 +171,7 @@ tpm2_object_load(void *ctx,
 
     pkey->core = sctx->core;
     pkey->esys_ctx = sctx->esys_ctx;
+    pkey->capability = sctx->capability;
 
     if (sctx->bio) {
         uint8_t *buffer;

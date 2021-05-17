@@ -234,3 +234,16 @@ bio_prov_init_bio_method(void)
     return corebiometh;
 }
 
+int
+tpm2_supports_algorithm(const TPMS_CAPABILITY_DATA *caps, TPM2_ALG_ID algorithm)
+{
+    UINT32 index;
+
+    for (index = 0; index < caps->data.algorithms.count; index++) {
+        if (caps->data.algorithms.algProperties[index].alg == algorithm)
+            return 1;
+    }
+
+    return 0;
+}
+

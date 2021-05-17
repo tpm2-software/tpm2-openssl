@@ -4,6 +4,7 @@
 #include <openssl/rsa.h>
 #include <openssl/ec.h>
 
+#include "tpm2-provider.h"
 #include "tpm2-provider-types.h"
 
 typedef struct {
@@ -27,13 +28,18 @@ static const hash_names_t hashes[] = {
 };
 
 TPMI_ALG_HASH
-tpm2_hash_name_to_alg(const char *name)
+tpm2_hash_name_to_alg(const TPMS_CAPABILITY_DATA *caps, const char *name)
 {
     const hash_names_t *nameptr;
 
     for (nameptr = hashes; nameptr->name != NULL; nameptr++) {
-        if (!strcasecmp(name, nameptr->name))
-            return nameptr->alg;
+        if (!strcasecmp(name, nameptr->name)) {
+            /* do not accept unsupported algorithms */
+            if (tpm2_supports_algorithm(caps, nameptr->alg))
+                return nameptr->alg;
+            else
+                return TPM2_ALG_ERROR;
+        }
     }
 
     return TPM2_ALG_ERROR;

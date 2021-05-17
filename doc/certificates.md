@@ -41,7 +41,7 @@ To perform the TLS handshake you need to:
  * Load the default provider to get a faster and wider set of symmetric ciphers.
 
 When using a restricted signing key, which is associated with a specific hash
-algorithm, you also need to limit the signature algorithms (using `-sigalgs`
+algorithm, you may need to limit the signature algorithms (using `-sigalgs`
 or `SSL_CTX_set1_sigalgs`) to those supported by the key. The argument should
 be a colon separated list of TLSv1.3 algorithm names in order of decreasing
 preference.
@@ -71,7 +71,7 @@ To start a test server using the key and X.509 certificate created in the
 previous section do:
 ```
 openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2 \
-                 -accept 4443 -www -key testkey.pem -cert testcert.pem -sigalgs "rsa_pkcs1_sha256"
+                 -accept 4443 -www -key testkey.pem -cert testcert.pem
 ```
 
 The `-key` can be also specified using a persistent key handle.

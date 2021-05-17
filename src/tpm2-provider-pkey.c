@@ -268,42 +268,21 @@ error1:
     return 0;
 }
 
-static int
-tpm2_supports_algorithm(const TPMS_CAPABILITY_DATA *caps, TPM2_ALG_ID algorithm)
-{
-    UINT32 index;
-
-    for (index = 0; index < caps->data.algorithms.count; index++) {
-        if (caps->data.algorithms.algProperties[index].alg == algorithm)
-            return 1;
-    }
-
-    return 0;
-}
-
 int
 tpm2_build_primary(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
-                   ESYS_TR hierarchy, const TPM2B_DIGEST *auth, ESYS_TR *object)
+                   TPMS_CAPABILITY_DATA *capability, ESYS_TR hierarchy,
+                   const TPM2B_DIGEST *auth, ESYS_TR *object)
 {
-    TPMS_CAPABILITY_DATA *capabilityData = NULL;
     const TPM2B_PUBLIC *primaryTemplate = NULL;
     TSS2_RC r;
 
     r = Esys_TR_SetAuth(esys_ctx, hierarchy, auth);
     TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_CREATE_PRIMARY, goto error);
 
-    r = Esys_GetCapability(esys_ctx,
-                           ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
-                           TPM2_CAP_ALGS, 0, TPM2_MAX_CAP_ALGS,
-                           NULL, &capabilityData);
-    TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto error);
-
-    if (tpm2_supports_algorithm(capabilityData, TPM2_ALG_ECC))
+    if (tpm2_supports_algorithm(capability, TPM2_ALG_ECC))
         primaryTemplate = &primaryEccTemplate;
-    else if (tpm2_supports_algorithm(capabilityData, TPM2_ALG_RSA))
+    else if (tpm2_supports_algorithm(capability, TPM2_ALG_RSA))
         primaryTemplate = &primaryRsaTemplate;
-
-    free(capabilityData);
 
     if(!primaryTemplate) {
         TPM2_ERROR_raise(core, TPM2_ERR_UNKNOWN_ALGORITHM);

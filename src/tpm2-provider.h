@@ -18,6 +18,7 @@ struct tpm2_provider_ctx_st {
     const OSSL_CORE_HANDLE *core;
     BIO_METHOD *corebiometh;
     ESYS_CONTEXT *esys_ctx;
+    TPMS_CAPABILITY_DATA *capability;
 };
 
 typedef enum {
@@ -44,6 +45,7 @@ typedef struct {
     TPM2B_DIGEST userauth;
     const OSSL_CORE_HANDLE *core;
     ESYS_CONTEXT *esys_ctx;
+    TPMS_CAPABILITY_DATA *capability;
     ESYS_TR object;
 } TPM2_PKEY;
 
@@ -121,5 +123,10 @@ tpm2_list_params(const char *text, const OSSL_PARAM params[]);
 
 BIO_METHOD *
 bio_prov_init_bio_method(void);
+
+int
+tpm2_supports_algorithm(const TPMS_CAPABILITY_DATA *caps, TPM2_ALG_ID algorithm);
+
+typedef const OSSL_DISPATCH *(tpm2_dispatch_t)(const TPMS_CAPABILITY_DATA *);
 
 #endif /* TPM2_PROVIDER_H */

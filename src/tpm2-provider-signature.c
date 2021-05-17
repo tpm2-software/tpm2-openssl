@@ -15,6 +15,7 @@ typedef struct tpm2_signature_ctx_st TPM2_SIGNATURE_CTX;
 struct tpm2_signature_ctx_st {
     const OSSL_CORE_HANDLE *core;
     ESYS_CONTEXT *esys_ctx;
+    TPMS_CAPABILITY_DATA *capability;
     TPM2_PKEY *pkey;
     TPMT_SIG_SCHEME signScheme;
     TPM2_ALG_ID digalg;
@@ -51,6 +52,7 @@ tpm2_signature_newctx(void *provctx, const char *propq)
 
     sctx->core = cprov->core;
     sctx->esys_ctx = cprov->esys_ctx;
+    sctx->capability = cprov->capability;
     sctx->signScheme.scheme = TPM2_ALG_NULL;
     sctx->signScheme.details.any.hashAlg = TPM2_ALG_NULL;
     sctx->digalg = TPM2_ALG_NULL;
@@ -106,7 +108,7 @@ rsa_signature_scheme_init(TPM2_SIGNATURE_CTX *sctx, const char *mdname)
             sctx->digalg = TPM2_PKEY_RSA_HASH(sctx->pkey);
         else
             sctx->digalg = TPM2_ALG_SHA256;
-    } else if ((sctx->digalg = tpm2_hash_name_to_alg(mdname)) == TPM2_ALG_ERROR) {
+    } else if ((sctx->digalg = tpm2_hash_name_to_alg(sctx->capability, mdname)) == TPM2_ALG_ERROR) {
         TPM2_ERROR_raise(sctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
         return 0;
     }
@@ -139,7 +141,7 @@ ecdsa_signature_scheme_init(TPM2_SIGNATURE_CTX *sctx, const char *mdname)
             sctx->digalg = TPM2_PKEY_RSA_HASH(sctx->pkey);
         else
             sctx->digalg = TPM2_ALG_SHA256;
-    } else if ((sctx->digalg = tpm2_hash_name_to_alg(mdname)) == TPM2_ALG_ERROR) {
+    } else if ((sctx->digalg = tpm2_hash_name_to_alg(sctx->capability, mdname)) == TPM2_ALG_ERROR) {
         TPM2_ERROR_raise(sctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
         return 0;
     }
@@ -631,7 +633,7 @@ tpm2_rsa_signature_set_ctx_params(void *ctx, const OSSL_PARAM params[])
     if (p != NULL) {
         if (p->data_type != OSSL_PARAM_UTF8_STRING ||
                 ((sctx->signScheme.details.any.hashAlg =
-                    tpm2_hash_name_to_alg(p->data)) == TPM2_ALG_ERROR)) {
+                    tpm2_hash_name_to_alg(sctx->capability, p->data)) == TPM2_ALG_ERROR)) {
             TPM2_ERROR_raise(sctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
             return 0;
         }
@@ -677,7 +679,7 @@ tpm2_ecdsa_signature_set_ctx_params(void *ctx, const OSSL_PARAM params[])
     if (p != NULL) {
         if (p->data_type != OSSL_PARAM_UTF8_STRING ||
                 ((sctx->signScheme.details.any.hashAlg =
-                    tpm2_hash_name_to_alg(p->data)) == TPM2_ALG_ERROR)) {
+                    tpm2_hash_name_to_alg(sctx->capability, p->data)) == TPM2_ALG_ERROR)) {
             TPM2_ERROR_raise(sctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
             return 0;
         }

@@ -21,6 +21,7 @@ struct tpm2_tss2_decoder_ctx_st {
     const OSSL_CORE_HANDLE *core;
     BIO_METHOD *corebiometh;
     ESYS_CONTEXT *esys_ctx;
+    TPMS_CAPABILITY_DATA *capability;
     TPM2B_DIGEST parentAuth;
 };
 
@@ -42,6 +43,7 @@ tpm2_tss2_decoder_newctx(void *provctx)
     dctx->core = cprov->core;
     dctx->corebiometh = cprov->corebiometh;
     dctx->esys_ctx = cprov->esys_ctx;
+    dctx->capability = cprov->capability;
     return dctx;
 }
 
@@ -104,7 +106,7 @@ decode_privkey(TPM2_TSS2_DECODER_CTX *dctx, TPM2_PKEY *pkey,
                 goto error1;
         } else {
             DBG("TSS2 DECODER LOAD parent: primary 0x%x\n", TPM2_RH_OWNER);
-            if (!tpm2_build_primary(pkey->core, pkey->esys_ctx,
+            if (!tpm2_build_primary(pkey->core, pkey->esys_ctx, pkey->capability,
                                     ESYS_TR_RH_OWNER, &dctx->parentAuth, &parent))
                 goto error1;
         }
@@ -185,6 +187,7 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
 
     pkey->core = dctx->core;
     pkey->esys_ctx = dctx->esys_ctx;
+    pkey->capability = dctx->capability;
     pkey->object = ESYS_TR_NONE;
 
     if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)

@@ -13,7 +13,7 @@ private_key       = $dir/private/root.key.pem
 certificate       = $dir/certs/root.cert.pem
 crl               = $dir/crl/root.crl.pem
 crl_extensions    = ext_crl
-default_md        = sha512
+default_md        = sha256
 name_opt          = ca_default
 cert_opt          = ca_default
 default_crl_days  = 365
@@ -33,7 +33,7 @@ private_key       = $dir/private/intermediate.key.pem
 certificate       = $dir/certs/intermediate.cert.pem
 crl               = $dir/crl/intermediate.crl.pem
 crl_extensions    = ext_crl
-default_md        = sha512
+default_md        = sha256
 name_opt          = ca_default
 cert_opt          = ca_default
 default_crl_days  = 365
@@ -59,9 +59,9 @@ commonName              = supplied
 emailAddress            = optional
 
 [ req ]
-default_bits        = 4096
+default_bits        = 2048
 string_mask         = utf8only
-default_md          = sha512
+default_md          = sha256
 distinguished_name  = req_distinguished_name
 
 [ req_distinguished_name ]

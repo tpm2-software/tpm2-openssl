@@ -50,57 +50,89 @@ tpm2_get_params(void *provctx, OSSL_PARAM params[])
 
 #define TPM2_PROPS(op) ("provider=tpm2,tpm2." #op)
 
-#if WITH_OP_DIGEST
-extern const OSSL_DISPATCH tpm2_digest_SHA1_functions[];
-extern const OSSL_DISPATCH tpm2_digest_SHA256_functions[];
-extern const OSSL_DISPATCH tpm2_digest_SHA384_functions[];
-extern const OSSL_DISPATCH tpm2_digest_SHA512_functions[];
-extern const OSSL_DISPATCH tpm2_digest_SM3_256_functions[];
+typedef struct {
+    const char *algs;
+    const char *props;
+    tpm2_dispatch_t *dispatch;
+} TPM2_ALGORITHM;
 
-static const OSSL_ALGORITHM tpm2_digests[] = {
-    { "SHA1:SHA-1:SSL3-SHA1", TPM2_PROPS(digest), tpm2_digest_SHA1_functions },
-    { "SHA2-256:SHA-256:SHA256", TPM2_PROPS(digest), tpm2_digest_SHA256_functions },
-    { "SHA2-384:SHA-384:SHA384", TPM2_PROPS(digest), tpm2_digest_SHA384_functions },
-    { "SHA2-512:SHA-512:SHA512", TPM2_PROPS(digest), tpm2_digest_SHA512_functions },
-    { "SM3", TPM2_PROPS(digest), tpm2_digest_SM3_256_functions },
+static const OSSL_ALGORITHM *
+tpm2_operation(const TPMS_CAPABILITY_DATA *caps,
+               const TPM2_ALGORITHM *algs, size_t count)
+{
+    OSSL_ALGORITHM *res;
+    int i, j = 0;
+
+    if ((res = OPENSSL_malloc(count * sizeof(OSSL_ALGORITHM))) == NULL)
+        return NULL;
+
+    for (i = 0; i < count && algs[i].algs != NULL; i++) {
+        /* retrieve the implementation,
+         * or NULL when the current TPM does not support this algorithm */
+        if ((res[j].implementation = algs[i].dispatch(caps)) == NULL)
+            continue;
+        res[j].algorithm_names = algs[i].algs;
+        res[j].property_definition = algs[i].props;
+        res[j].algorithm_description = NULL;
+        j++;
+    }
+
+    /* termination */
+    res[j].algorithm_names = NULL;
+    return res;
+}
+
+#if WITH_OP_DIGEST
+extern tpm2_dispatch_t tpm2_digest_SHA1_dispatch;
+extern tpm2_dispatch_t tpm2_digest_SHA256_dispatch;
+extern tpm2_dispatch_t tpm2_digest_SHA384_dispatch;
+extern tpm2_dispatch_t tpm2_digest_SHA512_dispatch;
+extern tpm2_dispatch_t tpm2_digest_SM3_256_dispatch;
+
+static const TPM2_ALGORITHM tpm2_digests[] = {
+    { "SHA1:SHA-1:SSL3-SHA1", TPM2_PROPS(digest), &tpm2_digest_SHA1_dispatch },
+    { "SHA2-256:SHA-256:SHA256", TPM2_PROPS(digest), &tpm2_digest_SHA256_dispatch },
+    { "SHA2-384:SHA-384:SHA384", TPM2_PROPS(digest), &tpm2_digest_SHA384_dispatch },
+    { "SHA2-512:SHA-512:SHA512", TPM2_PROPS(digest), &tpm2_digest_SHA512_dispatch },
+    { "SM3", TPM2_PROPS(digest), &tpm2_digest_SM3_256_dispatch },
     { NULL, NULL, NULL }
 };
 #endif /* WITH_OP_DIGEST */
 
 #if WITH_OP_CIPHER
-#define DECLARE_3CIPHERS_FUNCTIONS(alg,lcmode) \
-    extern const OSSL_DISPATCH tpm2_cipher_##alg##128##lcmode##_functions[]; \
-    extern const OSSL_DISPATCH tpm2_cipher_##alg##192##lcmode##_functions[]; \
-    extern const OSSL_DISPATCH tpm2_cipher_##alg##256##lcmode##_functions[];
+#define DECLARE_3CIPHERS_DISPATCH(alg,lcmode) \
+    extern tpm2_dispatch_t tpm2_cipher_##alg##128##lcmode##_dispatch; \
+    extern tpm2_dispatch_t tpm2_cipher_##alg##192##lcmode##_dispatch; \
+    extern tpm2_dispatch_t tpm2_cipher_##alg##256##lcmode##_dispatch;
 
 #define DECLARE_3CIPHERS_ALGORITHMS(alg,lcmode) \
-    { #alg "-128-" #lcmode, TPM2_PROPS(cipher), tpm2_cipher_##alg##128##lcmode##_functions }, \
-    { #alg "-192-" #lcmode, TPM2_PROPS(cipher), tpm2_cipher_##alg##192##lcmode##_functions }, \
-    { #alg "-256-" #lcmode, TPM2_PROPS(cipher), tpm2_cipher_##alg##256##lcmode##_functions },
+    { #alg "-128-" #lcmode, TPM2_PROPS(cipher), &tpm2_cipher_##alg##128##lcmode##_dispatch }, \
+    { #alg "-192-" #lcmode, TPM2_PROPS(cipher), &tpm2_cipher_##alg##192##lcmode##_dispatch }, \
+    { #alg "-256-" #lcmode, TPM2_PROPS(cipher), &tpm2_cipher_##alg##256##lcmode##_dispatch },
 
-DECLARE_3CIPHERS_FUNCTIONS(AES,ECB)
-DECLARE_3CIPHERS_FUNCTIONS(AES,CBC)
-DECLARE_3CIPHERS_FUNCTIONS(AES,OFB)
-DECLARE_3CIPHERS_FUNCTIONS(AES,CFB)
-DECLARE_3CIPHERS_FUNCTIONS(AES,CTR)
-DECLARE_3CIPHERS_FUNCTIONS(CAMELLIA,ECB)
-DECLARE_3CIPHERS_FUNCTIONS(CAMELLIA,CBC)
-DECLARE_3CIPHERS_FUNCTIONS(CAMELLIA,OFB)
-DECLARE_3CIPHERS_FUNCTIONS(CAMELLIA,CFB)
-DECLARE_3CIPHERS_FUNCTIONS(CAMELLIA,CTR)
+DECLARE_3CIPHERS_DISPATCH(AES,ECB)
+DECLARE_3CIPHERS_DISPATCH(AES,CBC)
+DECLARE_3CIPHERS_DISPATCH(AES,OFB)
+DECLARE_3CIPHERS_DISPATCH(AES,CFB)
+DECLARE_3CIPHERS_DISPATCH(AES,CTR)
+DECLARE_3CIPHERS_DISPATCH(CAMELLIA,ECB)
+DECLARE_3CIPHERS_DISPATCH(CAMELLIA,CBC)
+DECLARE_3CIPHERS_DISPATCH(CAMELLIA,OFB)
+DECLARE_3CIPHERS_DISPATCH(CAMELLIA,CFB)
+DECLARE_3CIPHERS_DISPATCH(CAMELLIA,CTR)
 
-static const OSSL_ALGORITHM tpm2_ciphers[] = {
+static const TPM2_ALGORITHM tpm2_ciphers[] = {
     DECLARE_3CIPHERS_ALGORITHMS(AES,ECB)
-    { "AES-128-CBC:AES128", TPM2_PROPS(cipher), tpm2_cipher_AES128CBC_functions },
-    { "AES-192-CBC:AES192", TPM2_PROPS(cipher), tpm2_cipher_AES192CBC_functions },
-    { "AES-256-CBC:AES256", TPM2_PROPS(cipher), tpm2_cipher_AES256CBC_functions },
+    { "AES-128-CBC:AES128", TPM2_PROPS(cipher), &tpm2_cipher_AES128CBC_dispatch },
+    { "AES-192-CBC:AES192", TPM2_PROPS(cipher), &tpm2_cipher_AES192CBC_dispatch },
+    { "AES-256-CBC:AES256", TPM2_PROPS(cipher), &tpm2_cipher_AES256CBC_dispatch },
     DECLARE_3CIPHERS_ALGORITHMS(AES,OFB)
     DECLARE_3CIPHERS_ALGORITHMS(AES,CFB)
     DECLARE_3CIPHERS_ALGORITHMS(AES,CTR)
     DECLARE_3CIPHERS_ALGORITHMS(CAMELLIA,ECB)
-    { "CAMELLIA-128-CBC:CAMELLIA128", TPM2_PROPS(cipher), tpm2_cipher_CAMELLIA128CBC_functions },
-    { "CAMELLIA-192-CBC:CAMELLIA192", TPM2_PROPS(cipher), tpm2_cipher_CAMELLIA192CBC_functions },
-    { "CAMELLIA-256-CBC:CAMELLIA256", TPM2_PROPS(cipher), tpm2_cipher_CAMELLIA256CBC_functions },
+    { "CAMELLIA-128-CBC:CAMELLIA128", TPM2_PROPS(cipher), &tpm2_cipher_CAMELLIA128CBC_dispatch },
+    { "CAMELLIA-192-CBC:CAMELLIA192", TPM2_PROPS(cipher), &tpm2_cipher_CAMELLIA192CBC_dispatch },
+    { "CAMELLIA-256-CBC:CAMELLIA256", TPM2_PROPS(cipher), &tpm2_cipher_CAMELLIA256CBC_dispatch },
     DECLARE_3CIPHERS_ALGORITHMS(CAMELLIA,OFB)
     DECLARE_3CIPHERS_ALGORITHMS(CAMELLIA,CFB)
     DECLARE_3CIPHERS_ALGORITHMS(CAMELLIA,CTR)
@@ -117,14 +149,14 @@ static const OSSL_ALGORITHM tpm2_rands[] = {
     { NULL, NULL, NULL }
 };
 
-extern const OSSL_DISPATCH tpm2_rsa_keymgmt_functions[];
-extern const OSSL_DISPATCH tpm2_rsapss_keymgmt_functions[];
-extern const OSSL_DISPATCH tpm2_ec_keymgmt_functions[];
+extern tpm2_dispatch_t tpm2_rsa_keymgmt_dispatch;
+extern tpm2_dispatch_t tpm2_rsapss_keymgmt_dispatch;
+extern tpm2_dispatch_t tpm2_ec_keymgmt_dispatch;
 
-static const OSSL_ALGORITHM tpm2_keymgmts[] = {
-    { "RSA:rsaEncryption", "provider=tpm2", tpm2_rsa_keymgmt_functions },
-    { "RSA-PSS:RSASSA-PSS", "provider=tpm2", tpm2_rsapss_keymgmt_functions },
-    { "EC:id-ecPublicKey", "provider=tpm2", tpm2_ec_keymgmt_functions },
+static const TPM2_ALGORITHM tpm2_keymgmts[] = {
+    { "RSA:rsaEncryption", "provider=tpm2", &tpm2_rsa_keymgmt_dispatch },
+    { "RSA-PSS:RSASSA-PSS", "provider=tpm2", &tpm2_rsapss_keymgmt_dispatch },
+    { "EC:id-ecPublicKey", "provider=tpm2", &tpm2_ec_keymgmt_dispatch },
     { NULL, NULL, NULL }
 };
 
@@ -208,24 +240,30 @@ static const OSSL_ALGORITHM tpm2_stores[] = {
     { NULL, NULL, NULL }
 };
 
+#define NELEMS(x)  (sizeof(x) / sizeof((x)[0]))
+
 static const OSSL_ALGORITHM *
 tpm2_query_operation(void *provctx, int operation_id, int *no_cache)
 {
+    TPM2_PROVIDER_CTX *cprov = provctx;
+
     *no_cache = 0;
 
     switch (operation_id) {
 #if WITH_OP_DIGEST
     case OSSL_OP_DIGEST:
-        return tpm2_digests;
+        /* we have to return the list of currently supported algorithms, because
+         * the TLS uses this information for algorithm negotiation */
+        return tpm2_operation(cprov->capability, tpm2_digests, NELEMS(tpm2_digests));
 #endif
 #if WITH_OP_CIPHER
     case OSSL_OP_CIPHER:
-        return tpm2_ciphers;
+        return tpm2_operation(cprov->capability, tpm2_ciphers, NELEMS(tpm2_ciphers));
 #endif
     case OSSL_OP_RAND:
         return tpm2_rands;
     case OSSL_OP_KEYMGMT:
-        return tpm2_keymgmts;
+        return tpm2_operation(cprov->capability, tpm2_keymgmts, NELEMS(tpm2_keymgmts));
     case OSSL_OP_KEYEXCH:
         return tpm2_keyexchs;
     case OSSL_OP_SIGNATURE:
@@ -241,6 +279,23 @@ tpm2_query_operation(void *provctx, int operation_id, int *no_cache)
     }
     return NULL;
 }
+
+static void
+tpm2_unquery_operation(void *provctx, int operation_id, const OSSL_ALGORITHM *alg)
+{
+    switch (operation_id) {
+#if WITH_OP_DIGEST
+    case OSSL_OP_DIGEST:
+#endif
+#if WITH_OP_CIPHER
+    case OSSL_OP_CIPHER:
+#endif
+    case OSSL_OP_KEYMGMT:
+        OPENSSL_free((void *)alg);
+        break;
+    }
+}
+
 
 static const OSSL_ITEM *
 tpm2_get_reason_strings(void *provctx)
@@ -293,6 +348,7 @@ tpm2_teardown(void *provctx)
     TSS2_RC r;
 
     DBG("PROVIDER TEARDOWN\n");
+    free(cprov->capability);
     BIO_meth_free(cprov->corebiometh);
 
     r = Esys_GetTcti(cprov->esys_ctx, &tcti_ctx);
@@ -308,6 +364,7 @@ static const OSSL_DISPATCH tpm2_dispatch_table[] = {
     { OSSL_FUNC_PROVIDER_GETTABLE_PARAMS, (void (*)(void))tpm2_gettable_params },
     { OSSL_FUNC_PROVIDER_GET_PARAMS, (void (*)(void))tpm2_get_params },
     { OSSL_FUNC_PROVIDER_QUERY_OPERATION, (void (*)(void))tpm2_query_operation },
+    { OSSL_FUNC_PROVIDER_UNQUERY_OPERATION, (void (*)(void))tpm2_unquery_operation },
     { OSSL_FUNC_PROVIDER_GET_REASON_STRINGS, (void (*)(void))tpm2_get_reason_strings },
     { OSSL_FUNC_PROVIDER_SELF_TEST, (void (*)(void))tpm2_self_test },
     { OSSL_FUNC_PROVIDER_TEARDOWN, (void (*)(void))tpm2_teardown },
@@ -352,10 +409,18 @@ OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
     r = Esys_Initialize(&cprov->esys_ctx, tcti_ctx, NULL);
     TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_CONNECT, goto err2);
 
+    r = Esys_GetCapability(cprov->esys_ctx,
+                           ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
+                           TPM2_CAP_ALGS, 0, TPM2_MAX_CAP_ALGS,
+                           NULL, &cprov->capability);
+    TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto err3);
+
     *out = tpm2_dispatch_table;
     *provctx = cprov;
 
     return 1;
+err3:
+    Esys_Finalize(&cprov->esys_ctx);
 err2:
     Tss2_TctiLdr_Finalize(&tcti_ctx);
 err1:

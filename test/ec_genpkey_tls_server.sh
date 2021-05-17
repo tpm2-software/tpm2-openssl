@@ -34,13 +34,12 @@ openssl req -provider tpm2 -x509 -config testcert.conf -new -newkey ec -pkeyopt 
 # display content of the certificate
 openssl x509 -text -noout -in testcert.pem
 
-# start SSL server with ECDSA-SHA256 signing
+# start SSL server with ECDSA signing
 openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2 \
-                 -accept 4443 -www -key testkey.pem -cert testcert.pem \
-                 -sigalgs "ecdsa_secp256r1_sha256" &
+                 -accept 4443 -www -key testkey.pem -cert testcert.pem &
 SERVER=$!
 trap "cleanup" EXIT
-sleep 1
+sleep 2
 
 # start SSL client
 curl --cacert testcert.pem https://localhost:4443/

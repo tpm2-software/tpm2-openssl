@@ -55,6 +55,10 @@ installed to OpenSSL's `lib/ossl-modules` using:
 make install
 ```
 
+By default, the ossl-modules directory is auto-detected using pkg-config. To
+install the provider to another directory call configure `--with-modulesdir`
+and specify a full patch.
+
 
 # Testing the Provider
 To test the Provider you need a working TPM2 chip or a TPM2 simulator.
