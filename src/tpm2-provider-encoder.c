@@ -445,7 +445,9 @@ tpm2_ec_encode_parameters_SubjectPublicKeyInfo_der(TPM2_ENCODER_CTX *ectx, BIO *
     return res;
 }
 
-IMPLEMENT_PEM_write_bio(ECPKParameters, EC_GROUP, PEM_STRING_ECPARAMETERS, ECPKParameters)
+/* Public PEM_write_bio_ECPKParameters has been deprecated,
+ * we need to implement its local version. */
+IMPLEMENT_PEM_write_bio(myECPKParameters, EC_GROUP, PEM_STRING_ECPARAMETERS, ECPKParameters)
 
 static int
 tpm2_ec_encode_parameters_SubjectPublicKeyInfo_pem(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
@@ -456,7 +458,7 @@ tpm2_ec_encode_parameters_SubjectPublicKeyInfo_pem(TPM2_ENCODER_CTX *ectx, BIO *
     if ((group = get_ec_group(pkey)) == NULL)
         return 0;
 
-    res = PEM_write_bio_ECPKParameters(bout, group);
+    res = PEM_write_bio_myECPKParameters(bout, group);
 
     EC_GROUP_free(group);
     return res;
