@@ -1,7 +1,10 @@
 #!/bin/bash
 set -eufx
 
-for command in -providers -encoders -decoders \
+for command in -providers \
+               -store-loaders \
+               -encoders \
+               -decoders \
                -public-key-algorithms \
                -public-key-methods \
                -random-generators \

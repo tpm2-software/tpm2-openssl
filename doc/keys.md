@@ -153,11 +153,12 @@ an empty password or anything else.
 
 ## Loading a Private Key
 
-The tpm2 provider implements two
+The tpm2 provider implements three
 [OSSL_OP_STORE](https://www.openssl.org/docs/manmaster/man7/provider-storemgmt.html)
-operations:
- * **file** (default), which can be used to load the PEM file (`TSS2 PRIVATE KEY`);
- * **handle**, which can be used to load persistent keys.
+loaders:
+ * **file** (default), to load the PEM file (`TSS2 PRIVATE KEY`);
+ * **handle**, to load persistent keys;
+ * **object**, to load serialized object representing a persistent handle.
 
 These are used by the
 [OSSL_STORE](https://www.openssl.org/docs/manmaster/man7/ossl_store.html)

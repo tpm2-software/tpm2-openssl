@@ -30,10 +30,10 @@ openssl list -providers -provider tpm2
 
 You may use other
 [openssl list](https://www.openssl.org/docs/manmaster/man1/openssl-list.html)
-commands to inspect the various algorithms provided, such as the list of encoders,
-by:
+commands to list algorithms supported by the tpm2 provider on your actual TPM
+hardware, such as the list of supported public key algorithms, by:
 ```
-openssl list -encoders -provider tpm2
+openssl list -public-key-algorithms -provider tpm2
 ```
 
 ### Loading Multiple Providers
