@@ -1,0 +1,62 @@
+name: coverity-scan
+on:
+  [push]
+
+jobs:
+  latest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: sudo apt-get install autoconf-archive libtss2-dev
+
+    - name: Download Coverity Build Tool
+      run: |
+        wget -q https://scan.coverity.com/download/cxx/linux64 --post-data "token=$TOKEN&project=tpm2-openssl" -O cov-analysis-linux64.tar.gz
+        mkdir cov-analysis-linux64
+        tar xzf cov-analysis-linux64.tar.gz --strip 1 -C cov-analysis-linux64
+      env:
+        TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
+
+    - name: Build openssl
+      run: |
+        wget --no-verbose https://github.com/openssl/openssl/archive/master.zip
+        unzip -q master.zip
+        cd openssl-master
+        # disable all unnecessary features
+        ./Configure no-deprecated no-aria no-async no-autoload-config no-bf \
+                    no-blake2 no-cast no-chacha no-cms no-cmp \
+                    no-comp no-ct no-des no-dgram no-dh no-dsa no-ec2m \
+                    no-filenames no-fips no-fips-securitychecks no-gost no-idea \
+                    no-ktls no-makedepend no-md4 no-multiblock no-nextprotoneg \
+                    no-ocb no-ocsp no-poly1305 no-psk no-rc2 no-rc4 no-rfc3779 \
+                    no-rmd160 no-seed no-siphash no-siv no-sm3 no-sm4 no-srp \
+                    no-srtp no-ssl3-method no-tests no-ts no-ui-console no-whirlpool
+        make build_sw
+        sudo make install_sw install_ssldirs
+        sudo ldconfig
+
+    - name: Configure tpm2-openssl
+      run: |
+        ./bootstrap
+        ./configure
+
+    - name: Build tpm2-openssl with cov-build
+      run: |
+        export PATH=$GITHUB_WORKSPACE/cov-analysis-linux64/bin:$PATH
+        cov-build --dir cov-int make
+
+    - name: Submit the result to Coverity Scan
+      run: |
+        tar czvf tpm2-openssl-scan.tgz cov-int
+        curl \
+          --form token=$TOKEN \
+          --form email=$EMAIL \
+          --form file=@tpm2-openssl-scan.tgz \
+          --form version=master \
+          --form description="$GITHUB_SHA" \
+          https://scan.coverity.com/builds?project=tpm2-openssl
+      env:
+        TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
+        EMAIL: ${{ secrets.COVERITY_SUBMISSION_EMAIL }}

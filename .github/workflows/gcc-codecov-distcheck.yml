@@ -1,13 +1,10 @@
-name: build and check
+name: gcc-codecov-distcheck
 on:
   [push, pull_request]
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        compiler: [gcc, clang]
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
 
@@ -27,10 +24,7 @@ jobs:
         wget --no-verbose https://github.com/openssl/openssl/archive/master.zip
         unzip -q master.zip
         cd openssl-master
-        if [[ ${{ matrix.compiler }} == 'clang' ]]; then
-          OSSL_EXTRA="linux-x86_64-clang enable-asan"
-        fi
-        # disable all unnecessary features
+        # disable all unnecessary features, without deprecated functions
         ./Configure no-deprecated no-aria no-async no-autoload-config no-bf \
                     no-blake2 no-cast no-chacha no-cms no-cmp \
                     no-comp no-ct no-des no-dgram no-dh no-dsa no-ec2m \
@@ -38,23 +32,15 @@ jobs:
                     no-ktls no-makedepend no-md4 no-multiblock no-nextprotoneg \
                     no-ocb no-ocsp no-poly1305 no-psk no-rc2 no-rc4 no-rfc3779 \
                     no-rmd160 no-seed no-siphash no-siv no-sm3 no-sm4 no-srp \
-                    no-srtp no-ssl3-method no-tests no-ts no-ui-console no-whirlpool \
-                    $OSSL_EXTRA
+                    no-srtp no-ssl3-method no-tests no-ts no-ui-console no-whirlpool
         make build_sw
         sudo make install_sw install_ssldirs
         sudo ldconfig
 
-    - name: Configure tpm2-openssl (gcc)
-      if: matrix.compiler == 'gcc'
+    - name: Configure tpm2-openssl
       run: |
         ./bootstrap
         ./configure CC=gcc --enable-code-coverage --enable-debug
-
-    - name: Configure tpm2-openssl (clang)
-      if: matrix.compiler == 'clang'
-      run: |
-        ./bootstrap
-        ./configure CC=clang --enable-asan --enable-debug
 
     - name: Build tpm2-openssl
       run: |
@@ -79,21 +65,18 @@ jobs:
         TPM2TOOLS_TCTI: ${{ env.TCTI_ADDRESS }}
         TPM2OPENSSL_TCTI: ${{ env.TCTI_ADDRESS }}
 
-    - name: Check code coverage (gcc)
-      if: matrix.compiler == 'gcc'
+    - name: Check code coverage
       run: |
         make check-code-coverage
       env:
         TPM2TOOLS_TCTI: ${{ env.TCTI_ADDRESS }}
         TPM2OPENSSL_TCTI: ${{ env.TCTI_ADDRESS }}
 
-    - name: Submit code coverage (gcc)
-      if: matrix.compiler == 'gcc'
+    - name: Submit code coverage
       uses: codecov/codecov-action@v1.2.1
 
-    - name: Check the distribution (gcc)
+    - name: Check the distribution
       # AM_DISTCHECK_CONFIGURE_FLAGS are not ready for clang and asan
-      if: matrix.compiler == 'gcc'
       run: |
         make distcheck
       env:
@@ -104,7 +87,7 @@ jobs:
       if: ${{ success() || failure() }}
       uses: actions/upload-artifact@v2
       with:
-        name: test-report-${{ matrix.compiler }}
+        name: test-report-gcc
         path: |
           *.log
           test/*.log

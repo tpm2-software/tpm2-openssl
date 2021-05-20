@@ -1,0 +1,77 @@
+name: clang-asan-check
+on:
+  [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: sudo apt-get install autoconf-archive libtss2-dev libtss2-tcti-tabrmd0 tpm2-abrmd tpm2-tools
+
+    - name: Build TPM2 simulator
+      run: |
+        wget --no-verbose https://downloads.sourceforge.net/project/ibmswtpm2/ibmtpm1637.tar.gz
+        mkdir ibmtpm
+        tar xfz ibmtpm1637.tar.gz -C ibmtpm
+        cd ibmtpm/src
+        make
+
+    - name: Build openssl
+      run: |
+        wget --no-verbose https://github.com/openssl/openssl/archive/master.zip
+        unzip -q master.zip
+        cd openssl-master
+        # disable all unnecessary features, with deprecated functions
+        ./Configure linux-x86_64-clang enable-asan \
+                    no-aria no-async no-autoload-config no-bf \
+                    no-blake2 no-cast no-chacha no-cms no-cmp \
+                    no-comp no-ct no-des no-dgram no-dh no-dsa no-ec2m \
+                    no-filenames no-fips no-fips-securitychecks no-gost no-idea \
+                    no-ktls no-makedepend no-md4 no-multiblock no-nextprotoneg \
+                    no-ocb no-ocsp no-poly1305 no-psk no-rc2 no-rc4 no-rfc3779 \
+                    no-rmd160 no-seed no-siphash no-siv no-sm3 no-sm4 no-srp \
+                    no-srtp no-ssl3-method no-tests no-ts no-ui-console no-whirlpool
+        make build_sw
+        sudo make install_sw install_ssldirs
+        sudo ldconfig
+
+    - name: Configure tpm2-openssl
+      run: |
+        ./bootstrap
+        ./configure CC=clang --enable-asan --enable-debug
+
+    - name: Build tpm2-openssl
+      run: |
+        make
+        sudo make install
+
+    - name: Start TPM2 simulator
+      run: |
+        export DBUS_SESSION_BUS_ADDRESS=`dbus-daemon --session --print-address --fork`
+        echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> $GITHUB_ENV
+        ibmtpm/src/tpm_server &
+        tpm2-abrmd --session --tcti mssim:host=localhost,port=2321 &
+        echo "TCTI_ADDRESS=tabrmd:bus_name=com.intel.tss2.Tabrmd,bus_type=session" >> $GITHUB_ENV
+        sleep 1
+
+    - name: Run tests
+      run: |
+        openssl version
+        tpm2_getcap properties-fixed | head -n 20
+        make check
+      env:
+        TPM2TOOLS_TCTI: ${{ env.TCTI_ADDRESS }}
+        TPM2OPENSSL_TCTI: ${{ env.TCTI_ADDRESS }}
+
+    - name: Archive log files
+      if: ${{ success() || failure() }}
+      uses: actions/upload-artifact@v2
+      with:
+        name: test-report-clang
+        path: |
+          *.log
+          test/*.log
+          test/*/*.log
