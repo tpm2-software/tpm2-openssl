@@ -54,6 +54,10 @@ openssl pkeyutl -verify -pubin -inkey testkey.pub -rawin -in testdata \
     -digest sha512 -pkeyopt pad-mode:pss -sigfile testdata.sig
 ```
 
+**Subject to TPM resource limits.** Every ongoing digest operation maintains a
+transient sequence object within the TPM memory. The resource manager will not
+allow creation of more concurrent objects than `TPM_PT_HR_TRANSIENT_MIN`.
+
 
 ## Decryption
 

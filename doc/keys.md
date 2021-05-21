@@ -15,6 +15,10 @@ API functions and the
 [`openssl genpkey`](https://www.openssl.org/docs/manmaster/man1/openssl-genpkey.html)
 command.
 
+**Subject to TPM resource limits.** Every private EVP_PKEY maintains a transient
+sequence object within the TPM memory. The resource manager will not allow
+creation of more concurrent objects than `TPM_PT_HR_TRANSIENT_MIN`.
+
 ### Key Generation
 
 The following public key algorithms are supported:

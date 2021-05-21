@@ -182,7 +182,41 @@ Provides all operations required for TLS authentication based on a
 TPM2-based key.
 
 
+## Limitations
+
+### Limited Resources
+
+Please mind the limited number of transient key and sequence objects that can
+be concurrently loaded in the TPM. The number of ongoing digest operations and
+the number of loaded private keys is limited. The resource manager will not
+allow creation of more concurrent objects than `TPM_PT_HR_TRANSIENT_MIN`.
+
+The `TPM_PT_HR_TRANSIENT_MIN` parameter can be retrieved using
+`tpm2_getcap properties-fixed`.
+
+### Limited Set of Algorithms
+
+Not every OpenSSL operation will work with the TPM: some are not specified by
+the TCG TPM specification, some might not be implemented by your TPM chip.
+
+The list of algorithms supported by the tpm2 provider on your actual TPM can be
+retrieved using the [openssl list](https://www.openssl.org/docs/manmaster/man1/openssl-list.html)
+commands.
+
+Algorithms that do not require the TPM hardware, such as public key operations,
+hashes or symmetric ciphers, can be fetched from the OpenSSL's
+[default provider](https://github.com/tpm2-software/tpm2-openssl/blob/master/doc/initialization.md#loading-multiple-providers).
+
 ## Help
+
+When you get stuck, remember:
+[Read-Search-Ask](https://www.freecodecamp.org/forum/t/how-to-get-help-when-you-are-stuck-coding/19514).
+ 1. Read the error message and the documentation
+ 2. Search Google
+ 3. Ask for help
+
+This is the most time-efficient way to handle being stuck, and it’s the most
+respectful of other people’s time, too.
 
 You can ask a question via an GitHub
 [Issue](https://github.com/tpm2-software/tpm2-openssl/issues/new), or send

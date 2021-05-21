@@ -27,6 +27,10 @@ For example, to calculate SHA-256 hash of the `data.txt` file:
 openssl dgst -provider tpm2 -sha256 data.txt
 ```
 
+**Subject to TPM resource limits.** Every ongoing digest operation maintains a
+transient sequence object within the TPM memory. The resource manager will not
+allow creation of more concurrent objects than `TPM_PT_HR_TRANSIENT_MIN`.
+
 
 ## Symmetric Ciphers
 
