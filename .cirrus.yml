@@ -5,3 +5,5 @@ task:
     - pkg update -f
     - pkg upgrade -y
     - pkg install -y tpm2-tss tpm2-abrmd tpm2-tools
+  script:
+    - ./bootstrap
