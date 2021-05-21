@@ -1,0 +1,7 @@
+task:
+  freebsd_instance:
+    image_family: freebsd-12-2
+  install_script:
+    - pkg update -f
+    - pkg upgrade -y
+    - pkg install -y tpm2-tss tpm2-abrmd tpm2-tools
