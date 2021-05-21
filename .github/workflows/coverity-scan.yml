@@ -1,6 +1,9 @@
 name: coverity-scan
 on:
-  [push]
+  # the number of builds is limited
+  push:
+    branches:
+    - 'master'
 
 jobs:
   latest:
