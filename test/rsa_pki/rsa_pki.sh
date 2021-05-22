@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eufx
 export PKIDIR=`dirname $0`
 

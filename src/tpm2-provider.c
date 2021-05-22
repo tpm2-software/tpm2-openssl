@@ -344,7 +344,7 @@ static void
 tpm2_teardown(void *provctx)
 {
     TPM2_PROVIDER_CTX *cprov = provctx;
-    TSS2_TCTI_CONTEXT *tcti_ctx;
+    TSS2_TCTI_CONTEXT *tcti_ctx = NULL;
     TSS2_RC r;
 
     DBG("PROVIDER TEARDOWN\n");

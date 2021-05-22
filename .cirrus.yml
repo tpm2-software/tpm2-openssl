@@ -1,9 +1,62 @@
 task:
   freebsd_instance:
     image_family: freebsd-12-2
-  install_script:
-    - pkg update -f
-    - pkg upgrade -y
-    - pkg install -y tpm2-tss tpm2-abrmd tpm2-tools
-  script:
-    - ./bootstrap
+  env:
+    PKG_CONFIG_PATH: /usr/local/lib/pkgconfig
+    LD_LIBRARY_PATH: /usr/local/lib
+    PATH: ${PATH}:/usr/local/sbin:/usr/sbin
+    TPM2TOOLS_TCTI: "tabrmd:bus_name=com.intel.tss2.Tabrmd"
+    TPM2OPENSSL_TCTI: ${TPM2TOOLS_TCTI}
+
+  install_packages_script: |
+    pkg install -y bash wget gmake libtool pkgconf automake autoconf autoconf-archive \
+                   dbus tpm2-tss tpm2-abrmd tpm2-tools
+
+  build_openssl_script: |
+    wget --no-verbose https://github.com/openssl/openssl/archive/master.zip
+    unzip -q master.zip
+    cd openssl-master
+    # disable all unnecessary features, with deprecated functions
+    ./Configure no-aria no-async no-autoload-config no-bf \
+                no-blake2 no-cast no-chacha no-cms no-cmp \
+                no-comp no-ct no-des no-dgram no-dh no-dsa no-ec2m \
+                no-filenames no-fips no-fips-securitychecks no-gost no-idea \
+                no-ktls no-makedepend no-md4 no-multiblock no-nextprotoneg \
+                no-ocb no-ocsp no-poly1305 no-psk no-rc2 no-rc4 no-rfc3779 \
+                no-rmd160 no-seed no-siphash no-siv no-sm3 no-sm4 no-srp \
+                no-srtp no-ssl3-method no-tests no-ts no-ui-console no-whirlpool
+    make build_sw
+    make install_sw install_ssldirs
+
+  build_script: |
+    ./bootstrap
+    ./configure
+    gmake
+
+  build_simulator_script: |
+    wget --no-verbose https://downloads.sourceforge.net/project/ibmswtpm2/ibmtpm1637.tar.gz
+    mkdir ibmtpm
+    tar xfz ibmtpm1637.tar.gz -C ibmtpm
+    cd ibmtpm/src
+    sed -i '' -e 's/gcc/clang/g' makefile
+    sed -i '' -e 's/-Wall //g' makefile
+    sed -i '' -e 's/-Werror //g' makefile
+    gmake
+
+  run_simulator_background_script:
+    ibmtpm/src/tpm_server
+
+  run_abrmd_background_script: |
+    dbus-uuidgen --ensure
+    dbus-launch --config-file=/usr/local/share/dbus-1/system.conf
+    sudo -u _tss tpm2-abrmd --tcti mssim:host=localhost,port=2321
+
+  check_script: |
+    openssl version
+    tpm2_getcap properties-fixed | head -n 20
+    gmake check
+
+  always:
+    log_artifacts:
+      path: test/**/*.log
+      type: text/plain

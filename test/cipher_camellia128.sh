@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# SPDX-License-Identifier: BSD-3-Clause
 set -eufx
 # skip when the command is not supported
 tpm2_getcap commands | grep EncryptDecrypt || exit 77

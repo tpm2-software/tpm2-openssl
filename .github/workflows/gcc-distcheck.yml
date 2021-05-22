@@ -1,4 +1,4 @@
-name: gcc-codecov-distcheck
+name: gcc-distcheck
 on:
   [push, pull_request]
 

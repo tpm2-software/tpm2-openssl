@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# SPDX-License-Identifier: BSD-3-Clause
 set -eufx
 
 echo -n "abcde12345abcde12345" > testdata

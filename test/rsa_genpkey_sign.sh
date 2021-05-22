@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# SPDX-License-Identifier: BSD-3-Clause
 set -eufx
 
 # must be 32 characters, the length of the sha256 digest
