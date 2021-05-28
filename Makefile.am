@@ -72,6 +72,7 @@ TESTS_SHELL = test/list.sh \
               test/rsa_createak_sign_handle.sh \
               test/rsa_create_decrypt.sh \
               test/rsa_genpkey_x509_cert.sh \
+              test/rsa_genpkey_x509_cmp.sh \
               test/rsa_genpkey_tls_server.sh \
               test/rsa_createak_x509_csr.sh \
               test/rsapss_genpkey_sign_rawin.sh \

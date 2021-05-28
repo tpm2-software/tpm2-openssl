@@ -177,13 +177,17 @@ or the
 ### [Identity Certificates](doc/certificates.md)
 
 Provides all operations required for certificate signing using
-[`openssl req`](https://www.openssl.org/docs/manmaster/man1/openssl-req.html).
+[`openssl req`](https://www.openssl.org/docs/manmaster/man1/openssl-req.html),
+Certificate Authority (CA) operation using
+[`openssl ca`](https://www.openssl.org/docs/manmaster/man1/openssl-ca.html)
+and the Certificate Management Protocol (CMP) client using
+[`openssl cmp`](https://www.openssl.org/docs/manmaster/man1/openssl-cmp.html).
 
 Provides all operations required for TLS authentication based on a
 TPM2-based key.
 
 
-## Limitations
+## TPM Limitations
 
 ### Limited Resources
 
@@ -194,6 +198,17 @@ allow creation of more concurrent objects than `TPM_PT_HR_TRANSIENT_MIN`.
 
 The `TPM_PT_HR_TRANSIENT_MIN` parameter can be retrieved using
 `tpm2_getcap properties-fixed`.
+
+### Limited Performance
+
+The TPM is a cryptographic processor with a secure key storage. It is **not**
+an accelerator. Many operations are slower than a pure software implementation.
+
+For user convenience the tpm2 provider implements also
+[Symmetric Operations](doc/symmetric.md) that do not use the secure storage,
+but we recommend using the OpenSSL's
+[default provider](https://github.com/tpm2-software/tpm2-openssl/blob/master/doc/initialization.md#loading-multiple-providers)
+instead in performance critical applications.
 
 ### Limited Set of Algorithms
 
@@ -207,6 +222,7 @@ commands.
 Algorithms that do not require the TPM hardware, such as public key operations,
 hashes or symmetric ciphers, can be fetched from the OpenSSL's
 [default provider](https://github.com/tpm2-software/tpm2-openssl/blob/master/doc/initialization.md#loading-multiple-providers).
+
 
 ## Help
 

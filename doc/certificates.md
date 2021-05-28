@@ -32,6 +32,28 @@ Please note that the `openssl pkcs12` tool doesn't work for TPM-based keys as
 there is no PKCS#12 file format for TPM keys.
 
 
+## Certificate Management Protocol
+
+The Certificate Management Protocol (CMP) can be used for obtaining X.509
+certificates in a public key infrastructure. The
+[`openssl cmp`](https://www.openssl.org/docs/manmaster/man1/openssl-cmp.html),
+command work as usual.
+
+**Subject to TPM performance limits.** The CMP uses a password-based MAC that
+is calculated using a high-number of digest operations. This calculation is
+very slow when calculated using the TPM hardware. You may use the
+`-propquery ?provider=tpm2,tpm2.digest!=yes` to explicitly disable TPM-based
+digest operations.
+
+For example, to perform a CMP Key Update Request do:
+```
+openssl cmp -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.digest!=yes \
+            -cmd kur -server localhost:80/pkix/ -srvcert server-cert.pem \
+            -key client-key.pem -cert client-cert.pem \
+            -newkey new-client-key.pem -certout new-client-cert.pem
+```
+
+
 ## TLS Handshake
 
 The tpm2 provider implements all operations required for establishing a
