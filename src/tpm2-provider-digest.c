@@ -7,15 +7,162 @@
 #include <openssl/params.h>
 #include <openssl/crypto.h>
 
-#include "tpm2-provider.h"
+#include "tpm2-provider-digest.h"
+
+void
+tpm2_hash_sequence_init(TPM2_HASH_SEQUENCE *seq,
+                        TPM2_PROVIDER_CTX *cprov, TPM2_ALG_ID algin)
+{
+    seq->core = cprov->core;
+    seq->esys_ctx = cprov->esys_ctx;
+    seq->algorithm = algin;
+    seq->handle = ESYS_TR_NONE;
+}
+
+int
+tpm2_hash_sequence_dup(TPM2_HASH_SEQUENCE *seq, const TPM2_HASH_SEQUENCE *src)
+{
+    TPMS_CONTEXT *context = NULL;
+    TSS2_RC r;
+
+    seq->core = src->core;
+    seq->esys_ctx = src->esys_ctx;
+    seq->algorithm = src->algorithm;
+
+    if (seq->handle != ESYS_TR_NONE) {
+        /* duplicate the sequence */
+        r = Esys_ContextSave(src->esys_ctx, src->handle, &context);
+        TPM2_CHECK_RC(src->core, r, TPM2_ERR_CANNOT_DUPLICATE, goto error);
+        r = Esys_ContextLoad(seq->esys_ctx, context, &seq->handle);
+        TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_DUPLICATE, goto error);
+        free(context);
+    } else {
+        seq->handle = ESYS_TR_NONE;
+    }
+
+    seq->buffer.size = src->buffer.size;
+    memcpy(seq->buffer.buffer, src->buffer.buffer, src->buffer.size);
+
+    return 1;
+error:
+    free(context);
+    return 0;
+}
+
+int
+tpm2_hash_sequence_start(TPM2_HASH_SEQUENCE *seq)
+{
+    TPM2B_AUTH null_auth = { .size = 0 };
+    TSS2_RC r;
+
+    seq->buffer.size = 0;
+
+    r = Esys_HashSequenceStart(seq->esys_ctx, ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
+                               &null_auth, seq->algorithm, &seq->handle);
+    TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
+
+    return 1;
+}
+
+int
+tpm2_hash_sequence_update(TPM2_HASH_SEQUENCE *seq,
+                          const unsigned char *data, size_t datalen)
+{
+    TSS2_RC r;
+
+    if (data == NULL)
+        return 1;
+
+    while (datalen > 0) {
+        size_t thislen = TPM2_MAX_DIGEST_BUFFER - seq->buffer.size;
+
+        if (datalen < thislen)
+            thislen = datalen;
+
+        memcpy(seq->buffer.buffer + seq->buffer.size, data, thislen);
+        seq->buffer.size += thislen;
+        data += thislen;
+        datalen -= thislen;
+
+        if (seq->buffer.size < TPM2_MAX_DIGEST_BUFFER)
+            return 1; /* wait for more data */
+
+        r = Esys_SequenceUpdate(seq->esys_ctx, seq->handle,
+                                ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE, &seq->buffer);
+        seq->buffer.size = 0;
+        TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
+    }
+
+    return 1;
+}
+
+int
+tpm2_hash_sequence_complete(TPM2_HASH_SEQUENCE *seq,
+                            TPM2B_DIGEST **digest, TPMT_TK_HASHCHECK **validation)
+{
+    TSS2_RC r;
+
+    if (seq->buffer.size > 0) {
+        r = Esys_SequenceUpdate(seq->esys_ctx, seq->handle,
+                                ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE, &seq->buffer);
+        seq->buffer.size = 0;
+        TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
+    }
+
+    r = Esys_SequenceComplete(seq->esys_ctx, seq->handle,
+                              ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                              NULL,
+#ifdef HAVE_TSS2_ESYS3
+                              ESYS_TR_RH_OWNER,
+#else
+                              TPM2_RH_OWNER,
+#endif
+                              digest, validation);
+    TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
+
+    /* the update may be called again to sign another data block */
+    seq->handle = ESYS_TR_NONE;
+    return 1;
+}
+
+int
+tpm2_hash_sequence_hash(TPM2_HASH_SEQUENCE *seq,
+                        const unsigned char *data, size_t datalen,
+                        TPM2B_DIGEST **digest, TPMT_TK_HASHCHECK **validation)
+{
+    TSS2_RC r;
+
+    if (datalen <= TPM2_MAX_DIGEST_BUFFER) {
+        seq->buffer.size = datalen;
+        if (data != NULL)
+            memcpy(seq->buffer.buffer, data, datalen);
+
+        r = Esys_Hash(seq->esys_ctx, ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
+                      &seq->buffer, seq->algorithm,
+#ifdef HAVE_TSS2_ESYS3
+                      ESYS_TR_RH_OWNER,
+#else
+                      TPM2_RH_OWNER,
+#endif
+                      digest, validation);
+        TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
+    } else {
+        /* too much data, we need a full sequence hashing */
+        if (!tpm2_hash_sequence_start(seq)
+                || !tpm2_hash_sequence_update(seq, data, datalen)
+                || !tpm2_hash_sequence_complete(seq, digest, validation))
+            return 0;
+    }
+
+    return 1;
+}
+
+#if WITH_OP_DIGEST
 
 typedef struct tpm2_digest_ctx_st TPM2_DIGEST_CTX;
 
 struct tpm2_digest_ctx_st {
-    const OSSL_CORE_HANDLE *core;
-    ESYS_CONTEXT *esys_ctx;
-    TPM2_ALG_ID algorithm;
-    ESYS_TR sequenceHandle;
+    TPM2_HASH_SEQUENCE hashSequence;
     TPM2B_DIGEST *digest;
 };
 
@@ -36,10 +183,7 @@ tpm2_digest_newctx_int(void *provctx, TPM2_ALG_ID algin)
     if (dctx == NULL)
         return NULL;
 
-    dctx->core = cprov->core;
-    dctx->esys_ctx = cprov->esys_ctx;
-    dctx->algorithm = algin;
-    dctx->sequenceHandle = ESYS_TR_NONE;
+    tpm2_hash_sequence_init((TPM2_HASH_SEQUENCE *)dctx, cprov, algin);
     return dctx;
 }
 
@@ -69,29 +213,15 @@ tpm2_digest_dupctx(void *ctx)
 {
     TPM2_DIGEST_CTX *src = ctx;
     TPM2_DIGEST_CTX *dctx = OPENSSL_zalloc(sizeof(TPM2_DIGEST_CTX));
-    TPMS_CONTEXT *context = NULL;
-    TSS2_RC r;
 
     DBG("DIGEST DUP\n");
     if (dctx == NULL)
         return NULL;
+    if (!tpm2_hash_sequence_dup((TPM2_HASH_SEQUENCE *)dctx, (TPM2_HASH_SEQUENCE *)src))
+        goto error;
 
-    dctx->core = src->core;
-    dctx->esys_ctx = src->esys_ctx;
-    dctx->algorithm = src->algorithm;
-    if (src->sequenceHandle != ESYS_TR_NONE) {
-        /* duplicate the sequence */
-        r = Esys_ContextSave(src->esys_ctx, src->sequenceHandle, &context);
-        TPM2_CHECK_RC(src->core, r, TPM2_ERR_CANNOT_DUPLICATE, goto error);
-        r = Esys_ContextLoad(dctx->esys_ctx, context, &dctx->sequenceHandle);
-        TPM2_CHECK_RC(dctx->core, r, TPM2_ERR_CANNOT_DUPLICATE, goto error);
-        free(context);
-    } else {
-        dctx->sequenceHandle = ESYS_TR_NONE;
-    }
     return dctx;
 error:
-    free(context);
     OPENSSL_clear_free(dctx, sizeof(TPM2_DIGEST_CTX));
     return NULL;
 }
@@ -100,56 +230,18 @@ static int
 tpm2_digest_init(void *ctx, const OSSL_PARAM params[])
 {
     TPM2_DIGEST_CTX *dctx = ctx;
-    TPM2B_AUTH null_auth = { .size = 0 };
-    TSS2_RC r;
 
     DBG("DIGEST INIT\n");
-    r = Esys_HashSequenceStart(dctx->esys_ctx, ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
-                               &null_auth, dctx->algorithm, &dctx->sequenceHandle);
-    TPM2_CHECK_RC(dctx->core, r, TPM2_ERR_CANNOT_HASH, return 0);
-
-    return 1;
+    return tpm2_hash_sequence_start((TPM2_HASH_SEQUENCE *)dctx);
 }
 
 static int
-tpm2_digest_update(void *ctx, const unsigned char *data, size_t datalen)
+tpm2_digest_update(void *ctx, const unsigned char *in, size_t inl)
 {
     TPM2_DIGEST_CTX *dctx = ctx;
-    TPM2B_MAX_BUFFER buf;
-    TSS2_RC r;
 
     DBG("DIGEST UPDATE\n");
-    if (datalen > TPM2_MAX_DIGEST_BUFFER)
-        return 0;
-
-    buf.size = datalen;
-    memcpy(buf.buffer, data, datalen);
-
-    r = Esys_SequenceUpdate(dctx->esys_ctx, dctx->sequenceHandle,
-                            ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE, &buf);
-    TPM2_CHECK_RC(dctx->core, r, TPM2_ERR_CANNOT_HASH, return 0);
-
-    return 1;
-}
-
-static int
-digest_calculate(TPM2_DIGEST_CTX *dctx)
-{
-    TSS2_RC r;
-
-    DBG("DIGEST CALCULATE\n");
-    r = Esys_SequenceComplete(dctx->esys_ctx, dctx->sequenceHandle,
-                              ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
-                              NULL,
-#ifdef HAVE_TSS2_ESYS3
-                              ESYS_TR_RH_NULL,
-#else
-                              TPM2_RH_NULL,
-#endif
-                              &dctx->digest, NULL);
-    TPM2_CHECK_RC(dctx->core, r, TPM2_ERR_CANNOT_HASH, return 0);
-
-    return 1;
+    return tpm2_hash_sequence_update((TPM2_HASH_SEQUENCE *)dctx, in, inl);
 }
 
 static int
@@ -158,7 +250,8 @@ tpm2_digest_final(void *ctx, unsigned char *out, size_t *outl, size_t outsz)
     TPM2_DIGEST_CTX *dctx = ctx;
 
     DBG("DIGEST FINAL\n");
-    if (!dctx->digest && !digest_calculate(dctx))
+    if (!dctx->digest && !tpm2_hash_sequence_complete((TPM2_HASH_SEQUENCE *)dctx,
+                                                      &dctx->digest, NULL))
         return 0;
 
     /* copy buffer */
@@ -171,6 +264,46 @@ tpm2_digest_final(void *ctx, unsigned char *out, size_t *outl, size_t outsz)
 
     return 1;
 }
+
+static int
+tpm2_digest_digest_int(void *provctx, TPM2_ALG_ID algin, const unsigned char *in,
+                       size_t inl, unsigned char *out, size_t *outl, size_t outsz)
+{
+    TPM2_PROVIDER_CTX *cprov = provctx;
+    TPM2_HASH_SEQUENCE *hctx = OPENSSL_zalloc(sizeof(TPM2_HASH_SEQUENCE));
+    TPM2B_DIGEST *digest = NULL;
+
+    DBG("DIGEST DIGEST\n");
+    if (hctx == NULL)
+        return 0;
+
+    tpm2_hash_sequence_init(hctx, cprov, algin);
+    if (!tpm2_hash_sequence_hash(hctx, in, inl, &digest, NULL))
+        goto error;
+
+    /* copy buffer */
+    *outl = digest->size;
+    if (out != NULL) {
+        if (*outl > outsz)
+            return 0;
+        memcpy(out, digest->buffer, *outl);
+    }
+
+    return 1;
+error:
+    free(digest);
+    OPENSSL_clear_free(hctx, sizeof(TPM2_HASH_SEQUENCE));
+    return 0;
+}
+
+#define IMPLEMENT_DIGEST_DIGEST(alg) \
+    static OSSL_FUNC_digest_digest_fn tpm2_digest_##alg##_digest; \
+    static int \
+    tpm2_digest_##alg##_digest(void *provctx, const unsigned char *in, size_t inl, \
+                               unsigned char *out, size_t *outl, size_t outsz) \
+    { \
+        return tpm2_digest_digest_int(provctx, TPM2_ALG_##alg, in, inl, out, outl, outsz); \
+    }
 
 static const OSSL_PARAM *
 tpm2_digest_gettable_params(void *provctx)
@@ -212,13 +345,14 @@ tpm2_digest_get_params_int(OSSL_PARAM params[], size_t size)
     }
 
 #define IMPLEMENT_DIGEST_FUNCTIONS(alg) \
-    const OSSL_DISPATCH tpm2_digest_##alg##_functions[] = { \
+    static const OSSL_DISPATCH tpm2_digest_##alg##_functions[] = { \
         { OSSL_FUNC_DIGEST_NEWCTX, (void(*)(void))tpm2_digest_##alg##_newctx }, \
         { OSSL_FUNC_DIGEST_FREECTX, (void(*)(void))tpm2_digest_freectx }, \
         { OSSL_FUNC_DIGEST_DUPCTX, (void(*)(void))tpm2_digest_dupctx }, \
         { OSSL_FUNC_DIGEST_INIT, (void(*)(void))tpm2_digest_init }, \
         { OSSL_FUNC_DIGEST_UPDATE, (void(*)(void))tpm2_digest_update }, \
         { OSSL_FUNC_DIGEST_FINAL, (void(*)(void))tpm2_digest_final }, \
+        { OSSL_FUNC_DIGEST_DIGEST, (void(*)(void))tpm2_digest_##alg##_digest }, \
         { OSSL_FUNC_DIGEST_GETTABLE_PARAMS, (void(*)(void))tpm2_digest_gettable_params }, \
         { OSSL_FUNC_DIGEST_GET_PARAMS, (void(*)(void))tpm2_digest_##alg##_get_params }, \
         { 0, NULL } \
@@ -233,15 +367,17 @@ tpm2_digest_get_params_int(OSSL_PARAM params[], size_t size)
             return NULL; \
     }
 
-#define DECLARE_DIGEST(alg) \
+#define IMPLEMENT_DIGEST(alg) \
     IMPLEMENT_DIGEST_NEW_CTX(alg) \
+    IMPLEMENT_DIGEST_DIGEST(alg) \
     IMPLEMENT_DIGEST_GET_PARAMS(alg) \
     IMPLEMENT_DIGEST_FUNCTIONS(alg) \
     IMPLEMENT_DIGEST_DISPATCH(alg)
 
-DECLARE_DIGEST(SHA1)
-DECLARE_DIGEST(SHA256)
-DECLARE_DIGEST(SHA384)
-DECLARE_DIGEST(SHA512)
-DECLARE_DIGEST(SM3_256)
+IMPLEMENT_DIGEST(SHA1)
+IMPLEMENT_DIGEST(SHA256)
+IMPLEMENT_DIGEST(SHA384)
+IMPLEMENT_DIGEST(SHA512)
+IMPLEMENT_DIGEST(SM3_256)
 
+#endif /* WITH_OP_DIGEST */

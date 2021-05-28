@@ -23,10 +23,9 @@ tpm2_la_SOURCES = \
     src/tpm2-provider-keymgmt-ec.c \
     src/tpm2-provider-keyexch.c \
     src/tpm2-provider-asymcipher-rsa.c \
+    src/tpm2-provider-digest.c \
+    src/tpm2-provider-digest.h \
     src/tpm2-provider-signature.c
-if WITH_OP_DIGEST
-tpm2_la_SOURCES += src/tpm2-provider-digest.c
-endif
 if WITH_OP_CIPHER
 tpm2_la_SOURCES += src/tpm2-provider-cipher.c
 endif
