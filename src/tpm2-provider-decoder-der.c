@@ -23,8 +23,6 @@ struct tpm2_der_decoder_ctx_st {
 
 static OSSL_FUNC_decoder_newctx_fn tpm2_der_decoder_newctx;
 static OSSL_FUNC_decoder_freectx_fn tpm2_der_decoder_freectx;
-static OSSL_FUNC_decoder_gettable_params_fn tpm2_der_decoder_gettable_params;
-static OSSL_FUNC_decoder_get_params_fn tpm2_der_decoder_get_params;
 static OSSL_FUNC_decoder_decode_fn tpm2_der_decoder_decode;
 
 static void *
@@ -47,33 +45,6 @@ tpm2_der_decoder_freectx(void *ctx)
     TPM2_DER_DECODER_CTX *dctx = ctx;
 
     OPENSSL_clear_free(dctx, sizeof(TPM2_DER_DECODER_CTX));
-}
-
-static const
-OSSL_PARAM *tpm2_der_decoder_gettable_params(void *provctx)
-{
-    static const OSSL_PARAM gettables[] = {
-        { OSSL_DECODER_PARAM_INPUT_TYPE, OSSL_PARAM_UTF8_PTR, NULL, 0, 0 },
-        OSSL_PARAM_END,
-    };
-
-    return gettables;
-}
-
-static int
-tpm2_der_decoder_get_params(OSSL_PARAM params[])
-{
-    OSSL_PARAM *p;
-
-    if (params == NULL)
-        return 1;
-    TRACE_PARAMS("DER DECODER GET_PARAMS", params);
-
-    p = OSSL_PARAM_locate(params, OSSL_DECODER_PARAM_INPUT_TYPE);
-    if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, "PEM"))
-        return 0;
-
-    return 1;
 }
 
 static int
@@ -119,8 +90,6 @@ tpm2_der_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
 const OSSL_DISPATCH tpm2_der_decoder_functions[] = {
     { OSSL_FUNC_DECODER_NEWCTX, (void (*)(void))tpm2_der_decoder_newctx },
     { OSSL_FUNC_DECODER_FREECTX, (void (*)(void))tpm2_der_decoder_freectx },
-    { OSSL_FUNC_DECODER_GETTABLE_PARAMS, (void (*)(void))tpm2_der_decoder_gettable_params },
-    { OSSL_FUNC_DECODER_GET_PARAMS, (void (*)(void))tpm2_der_decoder_get_params },
     { OSSL_FUNC_DECODER_DECODE, (void (*)(void))tpm2_der_decoder_decode },
     { 0, NULL }
 };

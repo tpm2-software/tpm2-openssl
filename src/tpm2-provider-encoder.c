@@ -20,8 +20,6 @@ struct tpm2_encoder_ctx_st {
 
 static OSSL_FUNC_encoder_newctx_fn tpm2_encoder_newctx;
 static OSSL_FUNC_encoder_freectx_fn tpm2_encoder_freectx;
-static OSSL_FUNC_encoder_gettable_params_fn tpm2_encoder_gettable_params_text;
-static OSSL_FUNC_encoder_get_params_fn tpm2_encoder_get_params_text;
 static OSSL_FUNC_encoder_encode_fn tpm2_encoder_encode_text;
 
 static void *
@@ -48,47 +46,6 @@ tpm2_encoder_freectx(void *ctx)
 
     OPENSSL_clear_free(ectx, sizeof(TPM2_ENCODER_CTX));
 }
-
-static const OSSL_PARAM *
-tpm2_encoder_gettable_params(void *provctx)
-{
-    static const OSSL_PARAM gettables[] = {
-        { OSSL_ENCODER_PARAM_OUTPUT_TYPE, OSSL_PARAM_UTF8_PTR, NULL, 0, 0 },
-        { OSSL_ENCODER_PARAM_OUTPUT_STRUCTURE, OSSL_PARAM_UTF8_PTR, NULL, 0, 0 },
-        OSSL_PARAM_END,
-    };
-
-    return gettables;
-}
-
-static int
-tpm2_encoder_get_params_int(OSSL_PARAM params[],
-                                const char *otype, const char *ostructure)
-{
-    OSSL_PARAM *p;
-
-    if (params == NULL)
-        return 1;
-
-    p = OSSL_PARAM_locate(params, OSSL_ENCODER_PARAM_OUTPUT_TYPE);
-    if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, otype))
-        return 0;
-
-    p = OSSL_PARAM_locate(params, OSSL_ENCODER_PARAM_OUTPUT_STRUCTURE);
-    if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, ostructure))
-        return 0;
-
-    return 1;
-};
-
-#define IMPLEMENT_ENCODER_GET_PARAMS(otype, ostructure, oformat) \
-    static OSSL_FUNC_encoder_get_params_fn tpm2_##otype##_encoder_get_params_##ostructure##_##oformat; \
-    static int \
-    tpm2_##otype##_encoder_get_params_##ostructure##_##oformat(OSSL_PARAM params[]) \
-    { \
-        TRACE_PARAMS("ENCODER " #otype " " #ostructure "/" #oformat " GET_PARAMS", params); \
-        return tpm2_encoder_get_params_int(params, #oformat, #ostructure); \
-    }
 
 #define IMPLEMENT_ENCODER_DOES_SELECTION(otype, ostructure, oformat) \
     static OSSL_FUNC_encoder_does_selection_fn tpm2_##otype##_encoder_##ostructure##_##oformat##_does_selection; \
@@ -139,15 +96,12 @@ tpm2_encoder_get_params_int(OSSL_PARAM params[],
     const OSSL_DISPATCH tpm2_##otype##_encoder_##ostructure##_##oformat##_functions[] = { \
         { OSSL_FUNC_ENCODER_NEWCTX, (void (*)(void))tpm2_encoder_newctx }, \
         { OSSL_FUNC_ENCODER_FREECTX, (void (*)(void))tpm2_encoder_freectx }, \
-        { OSSL_FUNC_ENCODER_GETTABLE_PARAMS, (void (*)(void))tpm2_encoder_gettable_params }, \
-        { OSSL_FUNC_ENCODER_GET_PARAMS, (void (*)(void))tpm2_##otype##_encoder_get_params_##ostructure##_##oformat }, \
         { OSSL_FUNC_ENCODER_DOES_SELECTION, (void (*)(void))tpm2_##otype##_encoder_##ostructure##_##oformat##_does_selection }, \
         { OSSL_FUNC_ENCODER_ENCODE, (void (*)(void))tpm2_##otype##_encoder_encode_##ostructure##_##oformat }, \
         { 0, NULL } \
     };
 
 #define DECLARE_ENCODER(otype, ostructure, oformat) \
-    IMPLEMENT_ENCODER_GET_PARAMS(otype, ostructure, oformat) \
     IMPLEMENT_ENCODER_DOES_SELECTION(otype, ostructure, oformat) \
     IMPLEMENT_ENCODER_ENCODE(otype, ostructure, oformat) \
     IMPLEMENT_ENCODER_DISPATCH(otype, ostructure, oformat)
@@ -510,33 +464,6 @@ static int print_labeled_buf(BIO *out, const char *label,
     return 1;
 }
 
-static const OSSL_PARAM *
-tpm2_encoder_gettable_params_text(void *provctx)
-{
-    static const OSSL_PARAM gettables[] = {
-        { OSSL_ENCODER_PARAM_OUTPUT_TYPE, OSSL_PARAM_UTF8_PTR, NULL, 0, 0 },
-        OSSL_PARAM_END,
-    };
-
-    return gettables;
-}
-
-static int
-tpm2_encoder_get_params_text(OSSL_PARAM params[])
-{
-    OSSL_PARAM *p;
-
-    if (params == NULL)
-        return 1;
-    TRACE_PARAMS("ENCODER GET_PARAMS", params);
-
-    p = OSSL_PARAM_locate(params, OSSL_ENCODER_PARAM_OUTPUT_TYPE);
-    if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, "text"))
-        return 0;
-
-    return 1;
-}
-
 static int
 print_object_attributes(BIO *bout, TPMA_OBJECT objectAttributes)
 {
@@ -606,8 +533,6 @@ tpm2_rsa_encoder_encode_text(void *ctx, OSSL_CORE_BIO *cout, const void *key,
 const OSSL_DISPATCH tpm2_rsa_encoder_text_functions[] = {
     { OSSL_FUNC_ENCODER_NEWCTX, (void (*)(void))tpm2_encoder_newctx },
     { OSSL_FUNC_ENCODER_FREECTX, (void (*)(void))tpm2_encoder_freectx },
-    { OSSL_FUNC_ENCODER_GETTABLE_PARAMS, (void (*)(void))tpm2_encoder_gettable_params_text },
-    { OSSL_FUNC_ENCODER_GET_PARAMS, (void (*)(void))tpm2_encoder_get_params_text },
     { OSSL_FUNC_ENCODER_ENCODE, (void (*)(void))tpm2_rsa_encoder_encode_text },
     { 0, NULL }
 };
@@ -651,8 +576,6 @@ tpm2_ec_encoder_encode_text(void *ctx, OSSL_CORE_BIO *cout, const void *key,
 const OSSL_DISPATCH tpm2_ec_encoder_text_functions[] = {
     { OSSL_FUNC_ENCODER_NEWCTX, (void (*)(void))tpm2_encoder_newctx },
     { OSSL_FUNC_ENCODER_FREECTX, (void (*)(void))tpm2_encoder_freectx },
-    { OSSL_FUNC_ENCODER_GETTABLE_PARAMS, (void (*)(void))tpm2_encoder_gettable_params_text },
-    { OSSL_FUNC_ENCODER_GET_PARAMS, (void (*)(void))tpm2_encoder_get_params_text },
     { OSSL_FUNC_ENCODER_ENCODE, (void (*)(void))tpm2_ec_encoder_encode_text },
     { 0, NULL }
 };
