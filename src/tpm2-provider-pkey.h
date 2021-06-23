@@ -39,5 +39,13 @@ tpm2_build_primary(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
 const char *
 tpm2_openssl_type(TPM2_KEYDATA *keydata);
 
+int
+tpm2_rsa_keymgmt_export(void *keydata, int selection,
+                        OSSL_CALLBACK *param_cb, void *cbarg);
+
+int
+tpm2_ec_keymgmt_export(void *keydata, int selection,
+                        OSSL_CALLBACK *param_cb, void *cbarg);
+
 #endif /* TPM2_PROVIDER_PKEY_H */
 

@@ -28,6 +28,7 @@ struct tpm2_tss2_decoder_ctx_st {
 static OSSL_FUNC_decoder_newctx_fn tpm2_tss2_decoder_newctx;
 static OSSL_FUNC_decoder_freectx_fn tpm2_tss2_decoder_freectx;
 static OSSL_FUNC_decoder_decode_fn tpm2_tss2_decoder_decode;
+static OSSL_FUNC_decoder_export_object_fn tpm2_tss2_decoder_export_object;
 
 static void *
 tpm2_tss2_decoder_newctx(void *provctx)
@@ -157,7 +158,7 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
     pkey->capability = dctx->capability;
     pkey->object = ESYS_TR_NONE;
 
-    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
+    if ((selection & OSSL_KEYMGMT_SELECT_ALL) != 0)
         keytype = decode_privkey(dctx, pkey, bin, pw_cb, pw_cbarg);
 
     if (keytype == NULL && (selection & OSSL_KEYMGMT_SELECT_ALL_PARAMETERS) != 0) {
@@ -204,10 +205,34 @@ error1:
     return res;
 }
 
+static int
+tpm2_tss2_decoder_export_object(void *ctx, const void *objref, size_t objref_sz,
+                                OSSL_CALLBACK *export_cb, void *export_cbarg)
+{
+    TPM2_TSS2_DECODER_CTX *dctx = ctx;
+    TPM2_PKEY *keydata;
+
+    DBG("TSS2 DECODER EXPORT_OBJECT\n");
+    if (objref_sz == sizeof(keydata)) {
+        /* The contents of the reference is the address to our object */
+        keydata = *(TPM2_PKEY **)objref;
+
+        if (keydata->data.pub.publicArea.type == TPM2_ALG_RSA)
+            return tpm2_rsa_keymgmt_export(keydata, OSSL_KEYMGMT_SELECT_ALL,
+                                           export_cb, export_cbarg);
+        else if (keydata->data.pub.publicArea.type == TPM2_ALG_ECC)
+            return tpm2_ec_keymgmt_export(keydata, OSSL_KEYMGMT_SELECT_ALL,
+                                          export_cb, export_cbarg);
+    }
+
+    return 0;
+}
+
 const OSSL_DISPATCH tpm2_tss_decoder_functions[] = {
     { OSSL_FUNC_DECODER_NEWCTX, (void (*)(void))tpm2_tss2_decoder_newctx },
     { OSSL_FUNC_DECODER_FREECTX, (void (*)(void))tpm2_tss2_decoder_freectx },
     { OSSL_FUNC_DECODER_DECODE, (void (*)(void))tpm2_tss2_decoder_decode },
+    { OSSL_FUNC_DECODER_EXPORT_OBJECT, (void (*)(void))tpm2_tss2_decoder_export_object },
     { 0, NULL }
 };
 

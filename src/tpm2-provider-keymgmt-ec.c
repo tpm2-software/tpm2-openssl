@@ -65,7 +65,7 @@ static OSSL_FUNC_keymgmt_has_fn tpm2_ec_keymgmt_has;
 static OSSL_FUNC_keymgmt_match_fn tpm2_ec_keymgmt_match;
 static OSSL_FUNC_keymgmt_import_fn tpm2_ec_keymgmt_import;
 static OSSL_FUNC_keymgmt_import_types_fn tpm2_ec_keymgmt_eximport_types;
-static OSSL_FUNC_keymgmt_export_fn tpm2_ec_keymgmt_export;
+OSSL_FUNC_keymgmt_export_fn tpm2_ec_keymgmt_export;
 
 static void *
 tpm2_ec_keymgmt_new(void *provctx)
@@ -535,26 +535,38 @@ tpm2_ec_keymgmt_import(void *keydata,
     return 1;
 }
 
-static int
+int
 tpm2_ec_keymgmt_export(void *keydata, int selection,
                         OSSL_CALLBACK *param_cb, void *cbarg)
 {
     TPM2_PKEY *pkey = (TPM2_PKEY *)keydata;
-    UINT32 exponent;
-    int ok = 1;
+    int curve_nid;
+    size_t pubsize;
+    void *pubbuff = NULL;
+    int ok = 0;
 
     DBG("EC EXPORT %x\n", selection);
     if (pkey == NULL)
         return 0;
 
-    if (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY)
+    if (!(selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY))
         return 0;
 
+    curve_nid = tpm2_ecc_curve_to_nid(TPM2_PKEY_EC_CURVE(pkey));
+
+    pubsize = tpm2_ecc_point_to_uncompressed(
+                &pkey->data.pub.publicArea.unique.ecc.x,
+                &pkey->data.pub.publicArea.unique.ecc.y, &pubbuff);
+
     OSSL_PARAM params[3];
+    params[0] = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,
+                                                 (char *)OBJ_nid2sn(curve_nid), 0);
+    params[1] = OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_PUB_KEY,
+                                                  pubbuff, pubsize);
     params[2] = OSSL_PARAM_construct_end();
 
     ok = param_cb(params, cbarg);
-
+    OPENSSL_free(pubbuff);
     return ok;
 }
 

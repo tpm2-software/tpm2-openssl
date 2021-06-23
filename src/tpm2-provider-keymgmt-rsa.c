@@ -67,7 +67,7 @@ static OSSL_FUNC_keymgmt_has_fn tpm2_rsa_keymgmt_has;
 static OSSL_FUNC_keymgmt_match_fn tpm2_rsa_keymgmt_match;
 static OSSL_FUNC_keymgmt_import_fn tpm2_rsa_keymgmt_import;
 static OSSL_FUNC_keymgmt_import_types_fn tpm2_rsa_keymgmt_eximport_types;
-static OSSL_FUNC_keymgmt_export_fn tpm2_rsa_keymgmt_export;
+OSSL_FUNC_keymgmt_export_fn tpm2_rsa_keymgmt_export;
 
 static void *
 tpm2_rsa_keymgmt_new(void *provctx)
@@ -532,7 +532,7 @@ tpm2_rsa_keymgmt_import(void *keydata,
     return 1;
 }
 
-static int
+int
 tpm2_rsa_keymgmt_export(void *keydata, int selection,
                         OSSL_CALLBACK *param_cb, void *cbarg)
 {
@@ -544,7 +544,7 @@ tpm2_rsa_keymgmt_export(void *keydata, int selection,
     if (pkey == NULL)
         return 0;
 
-    if (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY)
+    if (!(selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY))
         return 0;
 
     OSSL_PARAM params[3];
