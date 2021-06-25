@@ -67,5 +67,7 @@ AS_IF([test "x$enable_tss2_rc" != "xno"], [
     AC_DEFINE(WITH_TSS2_RC)
     ])
 
+AC_SEARCH_LIBS([cbrt], [m])
+
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
