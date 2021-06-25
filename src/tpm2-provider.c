@@ -183,8 +183,8 @@ static const OSSL_ALGORITHM tpm2_asymciphers[] = {
     { NULL, NULL, NULL }
 };
 
-extern const OSSL_DISPATCH tpm2_tss_encoder_pkcs8_der_functions[];
-extern const OSSL_DISPATCH tpm2_tss_encoder_pkcs8_pem_functions[];
+extern const OSSL_DISPATCH tpm2_tss_encoder_PrivateKeyInfo_der_functions[];
+extern const OSSL_DISPATCH tpm2_tss_encoder_PrivateKeyInfo_pem_functions[];
 extern const OSSL_DISPATCH tpm2_rsa_encoder_pkcs1_der_functions[];
 extern const OSSL_DISPATCH tpm2_rsa_encoder_pkcs1_pem_functions[];
 extern const OSSL_DISPATCH tpm2_rsa_encoder_SubjectPublicKeyInfo_der_functions[];
@@ -198,12 +198,12 @@ extern const OSSL_DISPATCH tpm2_ec_encoder_text_functions[];
 
 static const OSSL_ALGORITHM tpm2_encoders[] = {
     /* private key */
-    { "RSA", "provider=tpm2,output=der,structure=pkcs8", tpm2_tss_encoder_pkcs8_der_functions },
-    { "RSA", "provider=tpm2,output=pem,structure=pkcs8", tpm2_tss_encoder_pkcs8_pem_functions },
-    { "RSA-PSS", "provider=tpm2,output=der,structure=pkcs8", tpm2_tss_encoder_pkcs8_der_functions },
-    { "RSA-PSS", "provider=tpm2,output=pem,structure=pkcs8", tpm2_tss_encoder_pkcs8_pem_functions },
-    { "EC", "provider=tpm2,output=der,structure=pkcs8", tpm2_tss_encoder_pkcs8_der_functions },
-    { "EC", "provider=tpm2,output=pem,structure=pkcs8", tpm2_tss_encoder_pkcs8_pem_functions },
+    { "RSA", "provider=tpm2,output=der,structure=PrivateKeyInfo", tpm2_tss_encoder_PrivateKeyInfo_der_functions },
+    { "RSA", "provider=tpm2,output=pem,structure=PrivateKeyInfo", tpm2_tss_encoder_PrivateKeyInfo_pem_functions },
+    { "RSA-PSS", "provider=tpm2,output=der,structure=PrivateKeyInfo", tpm2_tss_encoder_PrivateKeyInfo_der_functions },
+    { "RSA-PSS", "provider=tpm2,output=pem,structure=PrivateKeyInfo", tpm2_tss_encoder_PrivateKeyInfo_pem_functions },
+    { "EC", "provider=tpm2,output=der,structure=PrivateKeyInfo", tpm2_tss_encoder_PrivateKeyInfo_der_functions },
+    { "EC", "provider=tpm2,output=pem,structure=PrivateKeyInfo", tpm2_tss_encoder_PrivateKeyInfo_pem_functions },
     /* public key */
     { "RSA", "provider=tpm2,output=der,structure=pkcs1", tpm2_rsa_encoder_pkcs1_der_functions },
     { "RSA", "provider=tpm2,output=pem,structure=pkcs1", tpm2_rsa_encoder_pkcs1_pem_functions },
