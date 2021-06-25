@@ -113,27 +113,27 @@ typedef int (*tpm2_tss_encode_fun)(TPM2_ENCODER_CTX *, BIO *, TPM2_PKEY *);
 /* TSS2 PRIVATE KEY encoders */
 
 static int
-tpm2_tss_encode_private_pkcs8_der(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
+tpm2_tss_encode_private_PrivateKeyInfo_der(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
 {
     return tpm2_keydata_write(&pkey->data, bout, KEY_FORMAT_DER);
 }
 
-#define tpm2_tss_encode_public_pkcs8_der NO_ENCODE
-#define tpm2_tss_encode_parameters_pkcs8_der NO_ENCODE
+#define tpm2_tss_encode_public_PrivateKeyInfo_der NO_ENCODE
+#define tpm2_tss_encode_parameters_PrivateKeyInfo_der NO_ENCODE
 
-DECLARE_ENCODER(tss, pkcs8, der)
+DECLARE_ENCODER(tss, PrivateKeyInfo, der)
 
 
 static int
-tpm2_tss_encode_private_pkcs8_pem(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
+tpm2_tss_encode_private_PrivateKeyInfo_pem(TPM2_ENCODER_CTX *ectx, BIO *bout, TPM2_PKEY *pkey)
 {
     return tpm2_keydata_write(&pkey->data, bout, KEY_FORMAT_PEM);
 }
 
-#define tpm2_tss_encode_public_pkcs8_pem NO_ENCODE
-#define tpm2_tss_encode_parameters_pkcs8_pem NO_ENCODE
+#define tpm2_tss_encode_public_PrivateKeyInfo_pem NO_ENCODE
+#define tpm2_tss_encode_parameters_PrivateKeyInfo_pem NO_ENCODE
 
-DECLARE_ENCODER(tss, pkcs8, pem)
+DECLARE_ENCODER(tss, PrivateKeyInfo, pem)
 
 
 /* RSA PUBLIC KEY encoders */
