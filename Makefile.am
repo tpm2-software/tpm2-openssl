@@ -14,7 +14,6 @@ tpm2_la_SOURCES = \
     src/tpm2-provider-rand.c \
     src/tpm2-provider-pkey.c \
     src/tpm2-provider-pkey.h \
-    src/tpm2-provider-store-file.c \
     src/tpm2-provider-store-object.c \
     src/tpm2-provider-decoder-der.c \
     src/tpm2-provider-decoder-tss2.c \
