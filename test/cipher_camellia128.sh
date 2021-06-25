@@ -3,6 +3,8 @@
 set -eufx
 # skip when the command is not supported
 tpm2_getcap commands | grep EncryptDecrypt || exit 77
+# skip when the algorithm is not supported
+tpm2_getcap algorithms | grep ^camellia: || exit 77
 
 echo -n "abcde12345abcde12345" > testdata
 

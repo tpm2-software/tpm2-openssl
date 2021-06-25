@@ -3,6 +3,8 @@
 set -eufx
 # skip when the command is not supported
 tpm2_getcap commands | grep EncryptDecrypt || exit 77
+# skip when the algorithm is not supported
+tpm2_getcap algorithms | grep ^aes: || exit 77
 
 # must be 32 characters
 echo -n "abcde12345abcde12345abcde12345ab" > testdata
