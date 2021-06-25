@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 
 #include <string.h>
+#include <math.h>
 
 #include <openssl/rsa.h>
 #include <openssl/bn.h>
@@ -370,6 +371,28 @@ tpm2_rsa_keymgmt_get_params(void *keydata, OSSL_PARAM params[])
     p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_BITS);
     if (p != NULL && !OSSL_PARAM_set_int(p, TPM2_PKEY_RSA_BITS(pkey)))
         return 0;
+    p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_SECURITY_BITS);
+    if (p != NULL) {
+        /*
+         * NIST SP 800-56B rev 2 Appendix D: Maximum Security Strength
+         * Estimates for IFC Modulus Lengths.
+         *
+         * E = \frac{1.923 \sqrt[3]{nBits \cdot log_e(2)}
+         *           \cdot(log_e(nBits \cdot log_e(2))^{2/3} - 4.69}{log_e(2)}
+         */
+
+        double nBits = TPM2_PKEY_RSA_BITS(pkey);
+        double log_2 = log(2.0);
+        double e =
+            ( 1.923
+              * cbrt(nBits * log_2)
+              * cbrt(pow(log(nBits * log_2), 2.0))
+              - 4.69 )
+            / log_2;
+
+        if (!OSSL_PARAM_set_int(p, (int)e))
+            return 0;
+    }
     p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_MAX_SIZE);
     if (p != NULL && !OSSL_PARAM_set_int(p, TPM2_MAX_RSA_KEY_BYTES))
         return 0;
@@ -400,6 +423,7 @@ tpm2_rsa_keymgmt_gettable_params(void *provctx)
 {
     static OSSL_PARAM gettable[] = {
         OSSL_PARAM_int(OSSL_PKEY_PARAM_BITS, NULL),
+        OSSL_PARAM_int(OSSL_PKEY_PARAM_SECURITY_BITS, NULL),
         OSSL_PARAM_int(OSSL_PKEY_PARAM_MAX_SIZE, NULL),
         /* public key */
         OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_N, NULL, 0),

@@ -352,6 +352,27 @@ tpm2_ec_keymgmt_get_params(void *keydata, OSSL_PARAM params[])
     p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_BITS);
     if (p != NULL && !OSSL_PARAM_set_int(p, details->keySize))
         goto error;
+    p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_SECURITY_BITS);
+    if (p != NULL) {
+        int sec_bits;
+
+        /* We apply the same logic as OpenSSL does */
+        if (details->keySize >= 512)
+            sec_bits = 256;
+        else if (details->keySize >= 384)
+            sec_bits = 192;
+        else if (details->keySize >= 256)
+            sec_bits = 128;
+        else if (details->keySize >= 224)
+            sec_bits = 112;
+        else if (details->keySize >= 160)
+            sec_bits = 80;
+        else
+            sec_bits = details->keySize / 2;
+
+        if (!OSSL_PARAM_set_int(p, sec_bits))
+            goto error;
+    }
     /* reserve space for two uncompressed coordinates + initial byte */
     p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_MAX_SIZE); /* max signature size */
     if (p != NULL && !OSSL_PARAM_set_int(p, tpm2_ecdsa_size(
@@ -403,6 +424,7 @@ tpm2_ec_keymgmt_gettable_params(void *provctx)
     static OSSL_PARAM gettable[] = {
         OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME, NULL, 0),
         OSSL_PARAM_int(OSSL_PKEY_PARAM_BITS, NULL),
+        OSSL_PARAM_int(OSSL_PKEY_PARAM_SECURITY_BITS, NULL),
         OSSL_PARAM_int(OSSL_PKEY_PARAM_MAX_SIZE, NULL),
         /* static curve parameters */
         OSSL_PARAM_BN(OSSL_PKEY_PARAM_EC_P, NULL, 0),
