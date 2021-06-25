@@ -3,7 +3,7 @@
 set -eufx
 
 # create root CA key and certificate
-openssl req -provider tpm2 -x509 -newkey rsa:2048 -sha256 -nodes \
+openssl req -provider tpm2 -provider base -x509 -newkey rsa:2048 -sha256 -nodes \
             -subj "/C=GB/CN=root.example.com" -extensions v3_ca \
             -keyout test-ca-key.pem -out test-ca-cert.pem
 
@@ -12,7 +12,9 @@ openssl x509 -in test-ca-cert.pem -noout -text
 # create CMP server key and certificate, signed by the root CA
 openssl genrsa -out test-server-key.pem 2048
 
-openssl req -provider tpm2 -x509 -sha256 -nodes \
+# We use the default provider here, to get the default RSA keymgmt to handle
+# the perfectly normal RSA key to be found in test-server-key.pem
+openssl req -provider tpm2 -provider default -x509 -sha256 -nodes \
             -subj "/C=GB/CN=server.example.com" -extensions usr_cert \
             -CAkey test-ca-key.pem -CA test-ca-cert.pem \
             -key test-server-key.pem -out test-server-cert.pem
@@ -20,7 +22,7 @@ openssl req -provider tpm2 -x509 -sha256 -nodes \
 openssl x509 -in test-server-cert.pem -noout -text
 
 # create client key and certificate, signed by the root CA
-openssl req -provider tpm2 -x509 -newkey rsa:2048 -sha256 -nodes \
+openssl req -provider tpm2 -provider base -x509 -newkey rsa:2048 -sha256 -nodes \
             -subj "/C=GB/CN=client.example.com" -extensions usr_cert \
             -CAkey test-ca-key.pem -CA test-ca-cert.pem \
             -keyout test-client-key.pem -out test-client-cert.pem
@@ -46,7 +48,7 @@ cmp test-my-cert.pem test-client-cert.pem
 cmp test-my-ca.pem test-ca-cert.pem
 
 # create another client key and certificate, signed by the root CA
-openssl req -provider tpm2 -x509 -newkey rsa:2048 -sha256 -nodes \
+openssl req -provider tpm2 -provider base -x509 -newkey rsa:2048 -sha256 -nodes \
             -subj "/C=GB/CN=client.example.com" -extensions usr_cert \
             -CAkey test-ca-key.pem -CA test-ca-cert.pem \
             -keyout test-client-key2.pem -out test-client-cert2.pem

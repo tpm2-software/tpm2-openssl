@@ -234,7 +234,9 @@ extern const OSSL_DISPATCH tpm2_file_store_functions[];
 extern const OSSL_DISPATCH tpm2_object_store_functions[];
 
 static const OSSL_ALGORITHM tpm2_stores[] = {
+#if 0
     { "file", TPM2_PROPS(store), tpm2_file_store_functions },
+#endif
     { "object", TPM2_PROPS(store), tpm2_object_store_functions },
     { "handle", TPM2_PROPS(store), tpm2_object_store_functions },
     { NULL, NULL, NULL }

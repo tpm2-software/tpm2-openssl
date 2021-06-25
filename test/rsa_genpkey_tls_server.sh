@@ -31,7 +31,7 @@ DNS.1               = localhost
 EOF
 
 # create a RSAE private key and then generate a self-signed certificate for it
-openssl req -provider tpm2 -x509 -config testcert.conf -out testcert.pem
+openssl req -provider tpm2 -provider base -x509 -config testcert.conf -out testcert.pem
 
 # display content of the certificate
 openssl x509 -text -noout -in testcert.pem

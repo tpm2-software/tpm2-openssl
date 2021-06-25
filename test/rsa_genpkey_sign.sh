@@ -6,15 +6,15 @@ set -eufx
 echo -n "abcde12345abcde12345abcde12345ab" > testdata
 
 # generate key with no scheme/hash constraints
-openssl genpkey -provider tpm2 -algorithm RSA -pkeyopt bits:1024 -out testkey.priv
+openssl genpkey -provider tpm2 -provider base -algorithm RSA -pkeyopt bits:1024 -out testkey.priv
 
 # export public key
-openssl pkey -provider tpm2 -in testkey.priv -pubout -out testkey.pub
+openssl pkey -provider tpm2 -provider base -in testkey.priv -pubout -out testkey.pub
 
 # check default hash with various schemes
 for SCHEME in pkcs1 pss; do
     # sign using a defined scheme, assuming the testdata is a sha256 digest
-    openssl pkeyutl -provider tpm2 -sign -inkey testkey.priv -in testdata \
+    openssl pkeyutl -provider tpm2 -provider base -sign -inkey testkey.priv -in testdata \
         -pkeyopt pad-mode:$SCHEME -pkeyopt digest:sha256 -out testdata.sig
 
     # verify the signature

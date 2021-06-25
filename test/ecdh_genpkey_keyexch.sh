@@ -3,7 +3,7 @@
 set -eufx
 
 # alice generates private key as PEM (TPM-based)
-openssl genpkey -provider tpm2 -algorithm EC -pkeyopt group:P-256 -out testkey1.priv
+openssl genpkey -provider tpm2 -provider base -algorithm EC -pkeyopt group:P-256 -out testkey1.priv
 
 # alice reads PEM and exports public key as PEM
 openssl pkey -provider tpm2 -provider base -in testkey1.priv -pubout -out testkey1.pub

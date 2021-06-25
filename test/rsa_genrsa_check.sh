@@ -3,19 +3,19 @@
 set -eufx
 
 # generate private key as PEM
-openssl genrsa -provider tpm2 -verbose -out pubkey.pem 1024
+openssl genrsa -provider tpm2 -provider base -verbose -out pubkey.pem 1024
 
 # validate the generated file
-openssl pkey -provider tpm2 -in pubkey.pem -check -noout
+openssl pkey -provider tpm2 -provider base -in pubkey.pem -check -noout
 
 # print private key modulus
-openssl rsa -provider tpm2 -in pubkey.pem -modulus -noout
+openssl rsa -provider tpm2 -provider base -in pubkey.pem -modulus -noout
 
 # print components of the private key
-openssl rsa -provider tpm2 -in pubkey.pem -text -noout
+openssl rsa -provider tpm2 -provider base -in pubkey.pem -text -noout
 
 # convert PEM private key to DER
-openssl pkey -provider tpm2 -in pubkey.pem -outform der -out pubkey.der
+openssl pkey -provider tpm2 -provider base -in pubkey.pem -outform der -out pubkey.der
 
 
 # read PEM and export public key as PEM
