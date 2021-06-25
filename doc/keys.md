@@ -131,8 +131,8 @@ The following encoders are supported:
 
 | structure            | type                     | openssl arguments
 | -------------------- | ------------------------ | -------------------------------- |
-| PKCS8                | PEM (`TSS2 PRIVATE KEY`) | (default)                        |
-| PKCS8                | DER                      | `-outform der`                   |
+| PrivateKeyInfo       | PEM (`TSS2 PRIVATE KEY`) | (default)                        |
+| PrivateKeyInfo       | DER                      | `-outform der`                   |
 | SubjectPublicKeyInfo | PEM (`PUBLIC KEY`)       | `-pubout`                        |
 | SubjectPublicKeyInfo | DER                      | `-pubout -outform der`           |
 | PKCS1                | PEM (`RSA PUBLIC KEY`)   | `-RSAPublicKey_out`              |
@@ -161,7 +161,8 @@ The tpm2 provider implements three
 [OSSL_OP_STORE](https://www.openssl.org/docs/manmaster/man7/provider-storemgmt.html)
 loaders:
  * **file** (default), to load the PEM file (`TSS2 PRIVATE KEY`);
- * **handle**, to load persistent keys;
+ * **handle**, to load persistent keys, or data (public keys or certificates)
+   from NV indices;
  * **object**, to load serialized object representing a persistent handle.
 
 These are used by the
@@ -215,6 +216,18 @@ All argument types (`pass:`, `env:`, `file:`, `fd:`, `stdin`) may be used.
 For example, to supply a password from an evironment variable $PASSWORD:
 ```
 openssl rsa -provider tpm2 -modulus -noout -in handle:0x81000000?pass -passin env:PASSWORD
+```
+
+### Using NV Index
+
+Public keys or certificates may be stored in the NV Index. To load data from
+NV Index, specify the prefix `handle:` and then a hexadecimal number, e.g.
+`handle:0x1000010`.
+
+For example, to derive a shared secret from a persisteny private key and a peer
+key that is stored in an NV Index:
+```
+openssl pkeyutl -provider tpm2 -provider base -derive -inkey handle:0x81000000 -peerkey handle:0x1000010 -out secret1.key
 ```
 
 ### Using a Serialized Object

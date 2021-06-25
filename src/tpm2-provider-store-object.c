@@ -155,16 +155,15 @@ error:
 }
 
 static int
-tpm2_object_load(void *ctx,
-            OSSL_CALLBACK *object_cb, void *object_cbarg,
-            OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+tpm2_object_load_pkey(TPM2_OBJECT_CTX *sctx, ESYS_TR object,
+                      OSSL_CALLBACK *object_cb, void *object_cbarg)
 {
-    TPM2_OBJECT_CTX *sctx = ctx;
     TPM2B_PUBLIC *out_public = NULL;
     TPM2_PKEY *pkey = NULL;
     TSS2_RC r;
+    int ret = 0;
 
-    DBG("STORE/OBJECT LOAD\n");
+    DBG("STORE/OBJECT LOAD pkey\n");
     pkey = OPENSSL_zalloc(sizeof(TPM2_PKEY));
     if (pkey == NULL)
         return 0;
@@ -172,49 +171,18 @@ tpm2_object_load(void *ctx,
     pkey->core = sctx->core;
     pkey->esys_ctx = sctx->esys_ctx;
     pkey->capability = sctx->capability;
+    pkey->object = object;
 
-    if (sctx->bio) {
-        uint8_t *buffer;
-        int buffer_size;
-
-        if ((buffer_size = read_until_eof(sctx->bio, &buffer)) < 0)
-            goto error1;
-        /* read object metadata */
-        r = Esys_TR_Deserialize(sctx->esys_ctx, buffer, buffer_size, &pkey->object);
-        OPENSSL_free(buffer);
-    } else {
-        /* create reference to a pre-existing TPM object */
-        r = Esys_TR_FromTPMPublic(sctx->esys_ctx, sctx->handle,
-                                  ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
-                                  &pkey->object);
-        sctx->load_done = 1;
-    }
-    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error1);
-
-    if (sctx->has_pass) {
-        TPM2B_DIGEST userauth;
-        size_t plen = 0;
-
-        /* request password; this might open an interactive user prompt */
-        if (!pw_cb((char *)userauth.buffer, sizeof(TPMU_HA), &plen, NULL, pw_cbarg)) {
-            TPM2_ERROR_raise(sctx->core, TPM2_ERR_AUTHORIZATION_FAILURE);
-            goto error2;
-        }
-        userauth.size = plen;
-
-        r = Esys_TR_SetAuth(sctx->esys_ctx, pkey->object, &userauth);
-        TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error2);
-    } else
-        pkey->data.emptyAuth = 1;
-
-    r = Esys_ReadPublic(sctx->esys_ctx, pkey->object,
+    r = Esys_ReadPublic(sctx->esys_ctx, object,
                         ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                         &out_public, NULL, NULL);
-    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error2);
+    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto final);
 
     pkey->data.pub = *out_public;
     pkey->data.privatetype = KEY_TYPE_HANDLE;
     pkey->data.handle = sctx->handle;
+    if (!sctx->has_pass)
+        pkey->data.emptyAuth = 1;
 
     free(out_public);
 
@@ -226,7 +194,7 @@ tpm2_object_load(void *ctx,
 
     if ((keytype = tpm2_openssl_type(&pkey->data)) == NULL) {
         TPM2_ERROR_raise(sctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
-        goto error2;
+        goto final;
     }
     DBG("STORE/OBJECT LOAD found %s\n", keytype);
     params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
@@ -236,11 +204,111 @@ tpm2_object_load(void *ctx,
                                                   &pkey, sizeof(pkey));
     params[3] = OSSL_PARAM_construct_end();
 
-    return object_cb(params, object_cbarg);
-error2:
-    Esys_TR_Close(sctx->esys_ctx, &pkey->object);
-error1:
+    ret = object_cb(params, object_cbarg);
+final:
     OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
+    return ret;
+}
+
+static int
+tpm2_object_load_index(TPM2_OBJECT_CTX *sctx, ESYS_TR object,
+                       OSSL_CALLBACK *object_cb, void *object_cbarg)
+{
+    TPM2B_NV_PUBLIC *metadata = NULL;
+    TPM2B_MAX_NV_BUFFER *data = NULL;
+    TSS2_RC r;
+    int ret = 0;
+
+    r = Esys_NV_ReadPublic(sctx->esys_ctx, object,
+                           ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
+                           &metadata, NULL);
+    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto final);
+
+    DBG("STORE/OBJECT LOAD index %i bytes\n", metadata->nvPublic.dataSize);
+
+    r = Esys_NV_Read(sctx->esys_ctx, object, object,
+                     ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                     metadata->nvPublic.dataSize, 0, &data);
+    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto final);
+
+    OSSL_PARAM params[3];
+    int object_type = OSSL_OBJECT_UNKNOWN;
+
+    /* pass the data to ossl_store_handle_load_result(),
+       which will call the TPM2_PKEY decoder or read the certificate */
+    params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
+    params[1] = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_DATA,
+                                                  data->buffer, data->size);
+    params[2] = OSSL_PARAM_construct_end();
+
+    ret = object_cb(params, object_cbarg);
+final:
+    free(data);
+    free(metadata);
+    return ret;
+}
+
+static int
+tpm2_object_load(void *ctx,
+                 OSSL_CALLBACK *object_cb, void *object_cbarg,
+                 OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+{
+    TPM2_OBJECT_CTX *sctx = ctx;
+    ESYS_TR object;
+    TSS2_RC r;
+    int ret = 0;
+
+    DBG("STORE/OBJECT LOAD\n");
+    if (sctx->bio) {
+        uint8_t *buffer;
+        int buffer_size;
+
+        if ((buffer_size = read_until_eof(sctx->bio, &buffer)) < 0)
+            return 0;
+        /* read object metadata */
+        r = Esys_TR_Deserialize(sctx->esys_ctx, buffer, buffer_size, &object);
+        OPENSSL_free(buffer);
+    } else {
+        /* create reference to a pre-existing TPM object */
+        r = Esys_TR_FromTPMPublic(sctx->esys_ctx, sctx->handle,
+                                  ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
+                                  &object);
+        sctx->load_done = 1;
+    }
+    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, return 0);
+
+    if (sctx->has_pass) {
+        TPM2B_DIGEST userauth;
+        size_t plen = 0;
+
+        /* request password; this might open an interactive user prompt */
+        if (!pw_cb((char *)userauth.buffer, sizeof(TPMU_HA), &plen, NULL, pw_cbarg)) {
+            TPM2_ERROR_raise(sctx->core, TPM2_ERR_AUTHORIZATION_FAILURE);
+            goto error;
+        }
+        userauth.size = plen;
+
+        r = Esys_TR_SetAuth(sctx->esys_ctx, object, &userauth);
+        TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error);
+    }
+
+    UINT8 tag = (sctx->handle & TPM2_HR_RANGE_MASK) >> TPM2_HR_SHIFT;
+    switch (tag) {
+    case TPM2_HT_TRANSIENT:
+    case TPM2_HT_PERSISTENT:
+        ret = tpm2_object_load_pkey(sctx, object, object_cb, object_cbarg);
+        if (!ret)
+            Esys_TR_Close(sctx->esys_ctx, &object);
+        break;
+    case TPM2_HT_NV_INDEX:
+        ret = tpm2_object_load_index(sctx, object, object_cb, object_cbarg);
+        Esys_TR_Close(sctx->esys_ctx, &object);
+        break;
+    }
+
+    return ret;
+error:
+    Esys_TR_Close(sctx->esys_ctx, &object);
     return 0;
 }
 
