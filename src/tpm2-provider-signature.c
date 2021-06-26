@@ -69,6 +69,7 @@ tpm2_signature_freectx(void *ctx)
     if (sctx == NULL)
         return;
 
+    tpm2_hash_sequence_flush((TPM2_HASH_SEQUENCE *)sctx);
     free(sctx->signature);
     OPENSSL_clear_free(sctx, sizeof(TPM2_SIGNATURE_CTX));
 }

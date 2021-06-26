@@ -20,6 +20,9 @@ void
 tpm2_hash_sequence_init(TPM2_HASH_SEQUENCE *seq,
                         TPM2_PROVIDER_CTX *cprov, TPM2_ALG_ID algin);
 
+void
+tpm2_hash_sequence_flush(TPM2_HASH_SEQUENCE *seq);
+
 int
 tpm2_hash_sequence_dup(TPM2_HASH_SEQUENCE *seq, const TPM2_HASH_SEQUENCE *src);
 

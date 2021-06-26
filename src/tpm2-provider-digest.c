@@ -19,6 +19,13 @@ tpm2_hash_sequence_init(TPM2_HASH_SEQUENCE *seq,
     seq->handle = ESYS_TR_NONE;
 }
 
+void
+tpm2_hash_sequence_flush(TPM2_HASH_SEQUENCE *seq)
+{
+    if (seq->handle != ESYS_TR_NONE)
+        Esys_FlushContext(seq->esys_ctx, seq->handle);
+}
+
 int
 tpm2_hash_sequence_dup(TPM2_HASH_SEQUENCE *seq, const TPM2_HASH_SEQUENCE *src)
 {
@@ -29,7 +36,7 @@ tpm2_hash_sequence_dup(TPM2_HASH_SEQUENCE *seq, const TPM2_HASH_SEQUENCE *src)
     seq->esys_ctx = src->esys_ctx;
     seq->algorithm = src->algorithm;
 
-    if (seq->handle != ESYS_TR_NONE) {
+    if (src->handle != ESYS_TR_NONE) {
         /* duplicate the sequence */
         r = Esys_ContextSave(src->esys_ctx, src->handle, &context);
         TPM2_CHECK_RC(src->core, r, TPM2_ERR_CANNOT_DUPLICATE, goto error);
@@ -204,6 +211,7 @@ tpm2_digest_freectx(void *ctx)
     if (dctx == NULL)
         return;
 
+    tpm2_hash_sequence_flush((TPM2_HASH_SEQUENCE *)dctx);
     free(dctx->digest);
     OPENSSL_clear_free(dctx, sizeof(TPM2_DIGEST_CTX));
 }
@@ -317,7 +325,7 @@ tpm2_digest_gettable_params(void *provctx)
 }
 
 static int
-tpm2_digest_get_params_int(OSSL_PARAM params[], size_t size)
+tpm2_digest_get_params_int(OSSL_PARAM params[], size_t block, size_t size)
 {
     OSSL_PARAM *p;
 
@@ -325,7 +333,7 @@ tpm2_digest_get_params_int(OSSL_PARAM params[], size_t size)
         return 1;
 
     p = OSSL_PARAM_locate(params, OSSL_DIGEST_PARAM_BLOCK_SIZE);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, TPM2_MAX_DIGEST_BUFFER))
+    if (p != NULL && !OSSL_PARAM_set_size_t(p, block))
         return 0;
 
     p = OSSL_PARAM_locate(params, OSSL_DIGEST_PARAM_SIZE);
@@ -335,13 +343,13 @@ tpm2_digest_get_params_int(OSSL_PARAM params[], size_t size)
     return 1;
 }
 
-#define IMPLEMENT_DIGEST_GET_PARAMS(alg) \
+#define IMPLEMENT_DIGEST_GET_PARAMS(alg, block) \
     static OSSL_FUNC_digest_get_params_fn tpm2_digest_##alg##_get_params; \
     static int \
     tpm2_digest_##alg##_get_params(OSSL_PARAM params[]) \
     { \
         TRACE_PARAMS("DIGEST " #alg " GET_PARAMS", params); \
-        return tpm2_digest_get_params_int(params, TPM2_##alg##_DIGEST_SIZE); \
+        return tpm2_digest_get_params_int(params, block/8, TPM2_##alg##_DIGEST_SIZE); \
     }
 
 #define IMPLEMENT_DIGEST_FUNCTIONS(alg) \
@@ -367,17 +375,17 @@ tpm2_digest_get_params_int(OSSL_PARAM params[], size_t size)
             return NULL; \
     }
 
-#define IMPLEMENT_DIGEST(alg) \
+#define IMPLEMENT_DIGEST(alg, block) \
     IMPLEMENT_DIGEST_NEW_CTX(alg) \
     IMPLEMENT_DIGEST_DIGEST(alg) \
-    IMPLEMENT_DIGEST_GET_PARAMS(alg) \
+    IMPLEMENT_DIGEST_GET_PARAMS(alg, block) \
     IMPLEMENT_DIGEST_FUNCTIONS(alg) \
     IMPLEMENT_DIGEST_DISPATCH(alg)
 
-IMPLEMENT_DIGEST(SHA1)
-IMPLEMENT_DIGEST(SHA256)
-IMPLEMENT_DIGEST(SHA384)
-IMPLEMENT_DIGEST(SHA512)
-IMPLEMENT_DIGEST(SM3_256)
+IMPLEMENT_DIGEST(SHA1, 512)
+IMPLEMENT_DIGEST(SHA256, 512)
+IMPLEMENT_DIGEST(SHA384, 1024)
+IMPLEMENT_DIGEST(SHA512, 1024)
+IMPLEMENT_DIGEST(SM3_256, 1088)
 
 #endif /* WITH_OP_DIGEST */
