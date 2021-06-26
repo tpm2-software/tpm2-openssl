@@ -31,8 +31,8 @@ static const TPM2B_PUBLIC keyTemplate = {
                 .scheme = TPM2_ALG_NULL,
                 .details = {}
              },
-             .keyBits = 0,          /* to be set by the genkey function */
-             .exponent = 0,         /* to be set by the genkey function */
+             .keyBits = 2048, /* openssl default */
+             .exponent = 0,
          },
         .unique.rsa.size = 0
      }
