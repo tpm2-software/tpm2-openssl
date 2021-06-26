@@ -268,6 +268,8 @@ tpm2_object_load(void *ctx,
         /* read object metadata */
         r = Esys_TR_Deserialize(sctx->esys_ctx, buffer, buffer_size, &object);
         OPENSSL_free(buffer);
+        /* TODO: should use Esys_TR_GetTpmHandle */
+        sctx->handle = TPM2_HR_PERSISTENT;
     } else {
         /* create reference to a pre-existing TPM object */
         r = Esys_TR_FromTPMPublic(sctx->esys_ctx, sctx->handle,
