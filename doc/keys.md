@@ -96,7 +96,7 @@ RSA or RSA-PSS key (via API only):
 
 The modulus can be displayed using:
 ```
-openssl rsa -provider tpm2 -in testkey.priv -modulus -noout
+openssl rsa -provider tpm2 -provider base -in testkey.priv -modulus -noout
 ```
 
 Similarly, the following parameters can be retrieved from an EC key:
@@ -142,12 +142,12 @@ The following encoders are supported:
 For example, to export the X.509 SubjectPublicKeyInfo in PEM (`PUBLIC KEY`),
 which is the most common public key format, do:
 ```
-openssl pkey -provider tpm2 -in testkey.priv -pubout -out testkey.pub
+openssl pkey -provider tpm2 -provider base -in testkey.priv -pubout -out testkey.pub
 ```
 
 To print private key attributes you can use the `-text` argument:
 ```
-openssl rsa -provider tpm2 -in testkey.priv -text -noout
+openssl rsa -provider tpm2 -provider base -in testkey.priv -text -noout
 ```
 
 Note: if the private key usage requires authorization you will be asked for a
@@ -179,10 +179,10 @@ openssl rsa -modulus -noout -in testkey.pub
 ### Using PEM File
 
 To load a TPM-based private key, simply specify a name of a PEM file
-(`TSS2 PRIVATE KEY`), possibly with the optional `file:` prefix.
+(`TSS2 PRIVATE KEY`), possibly with the optional `file:` prefix and a full path.
 For example, to print out the value of the modulus of the private key:
 ```
-openssl rsa -provider tpm2 -modulus -noout -in file:testkey.priv
+openssl rsa -provider tpm2 -provider base -modulus -noout -in file:/etc/ssl/testkey.priv
 ```
 
 The password may be supplied using the standard OpenSSL mechanism. You can use
@@ -192,7 +192,7 @@ or (since the file contains an indicator whether an authorization is required)
 an interactive password prompt appears.
 For example, to use the password `abc`:
 ```
-openssl rsa -provider tpm2 -modulus -noout -in testkey.priv -passin pass:abc
+openssl rsa -provider tpm2 -provider base -modulus -noout -in testkey.priv -passin pass:abc
 ```
 
 ### Using Key Handle
@@ -224,10 +224,10 @@ Public keys or certificates may be stored in the NV Index. To load data from
 NV Index, specify the prefix `handle:` and then a hexadecimal number, e.g.
 `handle:0x1000010`.
 
-For example, to derive a shared secret from a persisteny private key and a peer
+For example, to derive a shared secret from a persistent private key and a peer
 key that is stored in an NV Index:
 ```
-openssl pkeyutl -provider tpm2 -provider base -derive -inkey handle:0x81000000 -peerkey handle:0x1000010 -out secret1.key
+openssl pkeyutl -provider tpm2 -provider base -derive -inkey handle:0x81000000 -peerkey handle:0x1000010 -out secret.key
 ```
 
 ### Using a Serialized Object

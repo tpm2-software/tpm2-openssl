@@ -41,7 +41,7 @@ The sign scheme of an RSA key is selected as follows:
 
 For example, to sign using sha512 and pss:
 ```
-openssl pkeyutl -provider tpm2 -sign -inkey testkey.priv -rawin -in testdata \
+openssl pkeyutl -provider tpm2 -provider base -sign -inkey testkey.priv -rawin -in testdata \
     -digest sha512 -pkeyopt pad-mode:pss -out testdata.sig
 ```
 
@@ -77,7 +77,7 @@ command.
 
 For example, to decrypt the "testdata" file using a decryption private key:
 ```
-openssl pkeyutl -provider tpm2 -inkey testkey.priv -decrypt -in testdata.crypt -out testdata
+openssl pkeyutl -provider tpm2 -provider base -inkey testkey.priv -decrypt -in testdata.crypt -out testdata
 ```
 
 The EC keys cannot be used for encryption. You need to derive a shared secret
@@ -97,5 +97,5 @@ command.
 For example, to derive a shared `secret.key` from a (TPM-based) private key
 `testkey1.priv` and a peer public key `testkey2.pub`:
 ```
-openssl pkeyutl -provider tpm2 -derive -inkey testkey1.priv -peerkey testkey2.pub -out secret.key
+openssl pkeyutl -provider tpm2 -provider base -derive -inkey testkey1.priv -peerkey testkey2.pub -out secret.key
 ```

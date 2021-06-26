@@ -31,7 +31,7 @@ openssl req \
 
 # 1.4 Create CA certificate
 openssl ca \
-    -provider tpm2 \
+    -provider tpm2 -provider base \
     -selfsign \
     -config $PKIDIR/etc/root-ca.conf \
     -batch \
@@ -63,7 +63,7 @@ openssl req \
 
 # 2.4 Create CA certificate
 openssl ca \
-    -provider tpm2 \
+    -provider tpm2 -provider base \
     -config $PKIDIR/etc/root-ca.conf \
     -batch \
     -in testdb/ca/signing-ca.csr \
@@ -83,7 +83,7 @@ openssl req \
 
 # 3.2 Create email certificate
 openssl ca \
-    -provider tpm2 \
+    -provider tpm2 -provider base \
     -config $PKIDIR/etc/signing-ca.conf \
     -batch \
     -in testdb/certs/fred.csr \
@@ -101,7 +101,7 @@ openssl req \
 
 # 3.4 Create TLS server certificate
 openssl ca \
-    -provider tpm2 \
+    -provider tpm2 -provider base \
     -config $PKIDIR/etc/signing-ca.conf \
     -batch \
     -in testdb/certs/simple.org.csr \
@@ -110,14 +110,14 @@ openssl ca \
 
 # 3.5 Revoke certificate
 openssl ca \
-    -provider tpm2 \
+    -provider tpm2 -provider base \
     -config $PKIDIR/etc/signing-ca.conf \
     -revoke testdb/ca/signing-ca/01.pem \
     -crl_reason superseded
 
 # 3.6 Create CRL
 openssl ca \
-    -provider tpm2 \
+    -provider tpm2 -provider base \
     -gencrl \
     -config $PKIDIR/etc/signing-ca.conf \
     -out testdb/crl/signing-ca.crl

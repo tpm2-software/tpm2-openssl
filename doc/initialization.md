@@ -12,14 +12,6 @@ List of active providers can be obtained from:
 openssl list -providers
 ```
 
-OpenSSL comes with a
-[**default** provider](https://www.openssl.org/docs/manmaster/man7/OSSL_PROVIDER-default.html),
-which supplies the standard algorithm implementations.
-
-This project implements a **tpm2** provider that re-implements some algorithms
-using the TPM 2.0. It does not replace the default provider though-- some
-operations still need the default provider.
-
 Instructions to build and install the provider are available in the
 [INSTALL](INSTALL.md) file. When successfully installed, you can load the
 provider using the `-provider tpm2` argument. For example, you should see the
@@ -36,10 +28,30 @@ hardware, such as the list of supported public key algorithms, by:
 openssl list -public-key-algorithms -provider tpm2
 ```
 
+The **tpm2** provider supplies TPM 2.0 crypto algorithms, random number generator,
+retrieval of persistent keys and other data (public keys and certificates) from
+the non-volatile RAM and an encoder/decoder for the `TSS2 PRIVATE KEY` file format.
+
 ### Loading Multiple Providers
 
-You can load several providers and combine their operations. When providers
-implementing identical operations are loaded, you need to specify a
+For some operations the **tpm2** provider needs to be combined with other
+OpenSSL providers:
+ * [**base** provider](https://www.openssl.org/docs/manmaster/man7/OSSL_PROVIDER-base.html)
+   supplies retrieval of keys from a file and standard public key file formats;
+ * [**default** provider](https://www.openssl.org/docs/manmaster/man7/OSSL_PROVIDER-default.html)
+   supplies the standard crypto algorithms (non-TPM) and the **base** provider
+   functions.
+
+It is quite common to combine the **tpm2** provider with the **base** provider,
+e.g. when loading `TSS2 PRIVATE KEY` from a file.
+```
+-provider tpm2 -provider base
+```
+
+To use additional crypto algorithms that are not available in the TPM you need
+to combine the **tpm2** provider with the **default** provider.
+
+When providers implementing identical operations are loaded, you need to specify a
 [property query clause](https://www.openssl.org/docs/manmaster/man7/property.html)
 to advise which of the two implementations shall be used.
 
