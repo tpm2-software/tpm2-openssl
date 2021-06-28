@@ -8,7 +8,7 @@ echo -n "abcde12345abcde12345" > testdata
 openssl genpkey -provider tpm2 -algorithm EC -pkeyopt group:P-256 -out testkey.priv
 
 # read PEM and export public key as PEM
-openssl pkey -provider tpm2 -in testkey.priv -pubout -out testkey.pub
+openssl pkey -provider tpm2 -provider base -in testkey.priv -pubout -out testkey.pub
 
 # check various digests
 for HASH in sha1 sha256 sha384 sha512; do
@@ -16,7 +16,7 @@ for HASH in sha1 sha256 sha384 sha512; do
     tpm2_getcap algorithms | grep $HASH || continue
 
     # sign using ECDSA and a defined hash
-    openssl pkeyutl -provider tpm2 -sign -inkey testkey.priv -rawin -in testdata \
+    openssl pkeyutl -provider tpm2 -provider base -sign -inkey testkey.priv -rawin -in testdata \
         -digest $HASH -out testdata.sig
 
     # verify the signature

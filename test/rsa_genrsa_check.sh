@@ -6,20 +6,20 @@ set -eufx
 openssl genrsa -provider tpm2 -verbose -out pubkey.pem 1024
 
 # validate the generated file
-openssl pkey -provider tpm2 -in pubkey.pem -check -noout
+openssl pkey -provider tpm2 -provider base -in pubkey.pem -check -noout
 
 # print private key modulus
-openssl rsa -provider tpm2 -in pubkey.pem -modulus -noout
+openssl rsa -provider tpm2 -provider base -in pubkey.pem -modulus -noout
 
 # print components of the private key
-openssl rsa -provider tpm2 -in pubkey.pem -text -noout
+openssl rsa -provider tpm2 -provider base -in pubkey.pem -text -noout
 
 # convert PEM private key to DER
-openssl pkey -provider tpm2 -in pubkey.pem -outform der -out pubkey.der
+openssl pkey -provider tpm2 -provider base -in pubkey.pem -outform der -out pubkey.der
 
 
 # read PEM and export public key as PEM
-openssl pkey -provider tpm2 -in pubkey.pem -pubout -out testkey.pem
+openssl pkey -provider tpm2 -provider base -in pubkey.pem -pubout -out testkey.pem
 
 # print PEM public key modulus
 openssl rsa -pubin -in testkey.pem -modulus -noout
@@ -29,7 +29,7 @@ openssl rsa -pubin -in testkey.pem -text -noout
 
 
 # read PEM from stdin and export public key as DER
-cat pubkey.pem | openssl pkey -provider tpm2 -pubout -outform der -out testkey.der
+cat pubkey.pem | openssl pkey -provider tpm2 -provider base -pubout -outform der -out testkey.der
 
 # print DER public key modulus
 openssl rsa -pubin -inform der -in testkey.der -modulus -noout
@@ -39,7 +39,7 @@ openssl rsa -pubin -inform der -in testkey.der -text -noout
 
 
 # read DER and export public key as PEM
-openssl rsa -provider tpm2 -in pubkey.der -inform der -RSAPublicKey_out -out testrsa.pem
+openssl rsa -provider tpm2 -provider base -in pubkey.der -inform der -RSAPublicKey_out -out testrsa.pem
 
 # print PEM public key modulus
 openssl rsa -RSAPublicKey_in -in testrsa.pem -modulus -noout
@@ -49,7 +49,7 @@ openssl rsa -RSAPublicKey_in -in testrsa.pem -text -noout
 
 
 # read DER and export public key as DER
-openssl rsa -provider tpm2 -in pubkey.pem -inform der -RSAPublicKey_out -outform der -out testrsa.der
+openssl rsa -provider tpm2 -provider base -in pubkey.pem -inform der -RSAPublicKey_out -outform der -out testrsa.der
 
 # print PEM public key modulus
 openssl rsa -RSAPublicKey_in -inform der -in testrsa.der -modulus -noout

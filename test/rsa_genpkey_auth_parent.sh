@@ -16,10 +16,10 @@ openssl genpkey -provider tpm2 -algorithm RSA -out testkey.priv \
 
 # export public key
 # note: openssl requests the password although it will not be needed in this case
-openssl pkey -provider tpm2 -in testkey.priv -passin pass: -pubout -out testkey.pub
+openssl pkey -provider tpm2 -provider base -in testkey.priv -passin pass: -pubout -out testkey.pub
 
 # sign using a defined scheme/hash
-openssl pkeyutl -provider tpm2 -sign -inkey testkey.priv -rawin -in testdata \
+openssl pkeyutl -provider tpm2 -provider base -sign -inkey testkey.priv -rawin -in testdata \
     -passin pass:abc -pkeyopt pad-mode:pss -out testdata.sig
 
 # verify the signature
