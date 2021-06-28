@@ -161,23 +161,6 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
     if ((selection & OSSL_KEYMGMT_SELECT_ALL) != 0)
         keytype = decode_privkey(dctx, pkey, bin, pw_cb, pw_cbarg);
 
-    if (keytype == NULL && (selection & OSSL_KEYMGMT_SELECT_ALL_PARAMETERS) != 0) {
-        EC_GROUP *group = NULL;
-
-        /* rewind back */
-        if (BIO_seek(bin, fpos) == -1)
-            goto error2;
-
-        if (d2i_ECPKParameters_bio(bin, &group)) {
-            if ((TPM2_PKEY_EC_CURVE(pkey) = tpm2_nid_to_ecc_curve(
-                        EC_GROUP_get_curve_name(group))) != TPM2_ECC_NONE) {
-                pkey->data.pub.publicArea.type = TPM2_ALG_ECC;
-                keytype = "EC";
-            }
-            EC_GROUP_free(group);
-        }
-    }
-
     if (keytype != NULL) {
         object_type = OSSL_OBJECT_PKEY;
         params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
