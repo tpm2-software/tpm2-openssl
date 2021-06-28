@@ -27,7 +27,8 @@ struct tpm2_tss2_decoder_ctx_st {
 
 static OSSL_FUNC_decoder_newctx_fn tpm2_tss2_decoder_newctx;
 static OSSL_FUNC_decoder_freectx_fn tpm2_tss2_decoder_freectx;
-static OSSL_FUNC_decoder_decode_fn tpm2_tss2_decoder_decode;
+static OSSL_FUNC_decoder_decode_fn tpm2_tss2_decoder_decode_rsa;
+static OSSL_FUNC_decoder_decode_fn tpm2_tss2_decoder_decode_ec;
 static OSSL_FUNC_decoder_export_object_fn tpm2_tss2_decoder_export_object;
 
 static void *
@@ -132,6 +133,7 @@ error1:
 
 static int
 tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
+                         int expected_type,
                          OSSL_CALLBACK *object_cb, void *object_cbarg,
                          OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
@@ -161,7 +163,7 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
     if (selection == 0 || (selection & OSSL_KEYMGMT_SELECT_ALL) != 0)
         keytype = decode_privkey(dctx, pkey, bin, pw_cb, pw_cbarg);
 
-    if (keytype != NULL) {
+    if (pkey->data.pub.publicArea.type == expected_type) {
         object_type = OSSL_OBJECT_PKEY;
         params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
 
@@ -189,6 +191,24 @@ error1:
 }
 
 static int
+tpm2_tss2_decoder_decode_rsa(void *ctx, OSSL_CORE_BIO *cin, int selection,
+                             OSSL_CALLBACK *object_cb, void *object_cbarg,
+                             OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+{
+    return tpm2_tss2_decoder_decode(ctx, cin, selection, TPM2_ALG_RSA,
+                                    object_cb, object_cbarg, pw_cb, pw_cbarg);
+}
+
+static int
+tpm2_tss2_decoder_decode_ec(void *ctx, OSSL_CORE_BIO *cin, int selection,
+                            OSSL_CALLBACK *object_cb, void *object_cbarg,
+                            OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+{
+    return tpm2_tss2_decoder_decode(ctx, cin, selection, TPM2_ALG_ECC,
+                                    object_cb, object_cbarg, pw_cb, pw_cbarg);
+}
+
+static int
 tpm2_tss2_decoder_export_object(void *ctx, const void *objref, size_t objref_sz,
                                 OSSL_CALLBACK *export_cb, void *export_cbarg)
 {
@@ -211,10 +231,18 @@ tpm2_tss2_decoder_export_object(void *ctx, const void *objref, size_t objref_sz,
     return 0;
 }
 
-const OSSL_DISPATCH tpm2_tss_decoder_functions[] = {
+const OSSL_DISPATCH tpm2_tss_to_rsa_decoder_functions[] = {
     { OSSL_FUNC_DECODER_NEWCTX, (void (*)(void))tpm2_tss2_decoder_newctx },
     { OSSL_FUNC_DECODER_FREECTX, (void (*)(void))tpm2_tss2_decoder_freectx },
-    { OSSL_FUNC_DECODER_DECODE, (void (*)(void))tpm2_tss2_decoder_decode },
+    { OSSL_FUNC_DECODER_DECODE, (void (*)(void))tpm2_tss2_decoder_decode_rsa },
+    { OSSL_FUNC_DECODER_EXPORT_OBJECT, (void (*)(void))tpm2_tss2_decoder_export_object },
+    { 0, NULL }
+};
+
+const OSSL_DISPATCH tpm2_tss_to_ec_decoder_functions[] = {
+    { OSSL_FUNC_DECODER_NEWCTX, (void (*)(void))tpm2_tss2_decoder_newctx },
+    { OSSL_FUNC_DECODER_FREECTX, (void (*)(void))tpm2_tss2_decoder_freectx },
+    { OSSL_FUNC_DECODER_DECODE, (void (*)(void))tpm2_tss2_decoder_decode_ec },
     { OSSL_FUNC_DECODER_EXPORT_OBJECT, (void (*)(void))tpm2_tss2_decoder_export_object },
     { 0, NULL }
 };
