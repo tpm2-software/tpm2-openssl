@@ -22,7 +22,10 @@ openssl ecparam -provider tpm2 -name $CURVE -genkey -out testdb/root/private/roo
 chmod 600 testdb/root/private/root.key.pem
 
 # Create a Self Signed Root Certificate
-openssl req -provider tpm2 -config $PKIDIR/openssl.cnf -key testdb/root/private/root.key.pem -new \
+# We must use the default provider because testdb/root/private/root.key.pem
+# contains more than a TSS2 object
+openssl req -provider tpm2 -provider default -config $PKIDIR/openssl.cnf -new \
+            -key testdb/root/private/root.key.pem \
             -extensions ext_root -out testdb/root/certs/root.cert.pem -x509 -days 3650 \
             -subj '/C=US/ST=Michigan/O=WanderWriter/OU=WanderWriter Certificate Authority/CN=WanderWriter Root CA'
 
@@ -34,7 +37,10 @@ openssl ecparam -provider tpm2 -name $CURVE -genkey -out testdb/intermediate/pri
 chmod 600 testdb/intermediate/private/intermediate.key.pem
 
 # Create an Intermediary CSR
-openssl req -provider tpm2 -config $PKIDIR/openssl.cnf -new -key testdb/intermediate/private/intermediate.key.pem \
+# We must use the default provider because testdb/root/private/root.key.pem
+# contains more than a TSS2 object
+openssl req -provider tpm2 -provider default -config $PKIDIR/openssl.cnf -new \
+            -key testdb/intermediate/private/intermediate.key.pem \
             -out testdb/intermediate/csr/intermediate.csr.pem \
             -subj '/C=US/ST=Michigan/O=WanderWriter/OU=WanderWriter Certificate Authority/CN=WanderWriter Intermediate CA'
 
@@ -56,7 +62,9 @@ openssl ecparam -provider tpm2 -name $CURVE -genkey -out testdb/client/private/a
 chmod 400 testdb/client/private/agd.key.pem
 
 # Create a Client CSR
-openssl req -provider tpm2 -config $PKIDIR/openssl.cnf -new \
+# We must use the default provider because testdb/root/private/root.key.pem
+# contains more than a TSS2 object
+openssl req -provider tpm2 -provider default -config $PKIDIR/openssl.cnf -new \
             -key testdb/client/private/agd.key.pem -out testdb/client/csr/agd.csr.pem \
             -subj '/C=US/ST=Michigan/O=WanderWriter/OU=Andrew G. Dunn/CN=agd@wanderwriter.ink'
 
