@@ -158,7 +158,7 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
     pkey->capability = dctx->capability;
     pkey->object = ESYS_TR_NONE;
 
-    if ((selection & OSSL_KEYMGMT_SELECT_ALL) != 0)
+    if (selection == 0 || (selection & OSSL_KEYMGMT_SELECT_ALL) != 0)
         keytype = decode_privkey(dctx, pkey, bin, pw_cb, pw_cbarg);
 
     if (keytype != NULL) {
