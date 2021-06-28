@@ -11,11 +11,11 @@ function should_fail()
 }
 
 # unknown prefix
-openssl rsa -provider tpm2 -in bad:prefix -modulus -noout 2> out
+openssl rsa -provider tpm2 -provider base -in bad:prefix -modulus -noout 2> out
 should_fail "Could not open file or uri"
 
 # unknown file
-openssl rsa -provider tpm2 -in file:unknown -modulus -noout 2> out
+openssl rsa -provider tpm2 -provider base -in file:unknown -modulus -noout 2> out
 should_fail "Could not open file or uri"
 
 # unknown TPM2 handle
