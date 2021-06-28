@@ -506,6 +506,13 @@ tpm2_rsa_keymgmt_import(void *keydata,
         return 0;
     TRACE_PARAMS("RSA IMPORT", params);
 
+    /*
+     * We don't handle private keys, so if that's passed to us, we fail.
+     * Public key or just parameters is ok to receive.
+     */
+    if (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY)
+        return 0;
+
     p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_N);
     if (p != NULL) {
         BIGNUM *bignum = NULL;
@@ -544,26 +551,35 @@ tpm2_rsa_keymgmt_export(void *keydata, int selection,
     if (pkey == NULL)
         return 0;
 
-    if (!(selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY))
+    /*
+     * We don't handle private keys, so if that's requested, we fail.
+     * Public key or just parameters is ok to produce.
+     */
+    if (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY)
         return 0;
 
-    OSSL_PARAM params[3];
-#if defined(WORDS_BIGENDIAN)
-    params[0] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_N,
-                                        pkey->data.pub.publicArea.unique.rsa.buffer,
-                                        pkey->data.pub.publicArea.unique.rsa.size);
-#else
-    unsigned char *n = OPENSSL_malloc(pkey->data.pub.publicArea.unique.rsa.size);
-    /* just reverse the bytes; the BN export/import is unnecessarily complex */
-    revmemcpy(n, pkey->data.pub.publicArea.unique.rsa.buffer,
-                 pkey->data.pub.publicArea.unique.rsa.size);
-    params[0] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_N,
-                                        n, pkey->data.pub.publicArea.unique.rsa.size);
+    OSSL_PARAM params[3], *p = params;
+#if !defined(WORDS_BIGENDIAN)
+    unsigned char *n = NULL;
 #endif
-    exponent = pkey_get_rsa_exp(pkey);
-    params[1] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_E,
-                                        (unsigned char *)&exponent, sizeof(exponent));
-    params[2] = OSSL_PARAM_construct_end();
+    if (selection == 0 || selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) {
+#if defined(WORDS_BIGENDIAN)
+        *p++ = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_N,
+                                       pkey->data.pub.publicArea.unique.rsa.buffer,
+                                       pkey->data.pub.publicArea.unique.rsa.size);
+#else
+        n = OPENSSL_malloc(pkey->data.pub.publicArea.unique.rsa.size);
+        /* just reverse the bytes; the BN export/import is unnecessarily complex */
+        revmemcpy(n, pkey->data.pub.publicArea.unique.rsa.buffer,
+                  pkey->data.pub.publicArea.unique.rsa.size);
+        *p++ = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_N,
+                                       n, pkey->data.pub.publicArea.unique.rsa.size);
+#endif
+        exponent = pkey_get_rsa_exp(pkey);
+        *p++ = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_E,
+                                     (unsigned char *)&exponent, sizeof(exponent));
+    }
+    *p = OSSL_PARAM_construct_end();
 
     ok = param_cb(params, cbarg);
 
