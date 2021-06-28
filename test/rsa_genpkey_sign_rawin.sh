@@ -8,7 +8,7 @@ echo -n "abcde12345abcde12345" > testdata
 openssl genpkey -provider tpm2 -algorithm RSA -pkeyopt bits:1024 -out testkey.priv
 
 # export public key
-openssl pkey -provider tpm2 -in testkey.priv -pubout -out testkey.pub
+openssl pkey -provider tpm2 -provider base -in testkey.priv -pubout -out testkey.pub
 
 # check default scheme with various digests
 for HASH in sha1 sha256 sha384 sha512; do
@@ -16,7 +16,7 @@ for HASH in sha1 sha256 sha384 sha512; do
     tpm2_getcap algorithms | grep $HASH || continue
 
     # sign using a defined scheme/hash
-    openssl pkeyutl -provider tpm2 -sign -inkey testkey.priv -rawin -in testdata \
+    openssl pkeyutl -provider tpm2 -provider base -sign -inkey testkey.priv -rawin -in testdata \
         -digest $HASH -out testdata.sig
 
     # verify the signature
@@ -27,7 +27,7 @@ done
 # check default hash with various schemes
 for SCHEME in pkcs1 pss; do
     # sign using a defined scheme/hash
-    openssl pkeyutl -provider tpm2 -sign -inkey testkey.priv -rawin -in testdata \
+    openssl pkeyutl -provider tpm2 -provider base -sign -inkey testkey.priv -rawin -in testdata \
         -pkeyopt pad-mode:$SCHEME -out testdata.sig
 
     # verify the signature
