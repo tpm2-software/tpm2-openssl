@@ -49,6 +49,11 @@ openssl ca -provider tpm2 -provider base -config $PKIDIR/openssl.cnf -batch -nam
            -extensions ext_intermediate -notext -in testdb/intermediate/csr/intermediate.csr.pem \
            -out testdb/intermediate/certs/intermediate.cert.pem
 
+# Unfortunately, 'openssl ca' doesn't signal certification errors with its
+# exit code, so we must check for the file.
+# The test's exit code is good enough
+[ -f testdb/intermediate/certs/intermediate.cert.pem ]
+
 # Verify Intermediary CA Certificate
 openssl x509 -noout -text -in testdb/intermediate/certs/intermediate.cert.pem
 openssl verify -CAfile testdb/root/certs/root.cert.pem testdb/intermediate/certs/intermediate.cert.pem
@@ -71,6 +76,12 @@ openssl req -provider tpm2 -provider default -config $PKIDIR/openssl.cnf -new \
 # Sign Client Certifcate with Intermediary Certificate
 openssl ca -provider tpm2 -provider base -config $PKIDIR/openssl.cnf -batch -extensions ext_client -notext \
            -in testdb/client/csr/agd.csr.pem -out testdb/client/certs/agd.cert.pem
+
+# Unfortunately, 'openssl ca' doesn't signal certification errors with its
+# exit code, so we must check for the file.
+# The test's exit code is good enough
+[ -f testdb/client/certs/agd.cert.pem ]
+
 chmod 444 testdb/client/certs/agd.cert.pem
 
 # Verify Client Certificate
