@@ -49,7 +49,7 @@ openssl rsa -RSAPublicKey_in -in testrsa.pem -text -noout
 
 
 # read DER and export public key as DER
-openssl rsa -provider tpm2 -provider base -in pubkey.pem -inform der -RSAPublicKey_out -outform der -out testrsa.der
+openssl rsa -provider tpm2 -provider base -in pubkey.der -inform der -RSAPublicKey_out -outform der -out testrsa.der
 
 # print PEM public key modulus
 openssl rsa -RSAPublicKey_in -inform der -in testrsa.der -modulus -noout
