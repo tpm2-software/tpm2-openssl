@@ -39,6 +39,10 @@ openssl ca \
     -out testdb/ca/root-ca.crt \
     -extensions root_ca_ext
 
+# Unfortunately, 'openssl ca' doesn't signal certification errors with its
+# exit code, so we must check for the file.
+# The test's exit code is good enough
+[ -f testdb/ca/root-ca.crt ]
 
 # 2. Create Signing CA
 
@@ -70,6 +74,10 @@ openssl ca \
     -out testdb/ca/signing-ca.crt \
     -extensions signing_ca_ext
 
+# Unfortunately, 'openssl ca' doesn't signal certification errors with its
+# exit code, so we must check for the file.
+# The test's exit code is good enough
+[ -f testdb/ca/signing-ca.crt ]
 
 # 3. Operate Signing CA
 
@@ -90,6 +98,11 @@ openssl ca \
     -out testdb/certs/fred.crt \
     -extensions email_ext
 
+# Unfortunately, 'openssl ca' doesn't signal certification errors with its
+# exit code, so we must check for the file.
+# The test's exit code is good enough
+[ -f testdb/ca/fred.crt ]
+
 # 3.3 Create TLS server request
 SAN=DNS:www.simple.org \
 openssl req \
@@ -107,6 +120,11 @@ openssl ca \
     -in testdb/certs/simple.org.csr \
     -out testdb/certs/simple.org.crt \
     -extensions server_ext
+
+# Unfortunately, 'openssl ca' doesn't signal certification errors with its
+# exit code, so we must check for the file.
+# The test's exit code is good enough
+[ -f testdb/ca/simple.org.crt ]
 
 # 3.5 Revoke certificate
 openssl ca \
