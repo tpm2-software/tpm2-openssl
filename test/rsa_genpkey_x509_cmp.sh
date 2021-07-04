@@ -38,7 +38,7 @@ openssl cmp -port 8080 -srv_secret pass:1234-5678 \
 SERVER=$!
 
 # send CMP Initial Request for certificate deployment
-openssl cmp -provider tpm2 -provider default -propquery tpm2.digest!=yes \
+openssl cmp -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.digest!=yes \
             -cmd ir -server localhost:8080/pkix/ -recipient "/CN=CMPserver" \
             -secret pass:1234-5678 -newkey test-client-key.pem -subject "/CN=Client" \
             -certout test-my-cert.pem -cacertsout test-my-ca.pem
@@ -66,7 +66,7 @@ openssl cmp -port 8080 -srv_trusted test-ca-cert.pem \
 SERVER=$!
 
 # send CMP Key Update Request
-openssl cmp -provider tpm2 -provider default -propquery tpm2.digest!=yes \
+openssl cmp -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.digest!=yes \
             -cmd kur -server localhost:8080/pkix/ -srvcert test-server-cert.pem \
             -key test-client-key.pem -cert test-my-cert.pem \
             -newkey test-client-key2.pem -certout test-my-cert2.pem

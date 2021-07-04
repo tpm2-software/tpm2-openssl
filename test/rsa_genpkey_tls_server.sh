@@ -37,7 +37,7 @@ openssl req -provider tpm2 -x509 -config testcert.conf -out testcert.pem
 openssl x509 -text -noout -in testcert.pem
 
 # start SSL server with RSA-PSS-RSAE signing
-openssl s_server -provider tpm2 -provider default \
+openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2 \
                  -accept 4443 -www -key testkey.pem -cert testcert.pem &
 SERVER=$!
 trap "cleanup" EXIT
