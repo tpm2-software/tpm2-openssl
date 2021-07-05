@@ -21,9 +21,9 @@ jobs:
 
     - name: Build openssl
       run: |
-        wget --no-verbose https://github.com/openssl/openssl/archive/master.zip
-        unzip -q master.zip
-        cd openssl-master
+        wget --no-verbose https://github.com/levitte/openssl/archive/experimental.zip
+        unzip -q experimental.zip
+        cd openssl-experimental
         # disable all unnecessary features, with deprecated functions
         ./Configure linux-x86_64-clang enable-asan \
                     no-aria no-async no-autoload-config no-bf \

@@ -13,9 +13,9 @@ task:
                    dbus tpm2-tss tpm2-abrmd tpm2-tools
 
   build_openssl_script: |
-    wget --no-verbose https://github.com/openssl/openssl/archive/master.zip
-    unzip -q master.zip
-    cd openssl-master
+    wget --no-verbose https://github.com/levitte/openssl/archive/experimental.zip
+    unzip -q experimental.zip
+    cd openssl-experimental
     # disable all unnecessary features, with deprecated functions
     ./Configure no-aria no-async no-autoload-config no-bf \
                 no-blake2 no-cast no-chacha no-cms \
