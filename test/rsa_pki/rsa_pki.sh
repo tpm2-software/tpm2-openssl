@@ -101,7 +101,7 @@ openssl ca \
 # Unfortunately, 'openssl ca' doesn't signal certification errors with its
 # exit code, so we must check for the file.
 # The test's exit code is good enough
-[ -f testdb/ca/fred.crt ]
+[ -f testdb/certs/fred.crt ]
 
 # 3.3 Create TLS server request
 SAN=DNS:www.simple.org \
@@ -124,7 +124,7 @@ openssl ca \
 # Unfortunately, 'openssl ca' doesn't signal certification errors with its
 # exit code, so we must check for the file.
 # The test's exit code is good enough
-[ -f testdb/ca/simple.org.crt ]
+[ -f testdb/certs/simple.org.crt ]
 
 # 3.5 Revoke certificate
 openssl ca \
