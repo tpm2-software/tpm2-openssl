@@ -186,6 +186,12 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
 error2:
     BIO_free(bin);
 error1:
+    if (pkey->object != ESYS_TR_NONE) {
+        if (pkey->data.privatetype == KEY_TYPE_HANDLE)
+            Esys_TR_Close(pkey->esys_ctx, &pkey->object);
+        else
+            Esys_FlushContext(pkey->esys_ctx, pkey->object);
+    }
     OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
     return res;
 }
