@@ -556,13 +556,6 @@ tpm2_ec_keymgmt_export(void *keydata, int selection,
     if (pkey == NULL)
         return 0;
 
-    /*
-     * We don't handle private keys, so if that's requested, we fail.
-     * Public key or just parameters is ok to produce.
-     */
-    if (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY)
-        return 0;
-
     curve_nid = tpm2_ecc_curve_to_nid(TPM2_PKEY_EC_CURVE(pkey));
 
     pubsize = tpm2_ecc_point_to_uncompressed(
@@ -570,10 +563,10 @@ tpm2_ec_keymgmt_export(void *keydata, int selection,
                 &pkey->data.pub.publicArea.unique.ecc.y, &pubbuff);
 
     OSSL_PARAM params[3], *p = params;
-    if (selection == 0 || selection & OSSL_KEYMGMT_SELECT_ALL_PARAMETERS)
+    if (selection & OSSL_KEYMGMT_SELECT_ALL_PARAMETERS)
         *p++ = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,
                                                 (char *)OBJ_nid2sn(curve_nid), 0);
-    if (selection == 0 || selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY)
+    if (selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY)
         *p++ = OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_PUB_KEY,
                                                  pubbuff, pubsize);
     *p = OSSL_PARAM_construct_end();

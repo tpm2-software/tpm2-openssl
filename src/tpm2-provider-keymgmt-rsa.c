@@ -551,18 +551,11 @@ tpm2_rsa_keymgmt_export(void *keydata, int selection,
     if (pkey == NULL)
         return 0;
 
-    /*
-     * We don't handle private keys, so if that's requested, we fail.
-     * Public key or just parameters is ok to produce.
-     */
-    if (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY)
-        return 0;
-
     OSSL_PARAM params[3], *p = params;
 #if !defined(WORDS_BIGENDIAN)
     unsigned char *n = NULL;
 #endif
-    if (selection == 0 || selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) {
+    if (selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) {
 #if defined(WORDS_BIGENDIAN)
         *p++ = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_N,
                                        pkey->data.pub.publicArea.unique.rsa.buffer,
