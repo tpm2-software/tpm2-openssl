@@ -5,6 +5,7 @@
 #include <openssl/core_dispatch.h>
 #include <openssl/core_names.h>
 #include <openssl/params.h>
+#include <openssl/rsa.h>
 
 #include "tpm2-provider-pkey.h"
 
@@ -13,6 +14,10 @@ typedef struct tpm2_rsa_asymcipher_ctx_st TPM2_RSA_ASYMCIPHER_CTX;
 struct tpm2_rsa_asymcipher_ctx_st {
     const OSSL_CORE_HANDLE *core;
     ESYS_CONTEXT *esys_ctx;
+    TPMT_RSA_DECRYPT decrypt;
+    /* TLS padding */
+    unsigned int client_version;
+    unsigned int alt_version;
     TPM2_PKEY *pkey;
     TPM2B_PUBLIC_KEY_RSA *message;
 };
@@ -35,6 +40,7 @@ static void
 
     actx->core = cprov->core;
     actx->esys_ctx = cprov->esys_ctx;
+    actx->decrypt.scheme = TPM2_ALG_RSAES;
     return actx;
 }
 
@@ -56,7 +62,6 @@ decrypt_message(TPM2_RSA_ASYMCIPHER_CTX *actx,
 {
     TSS2_RC r;
     TPM2B_PUBLIC_KEY_RSA cipher;
-    TPMT_RSA_DECRYPT inScheme;
     TPM2B_DATA label = { .size = 0 };
 
     if (inlen > (int)sizeof(cipher.buffer))
@@ -65,11 +70,9 @@ decrypt_message(TPM2_RSA_ASYMCIPHER_CTX *actx,
     cipher.size = inlen;
     memcpy(cipher.buffer, in, inlen);
 
-    inScheme.scheme = TPM2_ALG_RSAES;
-
     r = Esys_RSA_Decrypt(actx->esys_ctx, actx->pkey->object,
                          ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
-                         &cipher, &inScheme, &label, &actx->message);
+                         &cipher, &actx->decrypt, &label, &actx->message);
     TPM2_CHECK_RC(actx->core, r, TPM2_ERR_CANNOT_DECRYPT, return 0);
 
     return 1;
@@ -112,9 +115,56 @@ rsa_asymcipher_freectx(void *ctx)
 static int
 rsa_asymcipher_set_ctx_params(void *ctx, const OSSL_PARAM params[])
 {
+    TPM2_RSA_ASYMCIPHER_CTX *actx = ctx;
+    const OSSL_PARAM *p;
+
     if (params == NULL)
         return 1;
     TRACE_PARAMS("DECRYPT SET_CTX_PARAMS", params);
+
+    p = OSSL_PARAM_locate_const(params, OSSL_ASYM_CIPHER_PARAM_PAD_MODE);
+    if (p != NULL) {
+        int pad_mode = 0;
+
+        switch (p->data_type) {
+        case OSSL_PARAM_INTEGER:
+            if (!OSSL_PARAM_get_int(p, &pad_mode))
+                return 0;
+
+            if (pad_mode == RSA_PKCS1_PADDING
+                    || pad_mode == RSA_PKCS1_WITH_TLS_PADDING)
+                actx->decrypt.scheme = TPM2_ALG_RSAES;
+            else
+                return 0;
+            break;
+        case OSSL_PARAM_UTF8_STRING:
+            if (!strcasecmp(p->data, OSSL_PKEY_RSA_PAD_MODE_PKCSV15))
+                actx->decrypt.scheme = TPM2_ALG_RSAES;
+            else
+                return 0;
+            break;
+        default:
+            return 0;
+        }
+    }
+
+    p = OSSL_PARAM_locate_const(params, OSSL_ASYM_CIPHER_PARAM_TLS_CLIENT_VERSION);
+    if (p != NULL) {
+        unsigned int client_version;
+
+        if (!OSSL_PARAM_get_uint(p, &client_version))
+            return 0;
+        actx->client_version = client_version;
+    }
+
+    p = OSSL_PARAM_locate_const(params, OSSL_ASYM_CIPHER_PARAM_TLS_NEGOTIATED_VERSION);
+    if (p != NULL) {
+        unsigned int alt_version;
+
+        if (!OSSL_PARAM_get_uint(p, &alt_version))
+            return 0;
+        actx->alt_version = alt_version;
+    }
 
     return 1;
 }
@@ -123,6 +173,9 @@ static const OSSL_PARAM *
 rsa_asymcipher_settable_ctx_params(void *ctx, void *provctx)
 {
     static const OSSL_PARAM known_settable_ctx_params[] = {
+        OSSL_PARAM_utf8_string(OSSL_ASYM_CIPHER_PARAM_PAD_MODE, NULL, 0),
+        OSSL_PARAM_uint(OSSL_ASYM_CIPHER_PARAM_TLS_CLIENT_VERSION, NULL),
+        OSSL_PARAM_uint(OSSL_ASYM_CIPHER_PARAM_TLS_NEGOTIATED_VERSION, NULL),
         OSSL_PARAM_END
     };
     return known_settable_ctx_params;
