@@ -506,35 +506,30 @@ tpm2_rsa_keymgmt_import(void *keydata,
         return 0;
     TRACE_PARAMS("RSA IMPORT", params);
 
-    /*
-     * We don't handle private keys, so if that's passed to us, we fail.
-     * Public key or just parameters is ok to receive.
-     */
-    if (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY)
-        return 0;
+    if (selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) {
+        p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_N);
+        if (p != NULL) {
+            BIGNUM *bignum = NULL;
+            int tolen;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_N);
-    if (p != NULL) {
-        BIGNUM *bignum = NULL;
-        int tolen;
+            if (!OSSL_PARAM_get_BN(p, &bignum))
+                return 0;
 
-        if (!OSSL_PARAM_get_BN(p, &bignum))
+            pkey->data.pub.publicArea.parameters.rsaDetail.keyBits = BN_num_bits(bignum);
+
+            tolen = BN_bn2bin(bignum, pkey->data.pub.publicArea.unique.rsa.buffer);
+            BN_free(bignum);
+            if (tolen < 0)
+                return 0;
+
+            pkey->data.pub.publicArea.unique.rsa.size = tolen;
+        }
+
+        p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_E);
+        if (p != NULL && !OSSL_PARAM_get_uint32(p,
+                    &pkey->data.pub.publicArea.parameters.rsaDetail.exponent))
             return 0;
-
-        pkey->data.pub.publicArea.parameters.rsaDetail.keyBits = BN_num_bits(bignum);
-
-        tolen = BN_bn2bin(bignum, pkey->data.pub.publicArea.unique.rsa.buffer);
-        BN_free(bignum);
-        if (tolen < 0)
-            return 0;
-
-        pkey->data.pub.publicArea.unique.rsa.size = tolen;
     }
-
-    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_E);
-    if (p != NULL && !OSSL_PARAM_get_uint32(p,
-                &pkey->data.pub.publicArea.parameters.rsaDetail.exponent))
-        return 0;
 
     return 1;
 }

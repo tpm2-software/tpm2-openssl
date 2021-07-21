@@ -505,7 +505,7 @@ tpm2_ec_keymgmt_match(const void *keydata1, const void *keydata2,
 
 static int
 tpm2_ec_keymgmt_import(void *keydata,
-                        int selection, const OSSL_PARAM params[])
+                       int selection, const OSSL_PARAM params[])
 {
     TPM2_PKEY *pkey = (TPM2_PKEY *)keydata;
     const OSSL_PARAM *p;
@@ -514,29 +514,26 @@ tpm2_ec_keymgmt_import(void *keydata,
         return 0;
     TRACE_PARAMS("EC IMPORT", params);
 
-    /*
-     * We don't handle private keys, so if that's passed to us, we fail.
-     * Public key or just parameters is ok to receive.
-     */
-    if (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY)
-        return 0;
-
-    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_GROUP_NAME);
-    if (p != NULL) {
-        if (p->data_type != OSSL_PARAM_UTF8_STRING ||
-                ((TPM2_PKEY_EC_CURVE(pkey) =
-                    tpm2_name_to_ecc_curve(p->data)) == TPM2_ECC_NONE)) {
-            TPM2_ERROR_raise(pkey->core, TPM2_ERR_UNKNOWN_ALGORITHM);
-            return 0;
+    if (selection & OSSL_KEYMGMT_SELECT_ALL_PARAMETERS) {
+        p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_GROUP_NAME);
+        if (p != NULL) {
+            if (p->data_type != OSSL_PARAM_UTF8_STRING ||
+                    ((TPM2_PKEY_EC_CURVE(pkey) =
+                        tpm2_name_to_ecc_curve(p->data)) == TPM2_ECC_NONE)) {
+                TPM2_ERROR_raise(pkey->core, TPM2_ERR_UNKNOWN_ALGORITHM);
+                return 0;
+            }
         }
     }
 
-    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PUB_KEY);
-    if (p != NULL) {
-        if (p->data_type != OSSL_PARAM_OCTET_STRING ||
-                !tpm2_buffer_to_ecc_point(tpm2_ecc_curve_to_nid(TPM2_PKEY_EC_CURVE(pkey)),
-                        p->data, p->data_size, &pkey->data.pub.publicArea.unique.ecc))
-            return 0;
+    if (selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) {
+        p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PUB_KEY);
+        if (p != NULL) {
+            if (p->data_type != OSSL_PARAM_OCTET_STRING ||
+                    !tpm2_buffer_to_ecc_point(tpm2_ecc_curve_to_nid(TPM2_PKEY_EC_CURVE(pkey)),
+                            p->data, p->data_size, &pkey->data.pub.publicArea.unique.ecc))
+                return 0;
+        }
     }
 
     return 1;
@@ -544,7 +541,7 @@ tpm2_ec_keymgmt_import(void *keydata,
 
 int
 tpm2_ec_keymgmt_export(void *keydata, int selection,
-                        OSSL_CALLBACK *param_cb, void *cbarg)
+                       OSSL_CALLBACK *param_cb, void *cbarg)
 {
     TPM2_PKEY *pkey = (TPM2_PKEY *)keydata;
     int curve_nid;
