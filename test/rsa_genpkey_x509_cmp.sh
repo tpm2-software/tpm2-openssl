@@ -2,6 +2,12 @@
 # SPDX-License-Identifier: BSD-3-Clause
 set -eufx
 
+function cleanup()
+{
+    # ensure the mock CMP server gets terminated after failure
+    kill -0 $SERVER && kill -term $SERVER || true
+}
+
 # create root CA key and certificate
 openssl req -provider tpm2 -x509 -newkey rsa:2048 -sha256 -nodes \
             -subj "/C=GB/CN=root.example.com" -extensions v3_ca \
@@ -36,6 +42,8 @@ openssl cmp -port 8080 -srv_secret pass:1234-5678 \
             -srv_key test-server-key.pem -srv_cert test-server-cert.pem \
             -rsp_cert test-client-cert.pem -rsp_capubs test-ca-cert.pem &
 SERVER=$!
+trap "cleanup" EXIT
+sleep 1
 
 # send CMP Initial Request for certificate deployment
 openssl cmp -provider tpm2 -provider default -propquery tpm2.digest!=yes \
@@ -64,11 +72,13 @@ openssl cmp -port 8080 -srv_trusted test-ca-cert.pem \
             -srv_key test-server-key.pem -srv_cert test-server-cert.pem \
             -rsp_cert test-client-cert2.pem -rsp_capubs test-ca-cert.pem &
 SERVER=$!
+sleep 1
 
 # send CMP Key Update Request
+# FIXME: Temporarily use key2/cert2 to authenticate the message, see https://github.com/openssl/openssl/pull/16050
 openssl cmp -provider tpm2 -provider default -propquery tpm2.digest!=yes \
-            -cmd kur -server localhost:8080/pkix/ -srvcert test-server-cert.pem \
-            -key test-client-key.pem -cert test-my-cert.pem \
+            -cmd kur -server localhost:8080/pkix/ -trusted test-ca-cert.pem \
+            -key test-client-key2.pem -cert test-client-cert2.pem \
             -newkey test-client-key2.pem -certout test-my-cert2.pem
 
 kill -term $SERVER
