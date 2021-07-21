@@ -17,9 +17,10 @@ openssl genpkey -algorithm EC -pkeyopt group:P-256 -out testkey2.priv
 
 # bob reads PEM and exports public key as DER
 openssl pkey -in testkey2.priv -pubout -outform der -out testkey2.pub
+KEYSIZE=`ls -l testkey2.pub | awk '{print $5}'`
 
 # alice allocates NV index in the TPM
-INDEX=$(tpm2_nvdefine -C owner -s `stat -c %s testkey2.pub` | cut -d ' ' -f 2 | head -n 1)
+INDEX=$(tpm2_nvdefine -C owner -s ${KEYSIZE} | cut -d ' ' -f 2 | head -n 1)
 
 # alice stores bob's public key to the NV index
 tpm2_nvwrite ${INDEX} -i testkey2.pub
