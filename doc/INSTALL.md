@@ -12,10 +12,7 @@ are required:
  * C compiler and C library
  * [TPM2.0 TSS ESAPI library](https://github.com/tpm2-software/tpm2-tss)
    (libtss2-esys) >= 2.3.0 with header files
- * [OpenSSL](https://www.openssl.org/) >= 3.0 with header files
-
-The OpenSSL 3.0 is not released yet. You need to download the latest Alfa version
-and build it from sources.
+ * [OpenSSL](https://www.openssl.org/) >= 3.0.0 with header files
 
 To run the tests (see next Section) you will also need:
 
