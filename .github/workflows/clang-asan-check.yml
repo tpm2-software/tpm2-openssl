@@ -36,12 +36,12 @@ jobs:
                     no-srtp no-ssl3-method no-tests no-ts no-ui-console no-whirlpool
         make build_sw
         sudo make install_sw install_ssldirs
-        sudo ldconfig
+        sudo ldconfig /usr/local/lib64
 
     - name: Configure tpm2-openssl
       run: |
         ./bootstrap
-        ./configure CC=clang --enable-asan --enable-debug
+        ./configure CC=clang PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig --enable-asan --enable-debug
 
     - name: Build tpm2-openssl
       run: |

@@ -30,5 +30,10 @@ extraction:
     - cd tpm2-tss
     - ./bootstrap
     - ./configure --prefix="$LGTM_WORKSPACE/installdir/usr"
+                  PKG_CONFIG_PATH="$LGTM_WORKSPACE/installdir/usr/lib64/pkgconfig"
                   --disable-fapi --disable-doxygen-doc
     - make install
+    configure:
+      command:
+      - ./bootstrap
+      - ./configure PKG_CONFIG_PATH="$LGTM_WORKSPACE/installdir/usr/lib64/pkgconfig:$LGTM_WORKSPACE/installdir/usr/lib/pkgconfig"
