@@ -53,7 +53,7 @@ openssl s_server -provider tpm2 -provider default \
                  -accept 4443 -www -key handle:${HANDLE} -cert testcert.pem &
 SERVER=$!
 trap "cleanup" EXIT
-sleep 2
 
 # start SSL client
-curl --cacert testcert.pem https://localhost:4443/
+curl --connect-timeout 5 --retry 5 --retry-connrefused --max-time 60 \
+     --cacert testcert.pem https://localhost:4443/

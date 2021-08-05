@@ -20,7 +20,7 @@ To run the tests (see next Section) you will also need:
  * [TPM2 Access Broker & Resource Manager](https://github.com/tpm2-software/tpm2-abrmd)
  * [IBM's Software TPM 2.0 Simulator](https://sourceforge.net/projects/ibmswtpm2/files)
  * D-Bus message bus daemon
- * curl
+ * curl >= 7.52.0
 
 
 ## Building From Source
