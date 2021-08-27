@@ -29,6 +29,7 @@ struct tpm2_signature_ctx_st {
 
 static OSSL_FUNC_signature_newctx_fn tpm2_signature_newctx;
 static OSSL_FUNC_signature_freectx_fn tpm2_signature_freectx;
+static OSSL_FUNC_signature_dupctx_fn tpm2_signature_dupctx;
 static OSSL_FUNC_signature_sign_init_fn tpm2_rsa_signature_sign_init;
 static OSSL_FUNC_signature_sign_init_fn tpm2_ecdsa_signature_sign_init;
 static OSSL_FUNC_signature_sign_fn tpm2_signature_sign;
@@ -72,6 +73,32 @@ tpm2_signature_freectx(void *ctx)
     tpm2_hash_sequence_flush((TPM2_HASH_SEQUENCE *)sctx);
     free(sctx->signature);
     OPENSSL_clear_free(sctx, sizeof(TPM2_SIGNATURE_CTX));
+}
+
+static void *
+tpm2_signature_dupctx(void *ctx)
+{
+    TPM2_SIGNATURE_CTX *src = ctx;
+    TPM2_SIGNATURE_CTX *sctx = OPENSSL_zalloc(sizeof(TPM2_SIGNATURE_CTX));
+
+    if (sctx == NULL)
+        return NULL;
+    if (!tpm2_hash_sequence_dup((TPM2_HASH_SEQUENCE *)sctx, (TPM2_HASH_SEQUENCE *)src))
+        goto error;
+    sctx->capability = src->capability;
+    sctx->pkey = src->pkey;
+    sctx->signScheme = src->signScheme;
+    if (src->signature) {
+        sctx->signature = OPENSSL_malloc(sizeof(TPMT_SIGNATURE));
+        if (!sctx->signature)
+            goto error;
+        memcpy(sctx->signature, src->signature, sizeof(TPMT_SIGNATURE));
+    }
+
+    return sctx;
+error:
+    OPENSSL_clear_free(sctx, sizeof(TPM2_SIGNATURE_CTX));
+    return NULL;
 }
 
 static int
@@ -648,6 +675,7 @@ tpm2_ecdsa_signature_settable_ctx_params(void *ctx, void *provctx)
 const OSSL_DISPATCH tpm2_rsa_signature_functions[] = {
     { OSSL_FUNC_SIGNATURE_NEWCTX, (void (*)(void))tpm2_signature_newctx },
     { OSSL_FUNC_SIGNATURE_FREECTX, (void (*)(void))tpm2_signature_freectx },
+    { OSSL_FUNC_SIGNATURE_DUPCTX, (void (*)(void))tpm2_signature_dupctx },
     { OSSL_FUNC_SIGNATURE_SIGN_INIT, (void (*)(void))tpm2_rsa_signature_sign_init },
     { OSSL_FUNC_SIGNATURE_SIGN, (void (*)(void))tpm2_signature_sign },
     { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_INIT, (void (*)(void))tpm2_rsa_signature_digest_init },
@@ -667,6 +695,7 @@ const OSSL_DISPATCH tpm2_rsa_signature_functions[] = {
 const OSSL_DISPATCH tpm2_ecdsa_signature_functions[] = {
     { OSSL_FUNC_SIGNATURE_NEWCTX, (void (*)(void))tpm2_signature_newctx },
     { OSSL_FUNC_SIGNATURE_FREECTX, (void (*)(void))tpm2_signature_freectx },
+    { OSSL_FUNC_SIGNATURE_DUPCTX, (void (*)(void))tpm2_signature_dupctx },
     { OSSL_FUNC_SIGNATURE_SIGN_INIT, (void (*)(void))tpm2_ecdsa_signature_sign_init },
     { OSSL_FUNC_SIGNATURE_SIGN, (void (*)(void))tpm2_signature_sign },
     { OSSL_FUNC_SIGNATURE_DIGEST_SIGN_INIT, (void (*)(void))tpm2_ecdsa_signature_digest_init },
