@@ -21,7 +21,7 @@ struct tpm2_signature_ctx_st {
             ESYS_CONTEXT *esys_ctx;
         };
     };
-    TPMS_CAPABILITY_DATA *capability;
+    TPM2_CAPABILITY capability;
     TPM2_PKEY *pkey;
     TPMT_SIG_SCHEME signScheme;
     TPMT_SIGNATURE *signature;
@@ -137,7 +137,7 @@ rsa_signature_scheme_init(TPM2_SIGNATURE_CTX *sctx, const char *mdname)
             sctx->hashSequence.algorithm = TPM2_PKEY_RSA_HASH(sctx->pkey);
         else
             sctx->hashSequence.algorithm = TPM2_ALG_SHA256;
-    } else if ((sctx->hashSequence.algorithm = tpm2_hash_name_to_alg(sctx->capability, mdname)) == TPM2_ALG_ERROR) {
+    } else if ((sctx->hashSequence.algorithm = tpm2_hash_name_to_alg(sctx->capability.algorithms, mdname)) == TPM2_ALG_ERROR) {
         TPM2_ERROR_raise(sctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
         return 0;
     }
@@ -170,7 +170,7 @@ ecdsa_signature_scheme_init(TPM2_SIGNATURE_CTX *sctx, const char *mdname)
             sctx->hashSequence.algorithm = TPM2_PKEY_RSA_HASH(sctx->pkey);
         else
             sctx->hashSequence.algorithm = TPM2_ALG_SHA256;
-    } else if ((sctx->hashSequence.algorithm = tpm2_hash_name_to_alg(sctx->capability, mdname)) == TPM2_ALG_ERROR) {
+    } else if ((sctx->hashSequence.algorithm = tpm2_hash_name_to_alg(sctx->capability.algorithms, mdname)) == TPM2_ALG_ERROR) {
         TPM2_ERROR_raise(sctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
         return 0;
     }
@@ -606,7 +606,7 @@ tpm2_rsa_signature_set_ctx_params(void *ctx, const OSSL_PARAM params[])
     if (p != NULL) {
         if (p->data_type != OSSL_PARAM_UTF8_STRING ||
                 ((sctx->signScheme.details.any.hashAlg =
-                    tpm2_hash_name_to_alg(sctx->capability, p->data)) == TPM2_ALG_ERROR)) {
+                    tpm2_hash_name_to_alg(sctx->capability.algorithms, p->data)) == TPM2_ALG_ERROR)) {
             TPM2_ERROR_raise(sctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
             return 0;
         }
@@ -652,7 +652,7 @@ tpm2_ecdsa_signature_set_ctx_params(void *ctx, const OSSL_PARAM params[])
     if (p != NULL) {
         if (p->data_type != OSSL_PARAM_UTF8_STRING ||
                 ((sctx->signScheme.details.any.hashAlg =
-                    tpm2_hash_name_to_alg(sctx->capability, p->data)) == TPM2_ALG_ERROR)) {
+                    tpm2_hash_name_to_alg(sctx->capability.algorithms, p->data)) == TPM2_ALG_ERROR)) {
             TPM2_ERROR_raise(sctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
             return 0;
         }

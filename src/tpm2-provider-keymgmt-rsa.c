@@ -43,7 +43,7 @@ typedef struct tpm2_rsagen_ctx_st TPM2_RSAGEN_CTX;
 struct tpm2_rsagen_ctx_st {
     const OSSL_CORE_HANDLE *core;
     ESYS_CONTEXT *esys_ctx;
-    TPMS_CAPABILITY_DATA *capability;
+    TPM2_CAPABILITY capability;
     TPM2_HANDLE parentHandle;
     TPM2B_DIGEST parentAuth;
     TPM2B_PUBLIC inPublic;
@@ -191,7 +191,7 @@ tpm2_rsa_keymgmt_gen_set_params(void *ctx, const OSSL_PARAM params[])
     if (p != NULL) {
         if (p->data_type != OSSL_PARAM_UTF8_STRING ||
                 ((gen->inPublic.publicArea.parameters.rsaDetail.scheme.details.anySig.hashAlg =
-                    tpm2_hash_name_to_alg(gen->capability, p->data)) == TPM2_ALG_ERROR)) {
+                    tpm2_hash_name_to_alg(gen->capability.algorithms, p->data)) == TPM2_ALG_ERROR)) {
             TPM2_ERROR_raise(gen->core, TPM2_ERR_UNKNOWN_ALGORITHM);
             return 0;
         }
@@ -273,7 +273,7 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
             goto error1;
     } else {
         DBG("RSA GEN parent: primary 0x%x\n", TPM2_RH_OWNER);
-        if (!tpm2_build_primary(pkey->core, pkey->esys_ctx, pkey->capability,
+        if (!tpm2_build_primary(pkey->core, pkey->esys_ctx, pkey->capability.algorithms,
                                 ESYS_TR_RH_OWNER, &gen->parentAuth, &parent))
             goto error1;
     }
@@ -617,18 +617,18 @@ tpm2_rsa_keymgmt_eximport_types(int selection)
 DECLARE_KEYMGMT_FUNCTIONS(rsa)
 DECLARE_KEYMGMT_FUNCTIONS(rsapss)
 
-const OSSL_DISPATCH *tpm2_rsa_keymgmt_dispatch(const TPMS_CAPABILITY_DATA *capability)
+const OSSL_DISPATCH *tpm2_rsa_keymgmt_dispatch(const TPM2_CAPABILITY *capability)
 {
-    if (tpm2_supports_algorithm(capability, TPM2_ALG_RSA))
+    if (tpm2_supports_algorithm(capability->algorithms, TPM2_ALG_RSA))
         return tpm2_rsa_keymgmt_functions;
     else
         return NULL;
 }
 
-const OSSL_DISPATCH *tpm2_rsapss_keymgmt_dispatch(const TPMS_CAPABILITY_DATA *capability)
+const OSSL_DISPATCH *tpm2_rsapss_keymgmt_dispatch(const TPM2_CAPABILITY *capability)
 {
-    if (tpm2_supports_algorithm(capability, TPM2_ALG_RSA)
-            && tpm2_supports_algorithm(capability, TPM2_ALG_RSAPSS))
+    if (tpm2_supports_algorithm(capability->algorithms, TPM2_ALG_RSA)
+            && tpm2_supports_algorithm(capability->algorithms, TPM2_ALG_RSAPSS))
         return tpm2_rsapss_keymgmt_functions;
     else
         return NULL;

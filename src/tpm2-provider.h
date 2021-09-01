@@ -14,11 +14,16 @@
 
 typedef struct tpm2_provider_ctx_st TPM2_PROVIDER_CTX;
 
+typedef struct {
+    TPMS_CAPABILITY_DATA *algorithms;
+    TPMS_CAPABILITY_DATA *commands;
+} TPM2_CAPABILITY;
+
 struct tpm2_provider_ctx_st {
     const OSSL_CORE_HANDLE *core;
     OSSL_LIB_CTX *libctx;
     ESYS_CONTEXT *esys_ctx;
-    TPMS_CAPABILITY_DATA *capability;
+    TPM2_CAPABILITY capability;
 };
 
 typedef enum {
@@ -45,7 +50,7 @@ typedef struct {
     TPM2B_DIGEST userauth;
     const OSSL_CORE_HANDLE *core;
     ESYS_CONTEXT *esys_ctx;
-    TPMS_CAPABILITY_DATA *capability;
+    TPM2_CAPABILITY capability;
     ESYS_TR object;
 } TPM2_PKEY;
 
@@ -124,6 +129,9 @@ tpm2_list_params(const char *text, const OSSL_PARAM params[]);
 int
 tpm2_supports_algorithm(const TPMS_CAPABILITY_DATA *caps, TPM2_ALG_ID algorithm);
 
-typedef const OSSL_DISPATCH *(tpm2_dispatch_t)(const TPMS_CAPABILITY_DATA *);
+int
+tpm2_supports_command(const TPMS_CAPABILITY_DATA *caps, TPM2_CC command);
+
+typedef const OSSL_DISPATCH *(tpm2_dispatch_t)(const TPM2_CAPABILITY *);
 
 #endif /* TPM2_PROVIDER_H */

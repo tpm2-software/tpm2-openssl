@@ -43,5 +43,4 @@ SERVER=$!
 trap "cleanup" EXIT
 
 # start SSL client
-curl --connect-timeout 5 --retry 5 --retry-connrefused --max-time 60 \
-     --cacert testcert.pem https://localhost:4443/
+curl --retry 5 --retry-connrefused --cacert testcert.pem https://localhost:4443/

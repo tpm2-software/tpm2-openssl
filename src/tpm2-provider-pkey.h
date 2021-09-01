@@ -33,7 +33,7 @@ tpm2_load_parent(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
 
 int
 tpm2_build_primary(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
-                   TPMS_CAPABILITY_DATA *capability, ESYS_TR hierarchy,
+                   const TPMS_CAPABILITY_DATA *capability, ESYS_TR hierarchy,
                    const TPM2B_DIGEST *auth, ESYS_TR *object);
 
 const char *

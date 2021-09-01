@@ -367,9 +367,9 @@ tpm2_digest_get_params_int(OSSL_PARAM params[], size_t block, size_t size)
     };
 
 #define IMPLEMENT_DIGEST_DISPATCH(alg) \
-    const OSSL_DISPATCH *tpm2_digest_##alg##_dispatch(const TPMS_CAPABILITY_DATA *capability) \
+    const OSSL_DISPATCH *tpm2_digest_##alg##_dispatch(const TPM2_CAPABILITY *capability) \
     { \
-        if (tpm2_supports_algorithm(capability, TPM2_ALG_##alg)) \
+        if (tpm2_supports_algorithm(capability->algorithms, TPM2_ALG_##alg)) \
             return tpm2_digest_##alg##_functions; \
         else \
             return NULL; \

@@ -15,7 +15,7 @@ typedef struct tpm2_cipher_ctx_st TPM2_CIPHER_CTX;
 struct tpm2_cipher_ctx_st {
     const OSSL_CORE_HANDLE *core;
     ESYS_CONTEXT *esys_ctx;
-    TPMS_CAPABILITY_DATA *capability;
+    TPM2_CAPABILITY capability;
     ESYS_TR object;
     TPMT_SYM_DEF_OBJECT algorithm;
     size_t block_size;
@@ -152,7 +152,7 @@ tpm2_cipher_init(TPM2_CIPHER_CTX *cctx,
         DBG("CIPHER %sCRYPT_INIT load key %zu bytes\n",
             cctx->decrypt ? "DE" : "EN", keylen);
 
-        if (!tpm2_build_primary(cctx->core, cctx->esys_ctx, cctx->capability,
+        if (!tpm2_build_primary(cctx->core, cctx->esys_ctx, cctx->capability.algorithms,
                                 ESYS_TR_RH_NULL, NULL, &parent))
             return 0;
 
@@ -507,10 +507,13 @@ tpm2_cipher_set_ctx_params(void *ctx, const OSSL_PARAM params[])
     };
 
 #define IMPLEMENT_CIPHER_DISPATCH(alg,kbits,lcmode) \
-    const OSSL_DISPATCH *tpm2_cipher_##alg##kbits##lcmode##_dispatch(const TPMS_CAPABILITY_DATA *capability) \
+    const OSSL_DISPATCH *tpm2_cipher_##alg##kbits##lcmode##_dispatch(const TPM2_CAPABILITY *capability) \
     { \
-        if (tpm2_supports_algorithm(capability, TPM2_ALG_##alg) \
-                && tpm2_supports_algorithm(capability, TPM2_ALG_##lcmode)) \
+        if (!tpm2_supports_command(capability->commands, TPM2_CC_EncryptDecrypt) \
+                && !tpm2_supports_command(capability->commands, TPM2_CC_EncryptDecrypt2)) \
+            return NULL; \
+        if (tpm2_supports_algorithm(capability->algorithms, TPM2_ALG_##alg) \
+                && tpm2_supports_algorithm(capability->algorithms, TPM2_ALG_##lcmode)) \
             return tpm2_cipher_##alg##kbits##lcmode##_functions; \
         else \
             return NULL; \

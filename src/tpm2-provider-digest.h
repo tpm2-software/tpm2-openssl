@@ -43,7 +43,7 @@ tpm2_hash_sequence_hash(TPM2_HASH_SEQUENCE *seq,
                         TPM2B_DIGEST **digest, TPMT_TK_HASHCHECK **validation);
 
 #define DECLARE_DIGEST(alg) \
-    const OSSL_DISPATCH *tpm2_digest_##alg##_dispatch(const TPMS_CAPABILITY_DATA *capability);
+    const OSSL_DISPATCH *tpm2_digest_##alg##_dispatch(const TPM2_CAPABILITY *capability);
 
 #if WITH_OP_DIGEST
 

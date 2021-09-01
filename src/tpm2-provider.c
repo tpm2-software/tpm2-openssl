@@ -57,7 +57,7 @@ typedef struct {
 } TPM2_ALGORITHM;
 
 static const OSSL_ALGORITHM *
-tpm2_operation(const TPMS_CAPABILITY_DATA *caps,
+tpm2_operation(const TPM2_CAPABILITY *caps,
                const TPM2_ALGORITHM *algs, size_t count)
 {
     OSSL_ALGORITHM *res;
@@ -254,16 +254,16 @@ tpm2_query_operation(void *provctx, int operation_id, int *no_cache)
     case OSSL_OP_DIGEST:
         /* we have to return the list of currently supported algorithms, because
          * the TLS uses this information for algorithm negotiation */
-        return tpm2_operation(cprov->capability, tpm2_digests, NELEMS(tpm2_digests));
+        return tpm2_operation(&cprov->capability, tpm2_digests, NELEMS(tpm2_digests));
 #endif
 #if WITH_OP_CIPHER
     case OSSL_OP_CIPHER:
-        return tpm2_operation(cprov->capability, tpm2_ciphers, NELEMS(tpm2_ciphers));
+        return tpm2_operation(&cprov->capability, tpm2_ciphers, NELEMS(tpm2_ciphers));
 #endif
     case OSSL_OP_RAND:
         return tpm2_rands;
     case OSSL_OP_KEYMGMT:
-        return tpm2_operation(cprov->capability, tpm2_keymgmts, NELEMS(tpm2_keymgmts));
+        return tpm2_operation(&cprov->capability, tpm2_keymgmts, NELEMS(tpm2_keymgmts));
     case OSSL_OP_KEYEXCH:
         return tpm2_keyexchs;
     case OSSL_OP_SIGNATURE:
@@ -348,7 +348,8 @@ tpm2_teardown(void *provctx)
     TSS2_RC r;
 
     DBG("PROVIDER TEARDOWN\n");
-    free(cprov->capability);
+    free(cprov->capability.algorithms);
+    free(cprov->capability.commands);
     OSSL_LIB_CTX_free(cprov->libctx);
 
     r = Esys_GetTcti(cprov->esys_ctx, &tcti_ctx);
@@ -413,7 +414,13 @@ OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
     r = Esys_GetCapability(cprov->esys_ctx,
                            ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                            TPM2_CAP_ALGS, 0, TPM2_MAX_CAP_ALGS,
-                           NULL, &cprov->capability);
+                           NULL, &cprov->capability.algorithms);
+    TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto err3);
+
+    r = Esys_GetCapability(cprov->esys_ctx,
+                           ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
+                           TPM2_CAP_COMMANDS, 0, TPM2_MAX_CAP_CC,
+                           NULL, &cprov->capability.commands);
     TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto err3);
 
     *out = tpm2_dispatch_table;

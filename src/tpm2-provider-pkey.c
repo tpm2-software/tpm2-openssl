@@ -270,7 +270,7 @@ error1:
 
 int
 tpm2_build_primary(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
-                   TPMS_CAPABILITY_DATA *capability, ESYS_TR hierarchy,
+                   const TPMS_CAPABILITY_DATA *algorithms, ESYS_TR hierarchy,
                    const TPM2B_DIGEST *auth, ESYS_TR *object)
 {
     const TPM2B_PUBLIC *primaryTemplate = NULL;
@@ -279,9 +279,9 @@ tpm2_build_primary(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
     r = Esys_TR_SetAuth(esys_ctx, hierarchy, auth);
     TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_CREATE_PRIMARY, goto error);
 
-    if (tpm2_supports_algorithm(capability, TPM2_ALG_ECC))
+    if (tpm2_supports_algorithm(algorithms, TPM2_ALG_ECC))
         primaryTemplate = &primaryEccTemplate;
-    else if (tpm2_supports_algorithm(capability, TPM2_ALG_RSA))
+    else if (tpm2_supports_algorithm(algorithms, TPM2_ALG_RSA))
         primaryTemplate = &primaryRsaTemplate;
 
     if(!primaryTemplate) {

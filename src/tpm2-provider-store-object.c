@@ -14,7 +14,7 @@ typedef struct tpm2_object_ctx_st TPM2_OBJECT_CTX;
 struct tpm2_object_ctx_st {
     const OSSL_CORE_HANDLE *core;
     ESYS_CONTEXT *esys_ctx;
-    TPMS_CAPABILITY_DATA *capability;
+    TPM2_CAPABILITY capability;
     int has_pass;
     TPM2_HANDLE handle;
     BIO *bio;

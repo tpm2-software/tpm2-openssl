@@ -113,3 +113,15 @@ tpm2_supports_algorithm(const TPMS_CAPABILITY_DATA *caps, TPM2_ALG_ID algorithm)
     return 0;
 }
 
+int
+tpm2_supports_command(const TPMS_CAPABILITY_DATA *caps, TPM2_CC command)
+{
+    UINT32 index;
+
+    for (index = 0; index < caps->data.command.count; index++) {
+        if ((caps->data.command.commandAttributes[index] & TPMA_CC_COMMANDINDEX_MASK) == command)
+            return 1;
+    }
+
+    return 0;
+}

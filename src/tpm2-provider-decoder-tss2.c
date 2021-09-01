@@ -21,7 +21,7 @@ struct tpm2_tss2_decoder_ctx_st {
     const OSSL_CORE_HANDLE *core;
     OSSL_LIB_CTX *libctx;
     ESYS_CONTEXT *esys_ctx;
-    TPMS_CAPABILITY_DATA *capability;
+    TPM2_CAPABILITY capability;
     TPM2B_DIGEST parentAuth;
 };
 
@@ -75,7 +75,7 @@ decode_privkey(TPM2_TSS2_DECODER_CTX *dctx, TPM2_PKEY *pkey,
                 goto error1;
         } else {
             DBG("TSS2 DECODER LOAD parent: primary 0x%x\n", TPM2_RH_OWNER);
-            if (!tpm2_build_primary(pkey->core, pkey->esys_ctx, pkey->capability,
+            if (!tpm2_build_primary(pkey->core, pkey->esys_ctx, pkey->capability.algorithms,
                                     ESYS_TR_RH_OWNER, &dctx->parentAuth, &parent))
                 goto error1;
         }
