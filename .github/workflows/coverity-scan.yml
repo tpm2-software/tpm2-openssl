@@ -25,9 +25,9 @@ jobs:
 
     - name: Build openssl
       run: |
-        wget --no-verbose https://github.com/openssl/openssl/archive/master.zip
-        unzip -q master.zip
-        cd openssl-master
+        wget --no-verbose https://github.com/openssl/openssl/archive/$BRANCH.zip
+        unzip -q $BRANCH.zip
+        cd openssl-$BRANCH
         # disable all unnecessary features
         ./Configure no-deprecated no-aria no-async no-autoload-config no-bf \
                     no-blake2 no-cast no-chacha no-cms \
@@ -40,6 +40,8 @@ jobs:
         make build_sw
         sudo make install_sw install_ssldirs
         sudo ldconfig /usr/local/lib64
+      env:
+        BRANCH: openssl-3.0
 
     - name: Configure tpm2-openssl
       run: |

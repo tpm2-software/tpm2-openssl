@@ -4,6 +4,9 @@ on:
 
 jobs:
   build:
+    strategy:
+      matrix:
+        branch: [openssl-3.0, master]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -21,9 +24,9 @@ jobs:
 
     - name: Build openssl
       run: |
-        wget --no-verbose https://github.com/openssl/openssl/archive/master.zip
-        unzip -q master.zip
-        cd openssl-master
+        wget --no-verbose https://github.com/openssl/openssl/archive/$BRANCH.zip
+        unzip -q $BRANCH.zip
+        cd openssl-$BRANCH
         # disable all unnecessary features, without deprecated functions
         ./Configure no-deprecated no-aria no-async no-autoload-config no-bf \
                     no-blake2 no-cast no-chacha no-cms \
@@ -36,6 +39,8 @@ jobs:
         make build_sw
         sudo make install_sw install_ssldirs
         sudo ldconfig /usr/local/lib64
+      env:
+        BRANCH: ${{ matrix.branch }}
 
     - name: Configure tpm2-openssl
       run: |
