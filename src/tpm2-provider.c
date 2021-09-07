@@ -10,8 +10,8 @@
 #include "tpm2-provider.h"
 
 #define TPM2TSS_PROV_NAME "TPM 2.0 Provider"
-#define TPM2TSS_PROV_VERSION "2.0.0"
-#define TPM2TSS_PROV_BUILDINFO "BETA"
+#define TPM2TSS_PROV_VERSION PACKAGE_VERSION
+#define TPM2TSS_PROV_BUILDINFO PACKAGE_VERSION
 
 static const OSSL_PARAM *
 tpm2_gettable_params(void *provctx)

@@ -1,10 +1,10 @@
 AC_PREREQ([2.69])
 
 AC_INIT([tpm2-openssl],
-        [2.0.0],
-        [https://github.com/gotthardp/tpm2-openssl/issues],
+        [m4_esyscmd_s([git describe --tags --always --dirty])],
+        [https://github.com/tpm2-software/tpm2-openssl/issues],
         [],
-        [https://github.com/gotthardp/tpm2-openssl])
+        [https://github.com/tpm2-software/tpm2-openssl])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([src/tpm2-provider.c])

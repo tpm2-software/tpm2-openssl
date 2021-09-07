@@ -5,4 +5,4 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
 ## [next]
 ### Added
-- Initial release.
+- Entire provider - initial release.

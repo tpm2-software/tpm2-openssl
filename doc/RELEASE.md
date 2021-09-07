@@ -26,10 +26,6 @@ Given a version number MAJOR.MINOR.PATCH, we increment the:
 2. MINOR version after adding functionality in a backwards-compatible manner, and
 3. PATCH version after doing bug fixes, without adding new functionality.
 
-The tpm2-provider starts with version 2.0.0 to eliminate any possible confusion
-with the tpm2-tss-engine, which may be used simultaneously during the transition
-period.
-
 
 ## Release Candidates
 
