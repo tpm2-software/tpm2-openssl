@@ -193,11 +193,12 @@ TPM2-based key.
 
 Please mind the limited number of transient key and sequence objects that can
 be concurrently loaded in the TPM. The number of ongoing digest operations and
-the number of loaded private keys is limited. The resource manager will not
-allow creation of more concurrent objects than `TPM_PT_HR_TRANSIENT_MIN`.
+the number of loaded private keys is limited. The in-kernel resource manager
+(`/dev/tpmrm`) is also memory constrained.
 
-The `TPM_PT_HR_TRANSIENT_MIN` parameter can be retrieved using
-`tpm2_getcap properties-fixed`.
+If your application needs to create a large number of objects, we recommend using
+the [user-space resource manager](https://github.com/tpm2-software/tpm2-abrmd)
+with a sufficiently large `--max-transients` argument.
 
 ### Limited Performance
 

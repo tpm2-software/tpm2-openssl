@@ -14,12 +14,19 @@ are required:
    (libtss2-esys) >= 2.3.0 with header files
  * [OpenSSL](https://www.openssl.org/) >= 3.0.0 with header files
 
+Although the software can run with the in-kernel resource manager (`/dev/tpmrm`)
+we recommend using the user-space resource manager, which is less memory
+constrained and thus enables creation of a larger number of transient objects.
+You will need:
+
+ * [TPM2 Access Broker & Resource Manager](https://github.com/tpm2-software/tpm2-abrmd),
+   started with a sufficiently large `--max-transients` argument
+ * D-Bus message bus daemon
+
 To run the tests (see next Section) you will also need:
 
  * [TPM2.0 Tools](https://github.com/tpm2-software/tpm2-tools) >= 4.0
- * [TPM2 Access Broker & Resource Manager](https://github.com/tpm2-software/tpm2-abrmd)
  * [IBM's Software TPM 2.0 Simulator](https://sourceforge.net/projects/ibmswtpm2/files)
- * D-Bus message bus daemon
  * curl >= 7.52.0
 
 
