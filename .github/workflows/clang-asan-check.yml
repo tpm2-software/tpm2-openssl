@@ -1,6 +1,10 @@
 name: clang-asan-check
 on:
-  [push, pull_request]
+  push:
+  pull_request:
+  schedule:
+    # Execute a weekly build on Monday at 2AM UTC
+    - cron:  '0 2 * * 1'
 
 jobs:
   build:
