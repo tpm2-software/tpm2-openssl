@@ -478,19 +478,20 @@ tpm2_rsa_keymgmt_match(const void *keydata1, const void *keydata2,
     TPM2_PKEY *pkey2 = (TPM2_PKEY *)keydata2;
 
     DBG("RSA MATCH 0x%x\n", selection);
-    if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
-        /* compare N */
-        if (BUFFER_CMP(pkey1->data.pub.publicArea.unique.rsa,
-                       pkey2->data.pub.publicArea.unique.rsa))
+    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0) {
+        if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
+            /* compare N */
+            if (BUFFER_CMP(pkey1->data.pub.publicArea.unique.rsa,
+                           pkey2->data.pub.publicArea.unique.rsa))
+                return 0;
+            /* compare E */
+            if (pkey_get_rsa_exp(pkey1) != pkey_get_rsa_exp(pkey2))
+                return 0;
+        } else {
+            /* we cannot compare private keys */
             return 0;
-        /* compare E */
-        if (pkey_get_rsa_exp(pkey1) != pkey_get_rsa_exp(pkey2))
-            return 0;
+        }
     }
-
-    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
-        /* we cannot compare private keys */
-        return 0;
 
     return 1;
 }

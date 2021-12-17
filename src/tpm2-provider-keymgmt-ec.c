@@ -484,21 +484,22 @@ tpm2_ec_keymgmt_match(const void *keydata1, const void *keydata2,
     TPM2_PKEY *pkey2 = (TPM2_PKEY *)keydata2;
 
     DBG("EC MATCH %x\n", selection);
-    if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
-        /* compare curve */
-        if (TPM2_PKEY_EC_CURVE(pkey1) != TPM2_PKEY_EC_CURVE(pkey2))
+    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0) {
+        if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
+            /* compare curve */
+            if (TPM2_PKEY_EC_CURVE(pkey1) != TPM2_PKEY_EC_CURVE(pkey2))
+                return 0;
+            /* compare point */
+            if (BUFFER_CMP(pkey1->data.pub.publicArea.unique.ecc.x,
+                           pkey2->data.pub.publicArea.unique.ecc.x) ||
+                BUFFER_CMP(pkey1->data.pub.publicArea.unique.ecc.y,
+                           pkey2->data.pub.publicArea.unique.ecc.y))
+                return 0;
+        } else {
+            /* we cannot compare private keys */
             return 0;
-        /* compare point */
-        if (BUFFER_CMP(pkey1->data.pub.publicArea.unique.ecc.x,
-                       pkey2->data.pub.publicArea.unique.ecc.x) ||
-            BUFFER_CMP(pkey1->data.pub.publicArea.unique.ecc.y,
-                       pkey2->data.pub.publicArea.unique.ecc.y))
-            return 0;
+        }
     }
-
-    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
-        /* we cannot compare private keys */
-        return 0;
 
     return 1;
 }
