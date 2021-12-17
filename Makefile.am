@@ -113,7 +113,7 @@ EXTRA_DIST = \
     LICENSE \
     README.md \
     bootstrap \
-    doc \
+    docs \
     $(TESTS_SHELL) \
     $(SH_LOG_COMPILER) \
     test/ec_pki/openssl.cnf \
