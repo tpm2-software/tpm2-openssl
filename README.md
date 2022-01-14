@@ -40,16 +40,16 @@ The tpm2-openssl project
   [TPM Software Stack (TSS 2.0)](https://trustedcomputinggroup.org/work-groups/software-stack/)
   and uses the
   [tpm2-tss](https://www.github.org/tpm2-software/tpm2-tss) software stack
-  implementation, version 2.3.0 or later.
+  implementation, version 3.2.0 or later.
 
 
 ## Build and Installation Instructions
 
 Instructions for building and installing the tpm2 provider are provided in the
-[INSTALL.md](doc/INSTALL.md) file.
+[INSTALL.md](docs/INSTALL.md) file.
 
 Instructions for how releases are conducted, please see the
-[RELEASE.md](doc/RELEASE.md) file.
+[RELEASE.md](docs/RELEASE.md) file.
 
 ## Features and Documentation
 
@@ -68,7 +68,7 @@ However, the application has to:
 fetching the [crypto](https://www.openssl.org/docs/manmaster/man7/crypto.html)
 algorithms.
 
-### [Initialization](doc/initialization.md)
+### [Initialization](docs/initialization.md)
 
 Connect to the TPM2 using the
 [`openssl -provider`](https://www.openssl.org/docs/manmaster/man1/openssl.html)
@@ -83,7 +83,7 @@ The
 [OSSL_PROVIDER_self_test](https://www.openssl.org/docs/manmaster/man3/OSSL_PROVIDER_self_test.html)
 API may be used to invoke the TPM self-test operation.
 
-### [Symmetric Operations](doc/symmetric.md)
+### [Symmetric Operations](docs/symmetric.md)
 
 Provides encryption (TPM2_EncryptDecrypt) using the
 [`openssl enc`](https://www.openssl.org/docs/manmaster/man1/openssl-enc.html)
@@ -98,14 +98,14 @@ or the
 [EVP_Digest](https://www.openssl.org/docs/manmaster/man3/EVP_Digest.html) API.
 The SHA-1, SHA-256, SHA-384 and SHA-512 algorithm is supported.
 
-### [Random Number Generation](doc/rng.md)
+### [Random Number Generation](docs/rng.md)
 
 Provides a random number generation (TPM2_GetRandom) using the
 [`openssl rand`](https://www.openssl.org/docs/manmaster/man1/openssl-rand.html)
 or the
 [EVP_RAND](https://www.openssl.org/docs/manmaster/man3/EVP_RAND.html) API.
 
-### [Key Operations](doc/keys.md)
+### [Key Operations](docs/keys.md)
 
 Provides key generation (TPM2_Create) using the
 [`openssl genpkey`](https://www.openssl.org/docs/manmaster/man1/openssl-genpkey.html)
@@ -145,7 +145,7 @@ For example, to load a persistent key and export its public portion:
 openssl pkey -provider tpm2 -in handle:0x81000000 -pubout -out testkey.pub
 ```
 
-### [Asymmetric Operations](doc/asymmetric.md)
+### [Asymmetric Operations](docs/asymmetric.md)
 
 Provides asymmetric signature (TPM2_Sign) using the
 [`openssl pkeyutl -sign`](https://www.openssl.org/docs/manmaster/man1/openssl-pkeyutl.html)
@@ -174,7 +174,7 @@ Provides ECDH shared secret derivation (TPM2_ECDH_ZGen) using the
 or the
 [EVP_PKEY_derive](https://www.openssl.org/docs/manmaster/man3/EVP_PKEY_derive.html) API.
 
-### [Identity Certificates](doc/certificates.md)
+### [Identity Certificates](docs/certificates.md)
 
 Provides all operations required for certificate signing using
 [`openssl req`](https://www.openssl.org/docs/manmaster/man1/openssl-req.html),
@@ -206,9 +206,9 @@ The TPM is a cryptographic processor with a secure key storage. It is **not**
 an accelerator. Many operations are slower than a pure software implementation.
 
 For user convenience the tpm2 provider implements also
-[Symmetric Operations](doc/symmetric.md) that do not use the secure storage,
+[Symmetric Operations](docs/symmetric.md) that do not use the secure storage,
 but we recommend using the OpenSSL's
-[default provider](https://github.com/tpm2-software/tpm2-openssl/blob/master/doc/initialization.md#loading-multiple-providers)
+[default provider](https://github.com/tpm2-software/tpm2-openssl/blob/master/docs/initialization.md#loading-multiple-providers)
 instead in performance critical applications.
 
 ### Limited Set of Algorithms
@@ -222,7 +222,7 @@ commands.
 
 Algorithms that do not require the TPM hardware, such as public key operations,
 hashes or symmetric ciphers, can be fetched from the OpenSSL's
-[default provider](https://github.com/tpm2-software/tpm2-openssl/blob/master/doc/initialization.md#loading-multiple-providers).
+[default provider](https://github.com/tpm2-software/tpm2-openssl/blob/master/docs/initialization.md#loading-multiple-providers).
 
 
 ## Help
