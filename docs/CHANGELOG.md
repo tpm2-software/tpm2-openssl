@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
-## [1.0.1-rc0] - 2022-01-14
+## [1.0.1] - 2022-01-23
 ### Fixed
 - Fixed RSA/EC key equality checks. Works with OpenSSL 3.0.1.
 - Modified documentation to recommend the user-space resource manager.
