@@ -107,7 +107,7 @@ ensure_key_loaded(TPM2_PKEY *pkey)
     TSS2_RC r;
 
     /* imported public keys are not auto-loaded by keymgmt */
-    if (pkey->object == ESYS_TR_NONE)
+    if (pkey && pkey->object == ESYS_TR_NONE)
     {
         r = Esys_LoadExternal(pkey->esys_ctx,
                               ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
