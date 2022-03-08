@@ -249,17 +249,35 @@ static const TPML_PCR_SELECTION allCreationPCR = {
 
 int
 tpm2_load_parent(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
-                 TPM2_HANDLE handle, const TPM2B_DIGEST *auth, ESYS_TR *object)
+                 TPM2_HANDLE handle, TPM2B_DIGEST *auth, ESYS_TR *object)
 {
     TSS2_RC r;
+
+    /*
+     * Set the parent auth if specified. Their is no way to get the pkey parent-auth
+     * argument to this method, so we pull from the environment.
+     */
+    if (auth->size == 0) {
+        const char *pauth = getenv("TPM2OPENSSL_PARENT_AUTH");
+        if (pauth) {
+            if (strlen(pauth) > sizeof(auth->buffer)) {
+                TPM2_ERROR_raise(core, TPM2_ERR_WRONG_DATA_LENGTH);
+                goto error1;
+            }
+            auth->size = sprintf(auth->buffer,
+                    "%s", pauth);
+        }
+    }
 
     r = Esys_TR_FromTPMPublic(esys_ctx, handle,
                               ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                               object);
     TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_LOAD_PARENT, goto error1);
 
-    r = Esys_TR_SetAuth(esys_ctx, *object, auth);
-    TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_LOAD_PARENT, goto error2);
+    if (auth->size > 0) {
+        r = Esys_TR_SetAuth(esys_ctx, *object, auth);
+        TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_LOAD_PARENT, goto error2);
+    }
 
     return 1;
 error2:

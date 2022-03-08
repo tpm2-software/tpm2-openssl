@@ -38,7 +38,10 @@ Settable key generation parameters (`-pkeyopt`):
    private key operations.
  * `parent` (uint32) defines parent of the key (as a hex number),
    by default 0x40000001 (TPM2_RH_OWNER).
- * `parent-auth` (utf8_string) defines an (optional) parent password.
+ * `parent-auth` (utf8_string) defines an (optional) parent password. **Note** That in
+    instances where the invoking command flow does not support `-pkeyopt` an environment
+    variable `TPM2OPENSSL_PARENT_AUTH` may be used. The `-pkeyopt` `parent-auth`
+    overrides the environment variable in instances where they are both set.
 
 The RSA or RSA-PSS keys support also:
  * `bits` (size_t) defines a desired size of the key.
