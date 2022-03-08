@@ -106,8 +106,12 @@ ensure_key_loaded(TPM2_PKEY *pkey)
 {
     TSS2_RC r;
 
+    /* it is acceptable to initialize without any key */
+    if (!pkey)
+        return 1;
+
     /* imported public keys are not auto-loaded by keymgmt */
-    if (pkey && pkey->object == ESYS_TR_NONE)
+    if (pkey->object == ESYS_TR_NONE)
     {
         r = Esys_LoadExternal(pkey->esys_ctx,
                               ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
@@ -132,7 +136,7 @@ rsa_signature_scheme_init(TPM2_SIGNATURE_CTX *sctx, const char *mdname)
         if (sctx->signScheme.details.any.hashAlg != TPM2_ALG_NULL)
             /* hash algorithm was specified in SET_CTX_PARAMS */
             sctx->hashSequence.algorithm = sctx->signScheme.details.any.hashAlg;
-        else if (TPM2_PKEY_RSA_SCHEME(sctx->pkey) != TPM2_ALG_NULL)
+        else if (sctx->pkey && TPM2_PKEY_RSA_SCHEME(sctx->pkey) != TPM2_ALG_NULL)
             /* hash algorithm is associated with the key */
             sctx->hashSequence.algorithm = TPM2_PKEY_RSA_HASH(sctx->pkey);
         else
@@ -143,7 +147,7 @@ rsa_signature_scheme_init(TPM2_SIGNATURE_CTX *sctx, const char *mdname)
     }
 
     if (sctx->signScheme.scheme == TPM2_ALG_NULL) {
-        if (TPM2_PKEY_RSA_SCHEME(sctx->pkey) != TPM2_ALG_NULL)
+        if (sctx->pkey && TPM2_PKEY_RSA_SCHEME(sctx->pkey) != TPM2_ALG_NULL)
             /* copy the key algorithm for ALGORITHM_ID calculation */
             sctx->signScheme.scheme = TPM2_PKEY_RSA_SCHEME(sctx->pkey);
         else
@@ -165,7 +169,7 @@ ecdsa_signature_scheme_init(TPM2_SIGNATURE_CTX *sctx, const char *mdname)
         if (sctx->signScheme.details.any.hashAlg != TPM2_ALG_NULL)
             /* hash algorithm was specified in SET_CTX_PARAMS */
             sctx->hashSequence.algorithm = sctx->signScheme.details.any.hashAlg;
-        else if (TPM2_PKEY_RSA_SCHEME(sctx->pkey) != TPM2_ALG_NULL)
+        else if (sctx->pkey && TPM2_PKEY_RSA_SCHEME(sctx->pkey) != TPM2_ALG_NULL)
             /* hash algorithm is associated with the key */
             sctx->hashSequence.algorithm = TPM2_PKEY_RSA_HASH(sctx->pkey);
         else
