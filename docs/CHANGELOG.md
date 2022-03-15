@@ -3,10 +3,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
-## [1.0.2] - next
+## [1.1.0-rc0] - 2022-03-15
 ### Fixed
 - Fixed segmentation fault when a signature algorithm is beging initialized
   without a private key.
+
+### Added
+- Added support for the `TPM2OPENSSL_PARENT_AUTH` environment variable.
+- Added the Code of Conduct and Contributing guidelines.
 
 ## [1.0.1] - 2022-01-23
 ### Fixed
