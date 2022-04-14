@@ -2,5 +2,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 set -e
 
+# Generate a VERSION file that is included in the dist tarball to avoid needed git
+# when calling autoreconf in a release tarball.
+git describe --tags --always --dirty > VERSION
+
 mkdir -p m4
 autoreconf --install --sym

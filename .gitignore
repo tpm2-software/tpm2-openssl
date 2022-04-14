@@ -31,3 +31,4 @@ test/selftest
 tpm2-openssl-*-coverage.info
 tpm2-openssl-*-coverage/
 NVChip
+VERSION

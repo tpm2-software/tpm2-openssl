@@ -1,7 +1,7 @@
 AC_PREREQ([2.69])
 
 AC_INIT([tpm2-openssl],
-        [m4_esyscmd_s([git describe --tags --always --dirty])],
+        [m4_esyscmd_s([cat ./VERSION])],
         [https://github.com/tpm2-software/tpm2-openssl/issues],
         [],
         [https://github.com/tpm2-software/tpm2-openssl])

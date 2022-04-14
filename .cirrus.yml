@@ -1,6 +1,6 @@
 task:
   freebsd_instance:
-    image_family: freebsd-12-2
+    image_family: freebsd-13-0
   env:
     PKG_CONFIG_PATH: /usr/local/lib/pkgconfig
     LD_LIBRARY_PATH: /usr/local/lib
@@ -10,7 +10,7 @@ task:
 
   install_packages_script: |
     pkg install -y bash wget gmake libtool pkgconf automake autoconf autoconf-archive \
-                   dbus tpm2-tss tpm2-abrmd tpm2-tools
+                   git dbus tpm2-tss tpm2-abrmd tpm2-tools
 
   build_openssl_script: |
     wget --no-verbose https://github.com/openssl/openssl/archive/master.zip
