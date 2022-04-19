@@ -117,4 +117,5 @@ EXTRA_DIST = \
     $(TESTS_SHELL) \
     $(SH_LOG_COMPILER) \
     test/ec_pki/openssl.cnf \
-    test/rsa_pki/etc
+    test/rsa_pki/etc \
+    VERSION
