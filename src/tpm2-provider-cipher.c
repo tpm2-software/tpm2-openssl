@@ -122,17 +122,23 @@ tpm2_load_external_key(TPM2_CIPHER_CTX *cctx, ESYS_TR parent,
     memcpy(inSensitive.sensitive.data.buffer, key, keylen);
     inSensitive.sensitive.data.size = keylen;
 
-    size_t offset = 0;
-    TPM2B_TEMPLATE template = { .size = 0 };
-    r = Tss2_MU_TPMT_PUBLIC_Marshal(&inPublic.publicArea,
-                                    template.buffer, sizeof(TPMT_PUBLIC), &offset);
-    TPM2_CHECK_RC(cctx->core, r, TPM2_ERR_INPUT_CORRUPTED, return 0);
-    template.size = offset;
+    TPM2B_DATA outside_info = { .size = 0 };
+    TPML_PCR_SELECTION creation_pcr = { .count = 0 };
+    TPM2B_PUBLIC *keyPublic = NULL;
+    TPM2B_PRIVATE *keyPrivate = NULL;
 
-    r = Esys_CreateLoaded(cctx->esys_ctx, parent,
-                          ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
-                          &inSensitive, &template,
-                          &cctx->object, NULL, NULL);
+    /* older TPM2 chips do not support Esys_CreateLoaded */
+    r = Esys_Create(cctx->esys_ctx, parent,
+                    ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                    &inSensitive, &inPublic, &outside_info, &creation_pcr,
+                    &keyPrivate, &keyPublic, NULL, NULL, NULL);
+    TPM2_CHECK_RC(cctx->core, r, TPM2_ERR_CANNOT_CREATE_KEY, return 0);
+
+    r = Esys_Load(cctx->esys_ctx, parent,
+                  ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                  keyPrivate, keyPublic, &cctx->object);
+    free(keyPublic);
+    free(keyPrivate);
     TPM2_CHECK_RC(cctx->core, r, TPM2_ERR_CANNOT_CREATE_KEY, return 0);
 
     return 1;

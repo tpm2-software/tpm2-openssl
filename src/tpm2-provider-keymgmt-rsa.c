@@ -278,24 +278,26 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
             goto error1;
     }
 
-    size_t offset = 0;
-    TPM2B_TEMPLATE template = { .size = 0 };
-    r = Tss2_MU_TPMT_PUBLIC_Marshal(&gen->inPublic.publicArea,
-                                    template.buffer, sizeof(TPMT_PUBLIC), &offset);
-    TPM2_CHECK_RC(gen->core, r, TPM2_ERR_INPUT_CORRUPTED, goto final);
-    template.size = offset;
+    TPM2B_DATA outside_info = { .size = 0 };
+    TPML_PCR_SELECTION creation_pcr = { .count = 0 };
 
-    r = Esys_CreateLoaded(gen->esys_ctx, parent,
-                          ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
-                          &gen->inSensitive, &template,
-                          &pkey->object, &keyPrivate, &keyPublic);
-    TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto final);
+    /* older TPM2 chips do not support Esys_CreateLoaded */
+    r = Esys_Create(gen->esys_ctx, parent,
+                    ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                    &gen->inSensitive, &gen->inPublic, &outside_info, &creation_pcr,
+                    &keyPrivate, &keyPublic, NULL, NULL, NULL);
+    TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto error1);
 
     pkey->data.pub = *keyPublic;
-    free(keyPublic);
     pkey->data.privatetype = KEY_TYPE_BLOB;
     pkey->data.priv = *keyPrivate;
+
+    r = Esys_Load(gen->esys_ctx, parent,
+                  ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                  keyPrivate, keyPublic, &pkey->object);
+    free(keyPublic);
     free(keyPrivate);
+    TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto error1);
 
 final:
     if (gen->parentHandle && gen->parentHandle != TPM2_RH_OWNER)
