@@ -378,6 +378,14 @@ tpm2_ec_keymgmt_get_params(void *keydata, OSSL_PARAM params[])
     if (p != NULL && !OSSL_PARAM_set_int(p, tpm2_ecdsa_size(
                             tpm2_ecc_curve_to_nid(TPM2_PKEY_EC_CURVE(pkey)))))
         goto error;
+    if (TPM2_PKEY_EC_SCHEME(pkey) != TPM2_ALG_NULL) {
+        /* if the key is associated with a hash, it is mandatory */
+        p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_MANDATORY_DIGEST);
+        if (p != NULL && !OSSL_PARAM_set_utf8_string(p,
+                (char *)tpm2_hash_alg_to_name(TPM2_PKEY_EC_HASH(pkey))))
+            return 0;
+    }
+
     /* static curve parameters */
     p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_EC_P);
     if (p != NULL && !tpm2_param_set_BN_from_buffer(p, details->p))
@@ -426,6 +434,7 @@ tpm2_ec_keymgmt_gettable_params(void *provctx)
         OSSL_PARAM_int(OSSL_PKEY_PARAM_BITS, NULL),
         OSSL_PARAM_int(OSSL_PKEY_PARAM_SECURITY_BITS, NULL),
         OSSL_PARAM_int(OSSL_PKEY_PARAM_MAX_SIZE, NULL),
+        OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_DEFAULT_DIGEST, NULL, 0),
         /* static curve parameters */
         OSSL_PARAM_BN(OSSL_PKEY_PARAM_EC_P, NULL, 0),
         OSSL_PARAM_BN(OSSL_PKEY_PARAM_EC_A, NULL, 0),

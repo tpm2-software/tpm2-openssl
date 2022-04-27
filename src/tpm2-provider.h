@@ -59,6 +59,8 @@ typedef struct {
 #define TPM2_PKEY_RSA_HASH(pkey) ((pkey)->data.pub.publicArea.parameters.rsaDetail.scheme.details.anySig.hashAlg)
 
 #define TPM2_PKEY_EC_CURVE(pkey) ((pkey)->data.pub.publicArea.parameters.eccDetail.curveID)
+#define TPM2_PKEY_EC_SCHEME(pkey) ((pkey)->data.pub.publicArea.parameters.eccDetail.scheme.scheme)
+#define TPM2_PKEY_EC_HASH(pkey) ((pkey)->data.pub.publicArea.parameters.eccDetail.scheme.details.anySig.hashAlg)
 
 enum {
     TPM2_ERR_MEMORY_FAILURE = 1,

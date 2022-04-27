@@ -400,7 +400,7 @@ tpm2_rsa_keymgmt_get_params(void *keydata, OSSL_PARAM params[])
     if (TPM2_PKEY_RSA_SCHEME(pkey) != TPM2_ALG_NULL) {
         /* if the key is associated with a hash, it is mandatory */
         p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_MANDATORY_DIGEST);
-        if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p,
+        if (p != NULL && !OSSL_PARAM_set_utf8_string(p,
                 (char *)tpm2_hash_alg_to_name(TPM2_PKEY_RSA_HASH(pkey))))
             return 0;
     }

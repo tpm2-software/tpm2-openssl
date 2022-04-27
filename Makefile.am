@@ -86,6 +86,7 @@ TESTS_SHELL = test/list.sh \
               test/ecdh_genpkey_keyexch.sh \
               test/ecdh_create_keyexch_index.sh \
               test/ec_createak_x509_csr.sh \
+              test/ec_createak_x509_cms.sh \
               test/ec_genpkey_tls_server.sh \
               test/ec_pki/ec_pki.sh \
               test/store_errors.sh
