@@ -216,6 +216,7 @@ tpm2_object_load_index(TPM2_OBJECT_CTX *sctx, ESYS_TR object,
 {
     TPM2B_NV_PUBLIC *metadata = NULL;
     TPM2B_MAX_NV_BUFFER *data = NULL;
+    BIO *bufio;
     TSS2_RC r;
     int ret = 0;
 
@@ -233,15 +234,48 @@ tpm2_object_load_index(TPM2_OBJECT_CTX *sctx, ESYS_TR object,
 
     OSSL_PARAM params[3];
     int object_type = OSSL_OBJECT_UNKNOWN;
+    char *pem_name = NULL;
+    char *pem_header = NULL;
+    unsigned char *der_data = NULL;
+    long der_len;
 
-    /* pass the data to ossl_store_handle_load_result(),
-       which will call the TPM2_PKEY decoder or read the certificate */
-    params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
-    params[1] = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_DATA,
-                                                  data->buffer, data->size);
+    if ((bufio = BIO_new_mem_buf(data->buffer, data->size)) == NULL)
+        goto final;
+
+    /* the ossl_store_handle_load_result() supports DER objects only */
+    if (PEM_read_bio(bufio, &pem_name, &pem_header, &der_data, &der_len) > 0) {
+        if (pem_name != NULL) {
+            DBG("STORE/OBJECT LOAD(PEM) %s %li bytes\n", pem_name, der_len);
+
+            if (!strcmp(pem_name, TSSPRIVKEY_PEM_STRING))
+                object_type = OSSL_OBJECT_PKEY;
+            else if (!strcmp(pem_name, PEM_STRING_X509))
+                object_type = OSSL_OBJECT_CERT;
+            else if (!strcmp(pem_name, PEM_STRING_X509_CRL))
+                object_type = OSSL_OBJECT_CRL;
+        }
+
+        /* pass the data to ossl_store_handle_load_result(),
+           which will call the TPM2_PKEY decoder or read the certificate */
+        params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
+
+        params[1] = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_DATA,
+                                                      der_data, der_len);
+    } else {
+        params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
+
+        params[1] = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_DATA,
+                                                      data->buffer, data->size);
+    }
+
     params[2] = OSSL_PARAM_construct_end();
 
     ret = object_cb(params, object_cbarg);
+
+    OPENSSL_free(pem_name);
+    OPENSSL_free(pem_header);
+    OPENSSL_free(der_data);
+    BIO_free(bufio);
 final:
     free(data);
     free(metadata);
