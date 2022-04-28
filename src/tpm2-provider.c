@@ -348,6 +348,7 @@ tpm2_teardown(void *provctx)
     TSS2_RC r;
 
     DBG("PROVIDER TEARDOWN\n");
+    free(cprov->capability.properties);
     free(cprov->capability.algorithms);
     free(cprov->capability.commands);
     OSSL_LIB_CTX_free(cprov->libctx);
@@ -410,6 +411,12 @@ OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
 
     r = Esys_Initialize(&cprov->esys_ctx, tcti_ctx, NULL);
     TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_CONNECT, goto err2);
+
+    r = Esys_GetCapability(cprov->esys_ctx,
+                           ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
+                           TPM2_CAP_TPM_PROPERTIES, 0, TPM2_MAX_TPM_PROPERTIES,
+                           NULL, &cprov->capability.properties);
+    TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto err3);
 
     r = Esys_GetCapability(cprov->esys_ctx,
                            ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,

@@ -125,3 +125,17 @@ tpm2_supports_command(const TPMS_CAPABILITY_DATA *caps, TPM2_CC command)
 
     return 0;
 }
+
+uint16_t
+tpm2_max_nvindex_buffer(const TPMS_CAPABILITY_DATA *caps)
+{
+    UINT32 index;
+    uint16_t max_nv_size = TPM2_MAX_NV_BUFFER_SIZE;
+
+    for (index = 0; index < caps->data.tpmProperties.count; index++) {
+        if (caps->data.tpmProperties.tpmProperty[index].property == TPM2_PT_NV_BUFFER_MAX)
+            return caps->data.tpmProperties.tpmProperty[index].value;
+    }
+
+    return max_nv_size;
+}

@@ -15,6 +15,7 @@
 typedef struct tpm2_provider_ctx_st TPM2_PROVIDER_CTX;
 
 typedef struct {
+    TPMS_CAPABILITY_DATA *properties;
     TPMS_CAPABILITY_DATA *algorithms;
     TPMS_CAPABILITY_DATA *commands;
 } TPM2_CAPABILITY;
@@ -133,6 +134,9 @@ tpm2_supports_algorithm(const TPMS_CAPABILITY_DATA *caps, TPM2_ALG_ID algorithm)
 
 int
 tpm2_supports_command(const TPMS_CAPABILITY_DATA *caps, TPM2_CC command);
+
+uint16_t
+tpm2_max_nvindex_buffer(const TPMS_CAPABILITY_DATA *caps);
 
 typedef const OSSL_DISPATCH *(tpm2_dispatch_t)(const TPM2_CAPABILITY *);
 

@@ -215,7 +215,8 @@ tpm2_object_load_index(TPM2_OBJECT_CTX *sctx, ESYS_TR object,
                        OSSL_CALLBACK *object_cb, void *object_cbarg)
 {
     TPM2B_NV_PUBLIC *metadata = NULL;
-    TPM2B_MAX_NV_BUFFER *data = NULL;
+    uint16_t read_len, read_max, data_len = 0;
+    unsigned char *data = NULL;
     BIO *bufio;
     TSS2_RC r;
     int ret = 0;
@@ -225,12 +226,27 @@ tpm2_object_load_index(TPM2_OBJECT_CTX *sctx, ESYS_TR object,
                            &metadata, NULL);
     TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto final);
 
-    DBG("STORE/OBJECT LOAD index %i bytes\n", metadata->nvPublic.dataSize);
+    read_len = metadata->nvPublic.dataSize;
+    read_max = tpm2_max_nvindex_buffer(sctx->capability.properties);
+    DBG("STORE/OBJECT LOAD index %u bytes (buffer %u bytes)\n", read_len, read_max);
 
-    r = Esys_NV_Read(sctx->esys_ctx, object, object,
-                     ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
-                     metadata->nvPublic.dataSize, 0, &data);
-    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto final);
+    if ((data = malloc(read_len)) == NULL)
+        goto final;
+
+    while (read_len > 0) {
+        uint16_t bytes_to_read = read_len < read_max ? read_len : read_max;
+        TPM2B_MAX_NV_BUFFER *buff = NULL;
+
+        r = Esys_NV_Read(sctx->esys_ctx, object, object,
+                         ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                         bytes_to_read, data_len, &buff);
+        TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto final);
+
+        memcpy(data + data_len, buff->buffer, buff->size);
+        read_len -= buff->size;
+        data_len += buff->size;
+        free(buff);
+    }
 
     OSSL_PARAM params[3];
     int object_type = OSSL_OBJECT_UNKNOWN;
@@ -239,7 +255,7 @@ tpm2_object_load_index(TPM2_OBJECT_CTX *sctx, ESYS_TR object,
     unsigned char *der_data = NULL;
     long der_len;
 
-    if ((bufio = BIO_new_mem_buf(data->buffer, data->size)) == NULL)
+    if ((bufio = BIO_new_mem_buf(data, data_len)) == NULL)
         goto final;
 
     /* the ossl_store_handle_load_result() supports DER objects only */
@@ -265,7 +281,7 @@ tpm2_object_load_index(TPM2_OBJECT_CTX *sctx, ESYS_TR object,
         params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
 
         params[1] = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_DATA,
-                                                      data->buffer, data->size);
+                                                      data, data_len);
     }
 
     params[2] = OSSL_PARAM_construct_end();

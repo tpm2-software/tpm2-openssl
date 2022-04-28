@@ -90,6 +90,7 @@ TESTS_SHELL = test/list.sh \
               test/ec_createak_x509_index.sh \
               test/ec_genpkey_tls_server.sh \
               test/ec_pki/ec_pki.sh \
+              test/store_x509_index.sh \
               test/store_errors.sh
 if WITH_OP_DIGEST
 TESTS_SHELL += test/digest.sh
