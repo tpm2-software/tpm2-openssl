@@ -67,6 +67,29 @@ By default, the ossl-modules directory is auto-detected using pkg-config. To
 install the provider to another directory call configure `--with-modulesdir`
 and specify a full patch.
 
+## Building on Windows
+
+Windows dlls built using the Clang/LLVM "Platform Toolset" are currently
+prototypes. We have only tested using Visual Studio 2017 with the
+Universal C Runtime (UCRT) version 10.0.22000.0. You can follow this
+quick start to build the dependencies and tpm2-openssl on windows:
+
+ 1. Build OpenSSL on Windows according to the instructions in
+    [https://github.com/openssl/openssl/blob/master/NOTES-WINDOWS.md](https://github.com/openssl/openssl/blob/master/NOTES-WINDOWS.md)
+ 2. You will need the tpm2-tss library with the ESYS API (no need to
+    bother with FAPI). There is (a bit old) VS solution for that: 
+    [https://github.com/tpm2-software/tpm2-tss/blob/master/tpm2-tss.sln](https://github.com/tpm2-software/tpm2-tss/blob/master/tpm2-tss.sln)
+    You will need to adjust the SDK and CLang version and the include and 
+    library paths to be able to compile.
+ 3. Once the openssl and the tpm2-tss with tcti-tbs are built, building 
+    the tpm2 provider (tpm2.dll) should be as simple as loading the 
+    tpm2-openssl solution (tpm2-openssl.sln) with a compatible and properly
+    configured version of Visual Studio 2017, adjust the include and
+    library paths for openssl and tpm2-tss and pressing the 'build' button.
+
+Then place the `tpm2.dll` in the OpenSSLs `\lib\ossl-modules' folder
+and make the tpm2-tss libraries available on `%PATH`. Congratulations,
+you now should be able to use the tpm2 provider with openssl on windows.
 
 # Testing the Provider
 To test the Provider you need a working TPM2 chip or a TPM2 simulator.
