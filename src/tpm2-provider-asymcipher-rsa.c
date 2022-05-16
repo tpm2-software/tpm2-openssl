@@ -9,6 +9,12 @@
 
 #include "tpm2-provider-pkey.h"
 
+#ifdef _MSC_VER 
+//not #if defined(_WIN32) || defined(_WIN64) because we have strncasecmp in mingw
+#define strncasecmp _strnicmp
+#define strcasecmp _stricmp
+#endif
+
 typedef struct tpm2_rsa_asymcipher_ctx_st TPM2_RSA_ASYMCIPHER_CTX;
 
 struct tpm2_rsa_asymcipher_ctx_st {

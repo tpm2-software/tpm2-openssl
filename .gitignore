@@ -22,7 +22,6 @@ src/.dirstamp
 src/.libs/
 src/*.lo
 tpm2.la
-*.log
 test-driver
 test/.dirstamp
 test/*.o
@@ -32,3 +31,20 @@ tpm2-openssl-*-coverage.info
 tpm2-openssl-*-coverage/
 NVChip
 VERSION
+
+# Visual C++ files
+ipch/
+*.aps
+*.ncb
+*.opendb
+*.opensdf
+*.sdf
+*.cachefile
+*.log
+*.user
+*.filters
+*/Release/*
+*/Debug/*
+Release/*
+Debug/*
+.vs/
