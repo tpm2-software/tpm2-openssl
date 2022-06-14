@@ -165,7 +165,7 @@ Such keys are compatible with e.g. the [strongSwan](https://www.strongswan.org/)
 Therefore, OpenSSL could be used to create and deploy VPN keys/certificates.
 
 Provides RSA decryption (TPM2_RSA_Decrypt) using the
-[`openssl pkeyutl -encrypt`](https://www.openssl.org/docs/manmaster/man1/openssl-pkeyutl.html)
+[`openssl pkeyutl -decrypt`](https://www.openssl.org/docs/manmaster/man1/openssl-pkeyutl.html)
 or the
 [EVP_PKEY_decrypt](https://www.openssl.org/docs/manmaster/man3/EVP_PKEY_decrypt.html) API.
 
