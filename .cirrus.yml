@@ -1,6 +1,6 @@
 task:
   freebsd_instance:
-    image_family: freebsd-13-0
+    image_family: freebsd-13-1
   env:
     PKG_CONFIG_PATH: /usr/local/lib/pkgconfig
     LD_LIBRARY_PATH: /usr/local/lib
