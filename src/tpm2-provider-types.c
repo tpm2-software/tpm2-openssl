@@ -80,6 +80,8 @@ tpm2_num_to_alg_rsa_scheme(const int num)
 {
     switch (num)
     {
+    case RSA_PKCS1_PADDING:
+        return TPM2_ALG_RSASSA;
     case RSA_PKCS1_PSS_PADDING:
         return TPM2_ALG_RSAPSS;
     default:

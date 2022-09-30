@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 - Loading of NV index objects larger than TPM2_PT_NV_BUFFER_MAX.
 - Loading of PEM certificates from the NV index.
 - Support for the 'openssl cms' command for RSA keys.
+- Support for PKCS1 padding in some parameters (thanks to @wxleong).
 - Building of tpm2-openssl on Windows (thanks to @mhummels).
 - Ability to run autoreconf on the release tarball.
 
