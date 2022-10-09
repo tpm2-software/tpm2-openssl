@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
-## [1.1.1] - 2022-09-30
+## [1.1.1] - 2022-10-09
 ### Fixed
 - Support older TPM chips that do not support the CreateLoaded operation.
 - Loading of NV index objects larger than TPM2_PT_NV_BUFFER_MAX.
