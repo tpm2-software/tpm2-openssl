@@ -15,9 +15,12 @@ openssl req -provider tpm2 -x509 -subj "/C=GB/CN=foo" -keyout testkey.pem -out t
 ```
 
 Or, to create a Certificate Signing Request (CSR) based on a persistent
-Attestation Key at a given handle, previously created with `tpm2_createak` and
-`tpm2_evictcontrol`:
+Attestation Key at a given handle:
 ```
+tpm2_createek -G ecc -c ek_ecc.ctx
+tpm2_createak -C ek_ecc.ctx -G ecc -g sha256 -s ecdsa -c ak_ecc.ctx
+tpm2_evictcontrol -c ak_ecc.ctx 0x81000000
+
 openssl req -provider tpm2 -new -subj "/C=GB/CN=foo" -key handle:0x81000000 -out testcsr.pem
 ```
 
@@ -94,6 +97,16 @@ previous section do:
 ```
 openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2 \
                  -accept 4443 -www -key testkey.pem -cert testcert.pem
+```
+
+For a mTLS connection, on client side:
+```bash
+openssl s_client -provider tpm2 -provider default -propquery ?provider=tpm2 \
+        -connect 192.168.251.2:8443 \
+        -CAfile ec-cacert.pem \
+        -cert client.crt \
+        -key handle:0x81000000 \
+        -state -debug
 ```
 
 The `-key` can be also specified using a persistent key handle.
