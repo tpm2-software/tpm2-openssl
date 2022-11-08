@@ -236,7 +236,7 @@ When you get stuck, remember:
 You can ask a question via an GitHub
 [Issue](https://github.com/tpm2-software/tpm2-openssl/issues/new), or send
 an email to the TPM2
-[mailing list](https://lists.01.org/postorius/lists/tpm2.lists.01.org/).
+[mailing list](https://lists.linuxfoundation.org/mailman/listinfo/tpm2).
 
 
 ## License
