@@ -1,0 +1,69 @@
+name: "CodeQL"
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  schedule:
+    - cron: "31 0 * * 1"
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ cpp ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes autoconf-archive acl git
+
+      - name: Configure
+        run: |
+          ./bootstrap
+          ./configure PKG_CONFIG_PATH="$RUNNER_TEMP/installdir/usr/lib64/pkgconfig:$RUNNER_TEMP/installdir/usr/lib/pkgconfig"
+
+      - name: After Prepare
+        run: |
+          cd "$RUNNER_TEMP"
+          mkdir installdir
+          export PKG_CONFIG_PATH="$RUNNER_TEMP/installdir/usr/lib/pkgconfig:$PKG_CONFIG_PATH" && echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" >> $GITHUB_ENV
+          export LD_LIBRARY_PATH="$RUNNER_TEMP/installdir/usr/lib:$LD_LIBRARY_PATH" && echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          wget https://github.com/openssl/openssl/archive/master.tar.gz
+          tar xf master.tar.gz
+          cd openssl-master
+          ./Configure --prefix="$RUNNER_TEMP/installdir/usr" no-aria no-async no-autoload-config no-bf no-blake2 no-cast no-chacha no-cms no-cmp no-comp no-ct no-des no-dgram no-dh no-dsa no-ec2m no-filenames no-fips no-fips-securitychecks no-gost no-idea no-ktls no-makedepend no-md4 no-multiblock no-nextprotoneg no-ocb no-ocsp no-poly1305 no-psk no-rc2 no-rc4 no-rfc3779 no-rmd160 no-seed no-siphash no-siv no-sm3 no-sm4 no-srp no-srtp no-ssl3-method no-tests no-ts no-ui-console no-whirlpool
+          make build_sw
+          make install_sw
+          git clone https://github.com/tpm2-software/tpm2-tss.git
+          cd tpm2-tss
+          ./bootstrap
+          ./configure --prefix="$RUNNER_TEMP/installdir/usr" PKG_CONFIG_PATH="$RUNNER_TEMP/installdir/usr/lib64/pkgconfig" --disable-fapi --disable-doxygen-doc
+          make install
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: ${{ matrix.language }}
+          queries: +security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v2
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:${{ matrix.language }}"
