@@ -371,7 +371,6 @@ static int
 tpm2_rsa_signature_digest_init(void *ctx, const char *mdname, void *provkey,
                                const OSSL_PARAM params[])
 {
-    TSS2_RC r;
     TPM2_SIGNATURE_CTX *sctx = ctx;
 
     DBG("SIGN DIGEST_INIT rsa MD=%s\n", mdname);
@@ -385,7 +384,6 @@ static int
 tpm2_ecdsa_signature_digest_init(void *ctx, const char *mdname, void *provkey,
                                  const OSSL_PARAM params[])
 {
-    TSS2_RC r;
     TPM2_SIGNATURE_CTX *sctx = ctx;
 
     DBG("SIGN DIGEST_INIT ecdsa MD=%s\n", mdname);
@@ -473,7 +471,6 @@ tpm2_signature_digest_sign(void *ctx, unsigned char *sig, size_t *siglen,
 {
     TSS2_RC r;
     TPM2_SIGNATURE_CTX *sctx = ctx;
-    TPM2B_MAX_BUFFER buffer;
     TPM2B_DIGEST *digest = NULL;
     TPMT_TK_HASHCHECK *validation = NULL;
 

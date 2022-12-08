@@ -218,7 +218,6 @@ static int
 tpm2_tss2_decoder_export_object(void *ctx, const void *objref, size_t objref_sz,
                                 OSSL_CALLBACK *export_cb, void *export_cbarg)
 {
-    TPM2_TSS2_DECODER_CTX *dctx = ctx;
     TPM2_PKEY *keydata;
 
     DBG("TSS2 DECODER EXPORT_OBJECT\n");

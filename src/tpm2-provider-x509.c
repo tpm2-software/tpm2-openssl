@@ -222,7 +222,6 @@ tpm2_sig_scheme_to_x509_alg(const TPMT_SIG_SCHEME *scheme, const TPMU_PUBLIC_PAR
                             unsigned char **aid, int *aid_size)
 {
     X509_ALGOR* x509_algor;
-    int len;
 
     if (scheme->scheme == TPM2_ALG_RSASSA) {
         if ((x509_algor = tpm2_get_pkcs1_algor(scheme->details.any.hashAlg)) == NULL)

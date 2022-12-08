@@ -53,7 +53,6 @@ int
 tpm2_keydata_write(const TPM2_KEYDATA *keydata, BIO *bout, TPM2_PKEY_FORMAT format)
 {
     TSSPRIVKEY *tpk = NULL;
-    TSS2_RC r;
 
     uint8_t privbuf[sizeof(keydata->priv)];
     uint8_t pubbuf[sizeof(keydata->pub)];
@@ -264,7 +263,7 @@ tpm2_load_parent(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
                 TPM2_ERROR_raise(core, TPM2_ERR_WRONG_DATA_LENGTH);
                 goto error1;
             }
-            auth->size = sprintf(auth->buffer,
+            auth->size = snprintf(auth->buffer, sizeof(auth->buffer),
                     "%s", pauth);
         }
     }

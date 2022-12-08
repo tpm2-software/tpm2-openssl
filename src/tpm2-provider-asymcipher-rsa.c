@@ -53,7 +53,6 @@ static void
 static int
 rsa_asymcipher_decrypt_init(void *ctx, void *provkey, const OSSL_PARAM params[])
 {
-    TSS2_RC r;
     TPM2_RSA_ASYMCIPHER_CTX *actx = ctx;
 
     DBG("DECRYPT INIT\n");
