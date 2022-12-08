@@ -34,9 +34,9 @@ task:
     gmake
 
   build_simulator_script: |
-    wget --no-verbose https://downloads.sourceforge.net/project/ibmswtpm2/ibmtpm1637.tar.gz
+    wget --no-verbose https://downloads.sourceforge.net/project/ibmswtpm2/ibmtpm1682.tar.gz
     mkdir ibmtpm
-    tar xfz ibmtpm1637.tar.gz -C ibmtpm
+    tar xfz ibmtpm1682.tar.gz -C ibmtpm
     cd ibmtpm/src
     sed -i '' -e 's/gcc/clang/g' makefile
     sed -i '' -e 's/-Wall //g' makefile
