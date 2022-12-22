@@ -35,12 +35,12 @@ jobs:
         ./Configure linux-x86_64-clang enable-asan \
                     no-aria no-async no-autoload-config no-bf \
                     no-blake2 no-cast no-chacha \
-                    no-comp no-ct no-des no-dgram no-dh no-dsa no-ec2m \
+                    no-comp no-ct no-dgram no-ec2m \
                     no-filenames no-fips no-fips-securitychecks no-gost no-idea \
-                    no-ktls no-makedepend no-md4 no-multiblock no-nextprotoneg \
-                    no-ocb no-ocsp no-poly1305 no-psk no-rc2 no-rc4 no-rfc3779 \
-                    no-rmd160 no-seed no-siphash no-siv no-sm3 no-sm4 no-srp \
-                    no-srtp no-ssl3-method no-tests no-ts no-ui-console no-whirlpool
+                    no-ktls no-makedepend no-md4 no-multiblock \
+                    no-ocb no-poly1305 no-psk no-rc2 no-rc4 no-rfc3779 \
+                    no-rmd160 no-seed no-siphash no-siv no-sm3 no-sm4 \
+                    no-srtp no-ssl3-method no-tests no-ts no-whirlpool
         make build_sw
         sudo make install_sw install_ssldirs
         sudo ldconfig /usr/local/lib64
