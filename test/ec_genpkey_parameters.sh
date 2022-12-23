@@ -6,7 +6,7 @@ set -eufx
 openssl ecparam -name prime256v1 -out testparam.pem
 
 # generate private key as PEM
-openssl genpkey -provider tpm2 -paramfile testparam.pem -out testkey.pem
+openssl genpkey -provider tpm2 -provider base -paramfile testparam.pem -out testkey.pem
 
 # display private key info
 openssl ec -provider tpm2 -provider base -in testkey.pem -check -text -noout
