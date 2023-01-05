@@ -2,9 +2,8 @@
 All non security bugs should be filed on the Issues tracker:
 https://github.com/tpm2-software/tpm2-tss/issues
 
-Security sensitive bugs should be emailed to a maintainer directly, or using
-GitHub's security reporting procedures:
-  - https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing/privately-reporting-a-security-vulnerability
+Security sensitive bugs should be disclosed following the instructions per:
+[docs/SECURITY.md](docs/SECURITY.md)
 
 # Guideline for submitting changes:
 All changes to the source code must follow the coding standard used in the
