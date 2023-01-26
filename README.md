@@ -109,7 +109,7 @@ or the
 Provides key generation (TPM2_Create) using the
 [`openssl genpkey`](https://www.openssl.org/docs/manmaster/man1/openssl-genpkey.html)
 or the
-[EVP_PKEY](https://www.openssl.org/docs/manmaster/man3/EVP_PKEY_gen.html) API
+[EVP_PKEY](https://www.openssl.org/docs/manmaster/man3/EVP_PKEY.html) API
 for the
 [RSA](https://www.openssl.org/docs/manmaster/man7/EVP_PKEY-RSA.html) and
 RSA-PSS keys, as well as the
