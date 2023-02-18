@@ -44,8 +44,19 @@ The tpm2-openssl project
 
 ## Build and Installation Instructions
 
-Instructions for building and installing the tpm2 provider are provided in the
-[INSTALL.md](docs/INSTALL.md) file.
+[Several distributions](https://repology.org/project/tpm2-openssl/versions)
+include a `tpm2-openssl` package. For example, on Debian 12 or Ubuntu 22.04
+just run:
+```bash
+apt install tpm2-openssl tpm2-tools tpm2-abrmd libtss2-tcti-tabrmd0
+```
+
+The in-kernel resource manager is **not** sufficient for complex scenarios such
+as SSL or X.509 operations. The [tpm2-abrmd](https://github.com/tpm2-software/tpm2-abrmd)
+must be used instead.
+
+Instructions for building and installing the tpm2 provider on other systems are
+provided in the [INSTALL.md](docs/INSTALL.md) file.
 
 Instructions for how releases are conducted, please see the
 [RELEASE.md](docs/RELEASE.md) file.
@@ -195,9 +206,11 @@ be concurrently loaded in the TPM. The number of ongoing digest operations and
 the number of loaded private keys is limited. The in-kernel resource manager
 (`/dev/tpmrm`) is also memory constrained.
 
-If your application needs to create a large number of objects, we recommend using
+Complex scenarios such as SSL or X.509 operations require creation of a large
+number of transient objects. The in-kernel resource manager is often not
+sufficient and
 the [user-space resource manager](https://github.com/tpm2-software/tpm2-abrmd)
-with a sufficiently large `--max-transients` argument.
+must be used with a sufficiently large `--max-transients` argument.
 
 ### Limited Performance
 

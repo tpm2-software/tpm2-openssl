@@ -15,9 +15,9 @@ are required:
  * [OpenSSL](https://www.openssl.org/) >= 3.0.0 with header files
 
 Although the software can run with the in-kernel resource manager (`/dev/tpmrm`)
-we recommend using the user-space resource manager, which is less memory
-constrained and thus enables creation of a larger number of transient objects.
-You will need:
+the complex scenarios such as SSL or X.509 operations require creation of a large
+number of transient objects, so the user-space resource manager must be used
+instead. You will need:
 
  * [TPM2 Access Broker & Resource Manager](https://github.com/tpm2-software/tpm2-abrmd),
    started with a sufficiently large `--max-transients` argument
