@@ -6,7 +6,7 @@ jobs:
   build:
     strategy:
       matrix:
-        branch: [openssl-3.0, master]
+        branch: [openssl-3.0, openssl-3.1, master]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
