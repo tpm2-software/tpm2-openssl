@@ -108,6 +108,8 @@ or the
 [EVP_Digest](https://www.openssl.org/docs/manmaster/man3/EVP_Digest.html) API.
 The SHA-1, SHA-256, SHA-384 and SHA-512 algorithm is supported.
 
+These operations are disabled by default.
+
 ### [Random Number Generation](docs/rng.md)
 
 Provides a random number generation (TPM2_GetRandom) using the

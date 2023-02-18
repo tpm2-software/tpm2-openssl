@@ -45,7 +45,7 @@ openssl req -provider tpm2 -provider default -config $PKIDIR/openssl.cnf -new \
             -subj '/C=US/ST=Michigan/O=WanderWriter/OU=WanderWriter Certificate Authority/CN=WanderWriter Intermediate CA'
 
 # Sign Intermediary CA Certificate with Root Certificate
-openssl ca -provider tpm2 -provider base -config $PKIDIR/openssl.cnf -batch -name ca_root \
+openssl ca -provider tpm2 -provider default -config $PKIDIR/openssl.cnf -batch -name ca_root \
            -extensions ext_intermediate -notext -in testdb/intermediate/csr/intermediate.csr.pem \
            -out testdb/intermediate/certs/intermediate.cert.pem
 
@@ -74,7 +74,7 @@ openssl req -provider tpm2 -provider default -config $PKIDIR/openssl.cnf -new \
             -subj '/C=US/ST=Michigan/O=WanderWriter/OU=Andrew G. Dunn/CN=agd@wanderwriter.ink'
 
 # Sign Client Certifcate with Intermediary Certificate
-openssl ca -provider tpm2 -provider base -config $PKIDIR/openssl.cnf -batch -extensions ext_client -notext \
+openssl ca -provider tpm2 -provider default -config $PKIDIR/openssl.cnf -batch -extensions ext_client -notext \
            -in testdb/client/csr/agd.csr.pem -out testdb/client/certs/agd.cert.pem
 
 # Unfortunately, 'openssl ca' doesn't signal certification errors with its
@@ -92,7 +92,7 @@ openssl verify -CAfile testdb/intermediate/certs/chain.cert.pem testdb/client/ce
 # (not supported)
 
 # Generate a CRL
-openssl ca -provider tpm2 -provider base -config $PKIDIR/openssl.cnf -gencrl \
+openssl ca -provider tpm2 -provider default -config $PKIDIR/openssl.cnf -gencrl \
            -out testdb/intermediate/crl/intermediate.crl.pem -crldays 365
 
 # Verify CRL

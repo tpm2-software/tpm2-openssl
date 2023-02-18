@@ -25,13 +25,13 @@ commonName          = Common Name
 EOF
 
 # create a private key and then generate a self-signed certificate for it
-openssl req -provider tpm2 -x509 -config testcert.conf -key handle:${HANDLE} -out testcert.pem
+openssl req -provider tpm2 -provider default -x509 -config testcert.conf -key handle:${HANDLE} -out testcert.pem
 
 echo -n "this is some text" > testdata
 
 # sign data, output MIME
 # as the key is restricted to sha256, the -md parameter is not given
-openssl cms -sign -provider tpm2 -provider base -nodetach \
+openssl cms -sign -provider tpm2 -provider default -nodetach \
     -inkey handle:${HANDLE} -signer testcert.pem -in testdata -text -out testdata.sig
 
 # verify signed data

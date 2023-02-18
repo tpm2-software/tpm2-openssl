@@ -50,7 +50,8 @@ jobs:
     - name: Configure tpm2-openssl
       run: |
         ./bootstrap
-        ./configure CC=clang PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig --enable-asan --enable-debug
+        ./configure CC=clang PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig \
+            --enable-op-digest --enable-op-cipher --enable-asan --enable-debug
 
     - name: Build tpm2-openssl
       run: |

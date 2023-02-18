@@ -17,12 +17,12 @@ commonName          = Common Name
 EOF
 
 # create a private key and then generate a self-signed certificate for it
-openssl req -provider tpm2 -x509 -sigopt pad-mode:pss -config testcert.conf -out testcert.pem
+openssl req -provider tpm2 -provider default -x509 -sigopt pad-mode:pss -config testcert.conf -out testcert.pem
 
 echo -n "this is some text" > testdata
 
 # sign data, output MIME
-openssl cms -sign -provider tpm2 -provider base -nodetach -md sha256 \
+openssl cms -sign -provider tpm2 -provider default -nodetach -md sha256 \
     -inkey testkey.pem -signer testcert.pem -in testdata -text -out testdata.sig
 
 # verify signed data

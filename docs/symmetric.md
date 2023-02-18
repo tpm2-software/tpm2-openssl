@@ -1,5 +1,9 @@
 # Symmetric Operations
 
+The `default` provider is much faster, so the symmetric operations are disabled
+by default in the tpm2 provider. [Configure](INSTALL.md#building-from-source)
+using `--enable-op-digest` or `--enable-op-cipher` to enable.
+
 ## Message Digest (Hash) Generation
 
 The tpm2 provider implements a

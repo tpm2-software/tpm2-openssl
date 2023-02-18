@@ -9,7 +9,7 @@ function cleanup()
 }
 
 # create root CA key and certificate
-openssl req -provider tpm2 -x509 -newkey rsa:2048 -sha256 -nodes \
+openssl req -provider tpm2 -provider default -x509 -newkey rsa:2048 -sha256 -nodes \
             -subj "/C=GB/CN=root.example.com" -extensions v3_ca \
             -keyout test-ca-key.pem -out test-ca-cert.pem
 

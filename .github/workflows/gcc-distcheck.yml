@@ -45,7 +45,8 @@ jobs:
     - name: Configure tpm2-openssl
       run: |
         ./bootstrap
-        ./configure CC=gcc PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig --enable-code-coverage --enable-debug
+        ./configure CC=gcc PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig \
+            --enable-op-digest --enable-op-cipher --enable-code-coverage --enable-debug
 
     - name: Build tpm2-openssl
       run: |

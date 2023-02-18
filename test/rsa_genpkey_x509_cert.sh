@@ -17,7 +17,7 @@ commonName          = Common Name
 EOF
 
 # create a private key and then generate a self-signed certificate for it
-openssl req -provider tpm2 -x509 -sigopt pad-mode:pss -config testcert.conf -out testcert.pem
+openssl req -provider tpm2 -provider default -x509 -sigopt pad-mode:pss -config testcert.conf -out testcert.pem
 
 # display private key info
 openssl rsa -provider tpm2 -provider base -in testkey.pem -text -noout

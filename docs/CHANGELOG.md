@@ -3,6 +3,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
+## [1.2.0] - 2023-03-xx
+### Changed
+- Symmetric operations are disabled by default. In most situations these
+  are not needed and cause a huge performance penalty.
+  To enable configure with `--enable-op-digest` or `--enable-op-cipher`.
+### Fixed
+- Modified documentation: the user-space resource manager (abrmd) is almost
+  mandatory for complex scenarios such as SSL or X.509 operations.
+
 ## [1.1.1] - 2022-10-09
 ### Fixed
 - Support older TPM chips that do not support the CreateLoaded operation.

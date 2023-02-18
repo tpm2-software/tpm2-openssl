@@ -46,7 +46,7 @@ jobs:
     - name: Configure tpm2-openssl
       run: |
         ./bootstrap
-        ./configure PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig
+        ./configure --enable-op-digest --enable-op-cipher PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig
 
     - name: Build tpm2-openssl with cov-build
       run: |
