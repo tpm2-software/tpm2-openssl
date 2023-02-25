@@ -23,30 +23,10 @@ jobs:
       env:
         TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
 
-    - name: Build openssl
-      run: |
-        wget --no-verbose https://github.com/openssl/openssl/archive/$BRANCH.zip
-        unzip -q $BRANCH.zip
-        cd openssl-$BRANCH
-        # disable all unnecessary features
-        ./Configure no-aria no-async no-autoload-config no-bf \
-                    no-blake2 no-cast no-chacha \
-                    no-comp no-ct no-dgram no-ec2m \
-                    no-filenames no-fips no-fips-securitychecks no-gost no-idea \
-                    no-ktls no-makedepend no-md4 no-multiblock \
-                    no-ocb no-poly1305 no-psk no-rc2 no-rc4 no-rfc3779 \
-                    no-rmd160 no-seed no-siphash no-siv no-sm3 no-sm4 \
-                    no-srtp no-ssl3-method no-tests no-ts no-whirlpool
-        make build_sw
-        sudo make install_sw install_ssldirs
-        sudo ldconfig /usr/local/lib64
-      env:
-        BRANCH: openssl-3.0
-
     - name: Configure tpm2-openssl
       run: |
         ./bootstrap
-        ./configure --enable-op-digest --enable-op-cipher PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig
+        ./configure --enable-op-digest --enable-op-cipher
 
     - name: Build tpm2-openssl with cov-build
       run: |

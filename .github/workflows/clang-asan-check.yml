@@ -43,7 +43,12 @@ jobs:
                     no-srtp no-ssl3-method no-tests no-ts no-whirlpool
         make build_sw
         sudo make install_sw install_ssldirs
-        sudo ldconfig /usr/local/lib64
+        echo '#!/usr/bin/env bash' > openssl.sh
+        echo 'LD_LIBRARY_PATH=/usr/local/lib64 /usr/local/bin/openssl_b "$@"' >> openssh.sh
+        chmod u+x openssh.sh
+        sudo mv /usr/local/bin/openssl /usr/local/bin/openssl_b
+        sudo mv openssh.sh /usr/local/bin/openssl
+
       env:
         BRANCH: ${{ matrix.branch }}
 
