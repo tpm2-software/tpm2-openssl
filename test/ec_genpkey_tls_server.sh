@@ -35,11 +35,11 @@ openssl req -provider tpm2 -provider default -x509 -config testcert.conf -new -n
 # display content of the certificate
 openssl x509 -text -noout -in testcert.pem
 
-# start SSL server with ECDSA signing
+# start SSL server with ECDSA signing, default port 4433
 openssl s_server -provider tpm2 -provider default \
-                 -accept 4443 -www -key testkey.pem -cert testcert.pem &
+                 -www -key testkey.pem -cert testcert.pem &
 SERVER=$!
 trap "cleanup" EXIT
 
 # start SSL client
-curl --retry 5 --retry-connrefused --cacert testcert.pem https://localhost:4443/
+curl --retry 5 --retry-connrefused --cacert testcert.pem https://localhost:4433/

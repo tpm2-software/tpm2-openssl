@@ -48,11 +48,11 @@ openssl req -provider tpm2 -provider default -x509 -config testcert.conf -key ha
 # display content of the certificate
 openssl x509 -text -noout -in testcert.pem
 
-# start SSL server with RSA-PSS-PSS signing
+# start SSL server with RSA-PSS-PSS signing, port 4432
 openssl s_server -provider tpm2 -provider default \
-                 -accept 4443 -www -key handle:${HANDLE} -cert testcert.pem &
+                 -accept 4432 -www -key handle:${HANDLE} -cert testcert.pem &
 SERVER=$!
 trap "cleanup" EXIT
 
 # start SSL client
-curl --retry 5 --retry-connrefused --cacert testcert.pem https://localhost:4443/
+curl --retry 5 --retry-connrefused --cacert testcert.pem https://localhost:4432/

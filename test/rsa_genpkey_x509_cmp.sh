@@ -37,7 +37,7 @@ openssl req -provider tpm2 -provider default -x509 -newkey rsa:2048 -sha256 -nod
 
 openssl x509 -in test-client-cert.pem -noout -text
 
-# start mock CMP server
+# start mock CMP server, port 8880
 openssl cmp -port 8880 -srv_secret pass:1234-5678 \
             -srv_key test-server-key.pem -srv_cert test-server-cert.pem \
             -rsp_cert test-client-cert.pem -rsp_capubs test-ca-cert.pem &
@@ -67,8 +67,8 @@ openssl req -provider tpm2 -provider default -x509 -newkey rsa:2048 -sha256 -nod
 
 openssl x509 -in test-client-cert2.pem -noout -text
 
-# start mock CMP server
-openssl cmp -port 8880 -srv_trusted test-ca-cert.pem \
+# start mock CMP server, port 8881
+openssl cmp -port 8881 -srv_trusted test-ca-cert.pem \
             -srv_key test-server-key.pem -srv_cert test-server-cert.pem \
             -rsp_cert test-client-cert2.pem -rsp_capubs test-ca-cert.pem &
 SERVER=$!
@@ -77,7 +77,7 @@ sleep 1
 # send CMP Key Update Request
 # FIXME: Temporarily use key2/cert2 to authenticate the message, see https://github.com/openssl/openssl/pull/16050
 openssl cmp -provider tpm2 -provider default -propquery tpm2.digest!=yes \
-            -cmd kur -server localhost:8880/pkix/ -trusted test-ca-cert.pem \
+            -cmd kur -server localhost:8881/pkix/ -trusted test-ca-cert.pem \
             -key test-client-key2.pem -cert test-client-cert2.pem \
             -newkey test-client-key2.pem -certout test-my-cert2.pem
 
