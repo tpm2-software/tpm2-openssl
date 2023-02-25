@@ -444,6 +444,9 @@ tpm2_rsa_keymgmt_query_operation_name(int operation_id)
     return "RSA";
 }
 
+#define RSA_POSSIBLE_SELECTIONS \
+    (OSSL_KEYMGMT_SELECT_KEYPAIR | OSSL_KEYMGMT_SELECT_OTHER_PARAMETERS)
+
 static int
 tpm2_rsa_keymgmt_has(const void *keydata, int selection)
 {
@@ -451,13 +454,18 @@ tpm2_rsa_keymgmt_has(const void *keydata, int selection)
     int ok = 1;
 
     DBG("RSA HAS %x\n", selection);
-    if (pkey != NULL) {
-        /* although not exportable we may have the the private portion */
-        if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
-            ok = ok && (pkey->data.privatetype != KEY_TYPE_NONE);
-        if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0)
-            ok = ok && (pkey->data.pub.publicArea.unique.rsa.size > 0);
-    }
+
+    if (pkey == NULL)
+        return 0;
+    if ((selection & RSA_POSSIBLE_SELECTIONS) == 0)
+        return 1; /* the selection is not missing */
+
+    /* although not exportable we may have the the private portion */
+    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
+        ok = ok && (pkey->data.privatetype != KEY_TYPE_NONE);
+    if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0)
+        ok = ok && (pkey->data.pub.publicArea.unique.rsa.size > 0);
+
     return ok;
 }
 
