@@ -29,10 +29,6 @@ To run the tests (see next Section) you will also need:
  * [IBM's Software TPM 2.0 Simulator](https://sourceforge.net/projects/ibmswtpm2/files)
  * curl >= 7.52.0
 
-Note the absolute minimum is libtss2-esys >= 2.3.0 and tpm2-tools >= 4.0. Since
-these cannot be built against OpenSSL 3.x you need in such case to install both
-1.1.x and 3.x.
-
 
 ## Building From Source
 

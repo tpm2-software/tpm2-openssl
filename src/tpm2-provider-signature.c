@@ -115,12 +115,7 @@ ensure_key_loaded(TPM2_PKEY *pkey)
     {
         r = Esys_LoadExternal(pkey->esys_ctx,
                               ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
-                              NULL, &pkey->data.pub,
-#ifdef HAVE_TSS2_ESYS3
-                              ESYS_TR_RH_NULL,
-#else
-                              TPM2_RH_NULL,
-#endif
+                              NULL, &pkey->data.pub, ESYS_TR_RH_NULL,
                               &pkey->object);
         TPM2_CHECK_RC(pkey->core, r, TPM2_ERR_CANNOT_LOAD_KEY, return 0);
     }

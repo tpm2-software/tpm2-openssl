@@ -118,13 +118,7 @@ tpm2_hash_sequence_complete(TPM2_HASH_SEQUENCE *seq,
 
     r = Esys_SequenceComplete(seq->esys_ctx, seq->handle,
                               ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
-                              NULL,
-#ifdef HAVE_TSS2_ESYS3
-                              ESYS_TR_RH_OWNER,
-#else
-                              TPM2_RH_OWNER,
-#endif
-                              digest, validation);
+                              NULL, ESYS_TR_RH_OWNER, digest, validation);
     TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
 
     /* the update may be called again to sign another data block */
@@ -145,12 +139,7 @@ tpm2_hash_sequence_hash(TPM2_HASH_SEQUENCE *seq,
             memcpy(seq->buffer.buffer, data, datalen);
 
         r = Esys_Hash(seq->esys_ctx, ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
-                      &seq->buffer, seq->algorithm,
-#ifdef HAVE_TSS2_ESYS3
-                      ESYS_TR_RH_OWNER,
-#else
-                      TPM2_RH_OWNER,
-#endif
+                      &seq->buffer, seq->algorithm, ESYS_TR_RH_OWNER,
                       digest, validation);
         TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
     } else {

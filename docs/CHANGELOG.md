@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 - Symmetric operations are disabled by default. In most situations these
   are not needed and cause a huge performance penalty.
   To enable configure with `--enable-op-digest` or `--enable-op-cipher`.
+### Removed
+- Removed unofficial support for tpm2-tss < 3.2.0, which do not support
+  the openssl 3.x.
 ### Fixed
 - Modified documentation: the user-space resource manager (abrmd) is almost
   mandatory for complex scenarios such as SSL or X.509 operations.
