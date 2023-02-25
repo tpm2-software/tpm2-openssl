@@ -61,6 +61,8 @@ static OSSL_FUNC_keymgmt_load_fn tpm2_ec_keymgmt_load;
 static OSSL_FUNC_keymgmt_free_fn tpm2_ec_keymgmt_free;
 static OSSL_FUNC_keymgmt_get_params_fn tpm2_ec_keymgmt_get_params;
 static OSSL_FUNC_keymgmt_gettable_params_fn tpm2_ec_keymgmt_gettable_params;
+static OSSL_FUNC_keymgmt_set_params_fn tpm2_ec_keymgmt_set_params;
+static OSSL_FUNC_keymgmt_settable_params_fn tpm2_ec_keymgmt_settable_params;
 static OSSL_FUNC_keymgmt_has_fn tpm2_ec_keymgmt_has;
 static OSSL_FUNC_keymgmt_match_fn tpm2_ec_keymgmt_match;
 static OSSL_FUNC_keymgmt_import_fn tpm2_ec_keymgmt_import;
@@ -455,6 +457,38 @@ tpm2_ec_keymgmt_gettable_params(void *provctx)
     return gettable;
 }
 
+static int
+tpm2_ec_keymgmt_set_params(void *keydata, const OSSL_PARAM params[])
+{
+    TPM2_PKEY *pkey = (TPM2_PKEY *)keydata;
+    const OSSL_PARAM *p;
+
+    if (params == NULL)
+        return 1;
+    TRACE_PARAMS("EC SET_PARAMS", params);
+
+    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY);
+    if (p != NULL) {
+        if (p->data_type != OSSL_PARAM_OCTET_STRING ||
+                !tpm2_buffer_to_ecc_point(tpm2_ecc_curve_to_nid(TPM2_PKEY_EC_CURVE(pkey)),
+                        p->data, p->data_size, &pkey->data.pub.publicArea.unique.ecc))
+            return 0;
+    }
+
+    return 1;
+}
+
+static const OSSL_PARAM *
+tpm2_ec_keymgmt_settable_params(void *provctx)
+{
+    static OSSL_PARAM settable[] = {
+        OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY, NULL, 0),
+        OSSL_PARAM_END
+    };
+
+    return settable;
+}
+
 static const char *
 tpm2_ec_keymgmt_query_operation_name(int operation_id)
 {
@@ -620,6 +654,8 @@ const OSSL_DISPATCH tpm2_ec_keymgmt_functions[] = {
     { OSSL_FUNC_KEYMGMT_FREE, (void(*)(void))tpm2_ec_keymgmt_free },
     { OSSL_FUNC_KEYMGMT_GET_PARAMS, (void(*)(void))tpm2_ec_keymgmt_get_params },
     { OSSL_FUNC_KEYMGMT_GETTABLE_PARAMS, (void(*)(void))tpm2_ec_keymgmt_gettable_params },
+    { OSSL_FUNC_KEYMGMT_SET_PARAMS, (void(*)(void))tpm2_ec_keymgmt_set_params },
+    { OSSL_FUNC_KEYMGMT_SETTABLE_PARAMS, (void(*)(void))tpm2_ec_keymgmt_settable_params },
     { OSSL_FUNC_KEYMGMT_QUERY_OPERATION_NAME, (void(*)(void))tpm2_ec_keymgmt_query_operation_name },
     { OSSL_FUNC_KEYMGMT_HAS, (void(*)(void))tpm2_ec_keymgmt_has },
     { OSSL_FUNC_KEYMGMT_MATCH, (void(*)(void))tpm2_ec_keymgmt_match },
