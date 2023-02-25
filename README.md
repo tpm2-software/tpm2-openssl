@@ -4,10 +4,10 @@
 [![Coverity Scan](https://scan.coverity.com/projects/22739/badge.svg)](https://scan.coverity.com/projects/tpm2-openssl)
 [![CodeQL](https://github.com/tpm2-software/tpm2-openssl/workflows/CodeQL/badge.svg)](https://github.com/tpm2-software/tpm2-openssl/actions/workflows/codeql.yml)
 
-# Provider for integration of TPM 2.0 to OpenSSL 3.0
+# Provider for integration of TPM 2.0 to OpenSSL 3.x
 
 Makes the TPM 2.0 accessible via the standard OpenSSL API and command-line tools,
-so one can add TPM support to (almost) any OpenSSL 3.0 based application.
+so one can add TPM support to (almost) any OpenSSL 3.x based application.
 
 The tpm2-openssl project
 
@@ -15,12 +15,12 @@ The tpm2-openssl project
   [provider](https://www.openssl.org/docs/manmaster/man7/provider.html)
   that integrates the
   [Trusted Platform Module (TPM 2.0)](https://trustedcomputinggroup.org/work-groups/trusted-platform-module/)
-  operations to the [OpenSSL 3.0](https://www.openssl.org/docs/OpenSSL300Design.html),
+  operations to the [OpenSSL 3.x](https://www.openssl.org/docs/OpenSSL300Design.html),
   which is the next version of OpenSSL after 1.1.1.
 
 * Follows the new OpenSSL provider API and strictly avoids any legacy API.
   Therefore this implementation:
-  - Is compatible with OpenSSL 3.0 and (hopefully) future OpenSSL versions.
+  - Is compatible with OpenSSL 3.x and (hopefully) future OpenSSL versions.
   - Does **not** work with any previous version, including the current OpenSSL 1.1.
 
 * Is based on a major refactoring of the
