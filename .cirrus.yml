@@ -11,6 +11,8 @@ task:
   install_packages_script: |
     pkg install -y bash wget gmake libtool pkgconf automake autoconf autoconf-archive \
                    git dbus tpm2-tss tpm2-abrmd tpm2-tools
+    sysrc dbus_enable=YES
+    service dbus restart
 
   build_openssl_script: |
     wget --no-verbose https://github.com/openssl/openssl/archive/master.zip
@@ -30,7 +32,7 @@ task:
 
   build_script: |
     ./bootstrap
-    ./configure
+    ./configure --enable-op-digest --enable-op-cipher
     gmake
 
   build_simulator_script: |
@@ -47,8 +49,6 @@ task:
     ibmtpm/src/tpm_server
 
   run_abrmd_background_script: |
-    dbus-uuidgen --ensure
-    dbus-launch --config-file=/usr/local/share/dbus-1/system.conf
     sudo -u _tss tpm2-abrmd --tcti mssim:host=localhost,port=2321
 
   check_script: |
