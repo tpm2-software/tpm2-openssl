@@ -33,6 +33,7 @@ jobs:
         export DBUS_SESSION_BUS_ADDRESS=`dbus-daemon --session --print-address --fork`
         echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> $GITHUB_ENV
         ibmtpm/src/tpm_server &
+        timeout 20 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' localhost 2321
         tpm2-abrmd --session --tcti mssim:host=localhost,port=2321 &
         echo "TCTI_ADDRESS=tabrmd:bus_name=com.intel.tss2.Tabrmd,bus_type=session" >> $GITHUB_ENV
         sleep 1
