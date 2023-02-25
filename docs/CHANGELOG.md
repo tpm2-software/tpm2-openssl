@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
 ## [1.2.0] - 2023-03-xx
+### Added
+- Added support for ECDH with a KDF, which is used by ECC-based CMS (S/MIME).
 ### Changed
 - Symmetric operations are disabled by default. In most situations these
   are not needed and cause a huge performance penalty.
@@ -12,6 +14,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 - Removed unofficial support for tpm2-tss < 3.2.0, which do not support
   the openssl 3.x.
 ### Fixed
+- Fixed OSSL_FUNC_KEYMGMT_HAS operations with NULL keys
 - Modified documentation: the user-space resource manager (abrmd) is almost
   mandatory for complex scenarios such as SSL or X.509 operations.
 

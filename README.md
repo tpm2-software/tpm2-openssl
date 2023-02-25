@@ -188,15 +188,16 @@ or the
 
 ### [Identity Certificates](docs/certificates.md)
 
-Provides all operations required for certificate signing using
-[`openssl req`](https://www.openssl.org/docs/manmaster/man1/openssl-req.html),
-Certificate Authority (CA) operation using
-[`openssl ca`](https://www.openssl.org/docs/manmaster/man1/openssl-ca.html)
-and the Certificate Management Protocol (CMP) client using
-[`openssl cmp`](https://www.openssl.org/docs/manmaster/man1/openssl-cmp.html).
-
-Provides all operations required for TLS authentication based on a
-TPM2-based key.
+Provides all operations required to use a TPM2-based key for:
+ - Certificate signing with
+   [`openssl req`](https://www.openssl.org/docs/manmaster/man1/openssl-req.html),
+ - Certificate Authority (CA) using
+   [`openssl ca`](https://www.openssl.org/docs/manmaster/man1/openssl-ca.html),
+ - Certificate Management Protocol (CMP) client using
+   [`openssl cmp`](https://www.openssl.org/docs/manmaster/man1/openssl-cmp.html),
+ - Cryptographic Message Standard (S/MIME) processing using
+   [`openssl cms`](https://www.openssl.org/docs/manmaster/man1/openssl-cms.html),
+ - TLS authentication.
 
 
 ## TPM Limitations

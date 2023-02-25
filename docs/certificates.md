@@ -56,6 +56,24 @@ openssl cmp -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.dige
             -newkey new-client-key.pem -certout new-client-cert.pem
 ```
 
+## Cryptographic Message Standard (S/MIME)
+
+The Cryptographic Message Standard (CMS) is used e.g. by S/MIME v3.1 email
+messages. The
+[`openssl cms`](https://www.openssl.org/docs/manmaster/man1/openssl-cms.html)
+command works as usual.
+
+For example, to sign data do:
+```
+openssl cms -sign -provider tpm2 -provider default -nodetach -md sha256 \
+            -inkey key.pem -signer cert.pem -in data -text -out data.sig
+```
+
+And to encrypt data do:
+```
+openssl cms -decrypt -provider tpm2 -provider default \
+            -inkey key.pem -recip cert.pem -in data.enc -out data
+```
 
 ## TLS Handshake
 

@@ -80,6 +80,7 @@ TESTS_SHELL = test/list.sh \
               test/rsa_pki/rsa_pki.sh \
               test/ec_genpkey_check.sh \
               test/ec_genpkey_parameters.sh \
+              test/ec_genpkey_x509_cms.sh \
               test/ecdsa_genpkey_auth.sh \
               test/ecdsa_genpkey_sign_rawin.sh \
               test/ecdsa_createak_sign_handle.sh \

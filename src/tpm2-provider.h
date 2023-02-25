@@ -8,6 +8,8 @@
 
 #include <tss2/tss2_esys.h>
 
+#define TPM2_MAX_OSSL_NAME 50 /* OSSL_MAX_NAME_SIZE */
+
 #define TPM2_PKEY_PARAM_PARENT      "parent"
 #define TPM2_PKEY_PARAM_PARENT_AUTH "parent-auth"
 #define TPM2_PKEY_PARAM_USER_AUTH   "user-auth"
