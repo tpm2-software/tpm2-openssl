@@ -37,15 +37,12 @@ there is no PKCS#12 file format for TPM keys.
 ## Certificate Authority (CA)
 
 The [OpenSSL PKI Tutorial](https://pki-tutorial.readthedocs.io/en/latest/simple/index.html)
-introduces a simple CA operation. The test
-[rsa_pki.sh](https://github.com/tpm2-software/tpm2-openssl/blob/master/test/rsa_pki/rsa_pki.sh)
+introduces a simple CA operation. The test [rsa_pki.sh](../test/rsa_pki/rsa_pki.sh)
 rewrites this example for a TPM-based CA.
 
 Another example is provided by the blog
 [ECC Certificates and mTLS with Nginx](https://andrew.dunn.dev/posts/ecc-certificates-and-mtls-with-nginx/).
-The test
-[ec_pki.sh](https://github.com/tpm2-software/tpm2-openssl/blob/master/test/ec_pki/ec_pki.sh)
-rewrites this for a TPM-based CA.
+The test [ec_pki.sh](../test/ec_pki/ec_pki.sh) rewrites this for a TPM-based CA.
 
 ## Certificate Management Protocol
 

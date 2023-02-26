@@ -224,7 +224,7 @@ an accelerator. Many operations are slower than a pure software implementation.
 For user convenience the tpm2 provider implements also
 [Symmetric Operations](docs/symmetric.md) that do not use the secure storage,
 but we recommend using the OpenSSL's
-[default provider](https://github.com/tpm2-software/tpm2-openssl/blob/master/docs/initialization.md#loading-multiple-providers)
+[default provider](docs/initialization.md#loading-multiple-providers)
 instead in performance critical applications.
 
 ### Limited Set of Algorithms
@@ -238,16 +238,19 @@ commands.
 
 Algorithms that do not require the TPM hardware, such as public key operations,
 hashes or symmetric ciphers, can be fetched from the OpenSSL's
-[default provider](https://github.com/tpm2-software/tpm2-openssl/blob/master/docs/initialization.md#loading-multiple-providers).
+[default provider](docs/initialization.md#loading-multiple-providers).
 
 
 ## Help
 
 When you get stuck, remember:
 [Read-Search-Ask](https://www.freecodecamp.org/forum/t/how-to-get-help-when-you-are-stuck-coding/19514).
- 1. Read the error message and the documentation
+ 1. Read the error message and the [documentation](docs)
  2. Search Google
  3. Ask for help
+
+The [test scripts](test) provide examples for each implemented functionality. Each
+test is simple and well-documented.
 
 You can ask a question via an GitHub
 [Issue](https://github.com/tpm2-software/tpm2-openssl/issues/new), or send
