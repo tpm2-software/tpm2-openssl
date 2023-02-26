@@ -35,9 +35,9 @@ the abbreviation `rc` for 'release candidate'. This string will take the form of
 `-rcX` with an incremental digit `X`, starting from `-rc0`.
 
 Release candidates will be announced on the
-[mailing list](https://lists.01.org/mailman/listinfo/tpm2). When a RC has gone 1
-week without new substantive changes, a release will be conducted. Substantive
-changes are changes to the man-pages, code or tests.
+[mailing list](https://lists.linuxfoundation.org/mailman/listinfo/tpm2). When a
+RC has gone 1 week without new substantive changes, a release will be conducted.
+Substantive changes are changes to the man-pages, code or tests.
 
 
 ## Release Checklist
@@ -82,7 +82,7 @@ The steps, in order, required to make a release.
   - If it is a release candidate, ensure you check the "pre-release" box on the GitHub UI.
   - Add the dist tarball and signature file to the release.
 
-- Send announcement on [mailing list](https://lists.01.org/mailman/listinfo/tpm2).
+- Send announcement on [mailing list](https://lists.linuxfoundation.org/mailman/listinfo/tpm2).
   This announcement should be accompanied by a link to the release page on GitHub
   as well as a link to the CHANGELOG.md accompanying the release.
 

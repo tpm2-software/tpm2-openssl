@@ -65,25 +65,24 @@ Instructions for how releases are conducted, please see the
 
 The tpm2 provider functions can be used via the
 [`openssl`](https://www.openssl.org/docs/manmaster/man1/openssl.html)
-command-line tool,
-or via the
+command-line tool, or via the
 [libcrypto](https://www.openssl.org/docs/manmaster/man7/crypto.html) API.
 
 No TPM-specific API calls are needed: the applications may be completely unaware
 that the keys being used are stored within TPM.
 However, the application has to:
- - Load the tpm2 provider, in some cases along with the default provider.
- - (When both providers are loaded) use the `?provider=tpm2`
-[property](https://www.openssl.org/docs/manmaster/man7/property.html) query when
-fetching the [crypto](https://www.openssl.org/docs/manmaster/man7/crypto.html)
-algorithms.
+ - Load the tpm2 provider with the TPM-based operations,
+ - When needed, load the
+   [base](https://www.openssl.org/docs/manmaster/man7/OSSL_PROVIDER-base.html)
+   or [default](https://www.openssl.org/docs/manmaster/man7/OSSL_PROVIDER-default.html)
+   provider with operations for file read/write, standard encoders/decoders,
+   symmetric ciphers, and hashes.
 
 ### [Initialization](docs/initialization.md)
 
 Connect to the TPM2 using the
 [`openssl -provider`](https://www.openssl.org/docs/manmaster/man1/openssl.html)
-option,
-or using the
+option, or using the
 [OSSL_PROVIDER](https://www.openssl.org/docs/manmaster/man3/OSSL_PROVIDER.html)
 API functions.
 The `TPM2OPENSSL_TCTI` environment variable may be used to specify the
@@ -108,7 +107,8 @@ or the
 [EVP_Digest](https://www.openssl.org/docs/manmaster/man3/EVP_Digest.html) API.
 The SHA-1, SHA-256, SHA-384 and SHA-512 algorithm is supported.
 
-These operations are disabled by default.
+These operations are disabled by default. The `default` provider is much faster
+and should be used instead.
 
 ### [Random Number Generation](docs/rng.md)
 
@@ -167,7 +167,8 @@ The PKCS1 (rsassa) and PSS (rsapss) padding (signing scheme) is supported.
 
 For example, to sign arbitrary data:
 ```
-openssl pkeyutl -provider tpm2 -inkey handle:0x81000000 -sign -rawin -in testdata -out testdata.sig
+openssl pkeyutl -provider tpm2 -inkey handle:0x81000000 \
+                -sign -rawin -in testdata -out testdata.sig
 ```
 
 Signing using a restricted signing key is possible, e.g. one can sign arbitrary

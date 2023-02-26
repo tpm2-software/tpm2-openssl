@@ -11,7 +11,7 @@ commands work as usual.
 
 For example, to generate a new TPM-based key and a self-signed certificate:
 ```
-openssl req -provider tpm2 -x509 -subj "/C=GB/CN=foo" -keyout testkey.pem -out testcert.pem
+openssl req -provider tpm2 -provider default -x509 -subj "/C=GB/CN=foo" -keyout testkey.pem -out testcert.pem
 ```
 
 Or, to create a Certificate Signing Request (CSR) based on a persistent
@@ -21,7 +21,7 @@ tpm2_createek -G ecc -c ek_ecc.ctx
 tpm2_createak -C ek_ecc.ctx -G ecc -g sha256 -s ecdsa -c ak_ecc.ctx
 tpm2_evictcontrol -c ak_ecc.ctx 0x81000000
 
-openssl req -provider tpm2 -new -subj "/C=GB/CN=foo" -key handle:0x81000000 -out testcsr.pem
+openssl req -provider tpm2 -provider default -new -subj "/C=GB/CN=foo" -key handle:0x81000000 -out testcsr.pem
 ```
 
 If the key is not associated with any specific algorithm you may define the
@@ -34,23 +34,34 @@ For more details on PKI related openssl commands see the
 Please note that the `openssl pkcs12` tool doesn't work for TPM-based keys as
 there is no PKCS#12 file format for TPM keys.
 
+## Certificate Authority (CA)
+
+The [OpenSSL PKI Tutorial](https://pki-tutorial.readthedocs.io/en/latest/simple/index.html)
+introduces a simple CA operation. The test
+[rsa_pki.sh](https://github.com/tpm2-software/tpm2-openssl/blob/master/test/rsa_pki/rsa_pki.sh)
+rewrites this example for a TPM-based CA.
+
+Another example is provided by the blog
+[ECC Certificates and mTLS with Nginx](https://andrew.dunn.dev/posts/ecc-certificates-and-mtls-with-nginx/).
+The test
+[ec_pki.sh](https://github.com/tpm2-software/tpm2-openssl/blob/master/test/ec_pki/ec_pki.sh)
+rewrites this for a TPM-based CA.
 
 ## Certificate Management Protocol
 
 The Certificate Management Protocol (CMP) can be used for obtaining X.509
 certificates in a public key infrastructure. The
-[`openssl cmp`](https://www.openssl.org/docs/manmaster/man1/openssl-cmp.html),
-command work as usual.
+[`openssl cmp`](https://www.openssl.org/docs/manmaster/man1/openssl-cmp.html)
+command works as usual.
 
-**Subject to TPM performance limits.** The CMP uses a password-based MAC that
-is calculated using a high-number of digest operations. This calculation is
-very slow when calculated using the TPM hardware. You may use the
-`-propquery ?provider=tpm2,tpm2.digest!=yes` to explicitly disable TPM-based
-digest operations.
+The CMP uses a password-based MAC that is calculated using a high-number of
+digest operations. This calculation is very slow when calculated using the TPM
+hardware. You should configure **without** `--enable-op-digest`, or use the
+`-propquery ?tpm2.digest!=yes` to explicitly disable the TPM-based digest operations.
 
 For example, to perform a CMP Key Update Request do:
 ```
-openssl cmp -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.digest!=yes \
+openssl cmp -provider tpm2 -provider default -propquery ?tpm2.digest!=yes \
             -cmd kur -server localhost:80/pkix/ -srvcert server-cert.pem \
             -key client-key.pem -cert client-cert.pem \
             -newkey new-client-key.pem -certout new-client-cert.pem
@@ -66,13 +77,13 @@ command works as usual.
 For example, to sign data do:
 ```
 openssl cms -sign -provider tpm2 -provider default -nodetach -md sha256 \
-            -inkey key.pem -signer cert.pem -in data -text -out data.sig
+            -inkey testkey.pem -signer testcert.pem -in testdata -text -out testdata.sig
 ```
 
-And to encrypt data do:
+And to decrypt data do:
 ```
 openssl cms -decrypt -provider tpm2 -provider default \
-            -inkey key.pem -recip cert.pem -in data.enc -out data
+            -inkey testkey.pem -recip testcert.pem -in testdata.enc -out testdata
 ```
 
 ## TLS Handshake
@@ -113,18 +124,13 @@ negotiated.
 To start a test server using the key and X.509 certificate created in the
 previous section do:
 ```
-openssl s_server -provider tpm2 -provider default -propquery ?provider=tpm2 \
-                 -accept 4443 -www -key testkey.pem -cert testcert.pem
+openssl s_server -provider tpm2 -provider default -accept 4443 -www -key testkey.pem -cert testcert.pem
 ```
 
 For a mTLS connection, on client side:
 ```bash
-openssl s_client -provider tpm2 -provider default -propquery ?provider=tpm2 \
-        -connect 192.168.251.2:8443 \
-        -CAfile ec-cacert.pem \
-        -cert client.crt \
-        -key handle:0x81000000 \
-        -state -debug
+openssl s_client -provider tpm2 -provider default -connect 192.168.251.2:8443 \
+                 -CAfile ec-cacert.pem -cert client.crt -key handle:0x81000000 -state -debug
 ```
 
 The `-key` can be also specified using a persistent key handle.

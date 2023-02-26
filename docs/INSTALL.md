@@ -42,6 +42,9 @@ Then run the configure script, which generates the makefiles:
 ./configure
 ```
 
+To enable [Symmetric Operations](symmetric.md) use the `--enable-op-digest`
+or `--enable-op-cipher` parameters.
+
 You may `--enable-debug` or specify a custom `PKG_CONFIG_PATH` where to search
 for the OpenSSL libraries and header files.
 ```

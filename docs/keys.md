@@ -74,7 +74,7 @@ openssl genpkey -provider tpm2 -algorithm EC -pkeyopt group:P-256 \
 You may use the `EC PARAMETERS` file, but only the curve name is allowed:
 ```
 openssl ecparam -name prime256v1 -out testparam.pem
-openssl genpkey -provider tpm2 -paramfile testparam.pem -out testkey.priv
+openssl genpkey -provider tpm2 -provider base -paramfile testparam.pem -out testkey.priv
 ```
 
 You may also generate the key using standard TPM2 tools and then make the key

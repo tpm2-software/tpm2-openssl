@@ -42,8 +42,8 @@ OpenSSL providers:
    supplies the standard crypto algorithms (non-TPM) and the **base** provider
    functions.
 
-It is quite common to combine the **tpm2** provider with the **base** provider,
-e.g. when loading `TSS2 PRIVATE KEY` from a file.
+It is quite common to combine the **tpm2** provider with other providers, e.g.
+when loading `TSS2 PRIVATE KEY` from a file.
 ```
 -provider tpm2 -provider base
 ```
