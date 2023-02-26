@@ -6,7 +6,7 @@ set -eufx
 tpm2_createek -G ecc -c ek_rsa.ctx
 
 # create AK with defined scheme/hash
-tpm2_createak -C ek_rsa.ctx -G ecc -g sha256 -s ecdsa -c ak_rsa.ctx
+tpm2_createak -C ek_rsa.ctx -G ecc -g sha256 -s ecdsa -p abc -c ak_rsa.ctx
 
 # load the AK to persistent handle
 HANDLE=$(tpm2_evictcontrol -c ak_rsa.ctx | cut -d ' ' -f 2 | head -n 1)
@@ -25,7 +25,8 @@ commonName          = Common Name
 EOF
 
 # create a private key and then generate a certificate request from it
-openssl req -provider tpm2 -provider default -new -config testcert.conf -key handle:${HANDLE} -out testcsr.pem
+openssl req -provider tpm2 -provider default -new -config testcert.conf \
+    -key handle:${HANDLE}?pass -passin pass:abc -out testcsr.pem
 
 # display private key info
 openssl pkey -provider tpm2 -in handle:${HANDLE} -text -noout
