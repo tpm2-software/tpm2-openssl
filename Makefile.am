@@ -86,6 +86,7 @@ TESTS_SHELL = test/list.sh \
               test/ecdsa_createak_sign_handle.sh \
               test/ecdh_genpkey_keyexch.sh \
               test/ecdh_create_keyexch_index.sh \
+              test/ec_createak_x509_cert.sh \
               test/ec_createak_x509_csr_auth.sh \
               test/ec_createak_x509_cms.sh \
               test/ec_createak_x509_index.sh \
