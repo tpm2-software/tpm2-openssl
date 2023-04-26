@@ -25,7 +25,9 @@ commonName          = Common Name
 EOF
 
 # create a private key and then generate a self-signed certificate for it
-openssl req -provider tpm2 -provider default -x509 -config testcert.conf -key handle:${HANDLE} -out testcert.der -outform der
+openssl req -provider tpm2 -provider default -propquery '?provider=tpm2' \
+            -x509 -config testcert.conf -key handle:${HANDLE} \
+            -out testcert.der -outform der
 DERSIZE=`ls -l testcert.der | awk '{print $5}'`
 
 # allocate NV index in the TPM

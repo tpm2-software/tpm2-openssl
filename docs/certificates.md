@@ -11,7 +11,9 @@ commands work as usual.
 
 For example, to generate a new TPM-based key and a self-signed certificate:
 ```
-openssl req -provider tpm2 -provider default -x509 -subj "/C=GB/CN=foo" -keyout testkey.pem -out testcert.pem
+openssl req -provider tpm2 -provider default -propquery '?provider=tpm2' \
+            -x509 -subj "/C=GB/CN=foo" -keyout testkey.pem \
+            -out testcert.pem
 ```
 
 Or, to create a Certificate Signing Request (CSR) based on a persistent
@@ -21,7 +23,9 @@ tpm2_createek -G ecc -c ek_ecc.ctx
 tpm2_createak -C ek_ecc.ctx -G ecc -g sha256 -s ecdsa -c ak_ecc.ctx
 tpm2_evictcontrol -c ak_ecc.ctx 0x81000000
 
-openssl req -provider tpm2 -provider default -new -subj "/C=GB/CN=foo" -key handle:0x81000000 -out testcsr.pem
+openssl req -provider tpm2 -provider default -propquery '?provider=tpm2' \
+            -new -subj "/C=GB/CN=foo" -key handle:0x81000000 \
+            -out testcsr.pem
 ```
 
 If the key is not associated with any specific algorithm you may define the
@@ -73,13 +77,14 @@ command works as usual.
 
 For example, to sign data do:
 ```
-openssl cms -sign -provider tpm2 -provider default -nodetach -md sha256 \
-            -inkey testkey.pem -signer testcert.pem -in testdata -text -out testdata.sig
+openssl cms -sign -provider tpm2 -provider default -propquery '?provider=tpm2' \
+            -nodetach -md sha256 -inkey testkey.pem -signer testcert.pem \
+            -in testdata -text -out testdata.sig
 ```
 
 And to decrypt data do:
 ```
-openssl cms -decrypt -provider tpm2 -provider default \
+openssl cms -decrypt -provider tpm2 -provider default -propquery '?provider=tpm2' \
             -inkey testkey.pem -recip testcert.pem -in testdata.enc -out testdata
 ```
 
@@ -121,13 +126,15 @@ negotiated.
 To start a test server using the key and X.509 certificate created in the
 previous section do:
 ```
-openssl s_server -provider tpm2 -provider default -accept 4443 -www -key testkey.pem -cert testcert.pem
+openssl s_server -provider tpm2 -provider default  -propquery '?provider=tpm2' \
+                 -accept 4443 -www -key testkey.pem -cert testcert.pem
 ```
 
 For a mTLS connection, on client side:
 ```bash
-openssl s_client -provider tpm2 -provider default -connect 192.168.251.2:8443 \
-                 -CAfile ec-cacert.pem -cert client.crt -key handle:0x81000000 -state -debug
+openssl s_client -provider tpm2 -provider default  -propquery '?provider=tpm2' \
+                 -connect 192.168.251.2:8443 -CAfile ec-cacert.pem \
+                 -cert client.crt -key handle:0x81000000 -state -debug
 ```
 
 The `-key` can be also specified using a persistent key handle.
