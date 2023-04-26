@@ -36,7 +36,7 @@ openssl req -provider tpm2 -provider default -x509 -config testcert.conf -new -n
 openssl x509 -text -noout -in testcert.pem
 
 # start SSL server with ECDSA signing, default port 4433
-openssl s_server -provider tpm2 -provider default \
+openssl s_server -provider tpm2 -provider default -propquery '?provider=tpm2' \
                  -www -key testkey.pem -cert testcert.pem &
 SERVER=$!
 trap "cleanup" EXIT

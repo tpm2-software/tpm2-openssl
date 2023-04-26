@@ -43,13 +43,14 @@ DNS.1               = localhost
 EOF
 
 # create a private key and then generate a self-signed certificate for it
-openssl req -provider tpm2 -provider default -x509 -config testcert.conf -key handle:${HANDLE} -out testcert.pem
+openssl req -provider tpm2 -provider default -propquery '?provider=tpm2' \
+            -x509 -config testcert.conf -key handle:${HANDLE} -out testcert.pem
 
 # display content of the certificate
 openssl x509 -text -noout -in testcert.pem
 
 # start SSL server with RSA-PSS-PSS signing, port 4432
-openssl s_server -provider tpm2 -provider default \
+openssl s_server -provider tpm2 -provider default -propquery '?provider=tpm2' \
                  -accept 4432 -www -key handle:${HANDLE} -cert testcert.pem &
 SERVER=$!
 trap "cleanup" EXIT

@@ -24,6 +24,7 @@ echo 01 > testdb/ca/root-ca/db/root-ca.crl.srl
 # 1.3 Create CA request
 openssl req \
     -provider tpm2 -provider default \
+    -propquery '?provider=tpm2' \
     -new \
     -config $PKIDIR/etc/root-ca.conf \
     -out testdb/ca/root-ca.csr \
@@ -32,6 +33,7 @@ openssl req \
 # 1.4 Create CA certificate
 openssl ca \
     -provider tpm2 -provider default \
+    -propquery '?provider=tpm2' \
     -selfsign \
     -config $PKIDIR/etc/root-ca.conf \
     -batch \
@@ -60,6 +62,7 @@ echo 01 > testdb/ca/signing-ca/db/signing-ca.crl.srl
 # 2.3 Create CA request
 openssl req \
     -provider tpm2 -provider default \
+    -propquery '?provider=tpm2' \
     -new \
     -config $PKIDIR/etc/signing-ca.conf \
     -out testdb/ca/signing-ca.csr \
@@ -68,6 +71,7 @@ openssl req \
 # 2.4 Create CA certificate
 openssl ca \
     -provider tpm2 -provider default \
+    -propquery '?provider=tpm2' \
     -config $PKIDIR/etc/root-ca.conf \
     -batch \
     -in testdb/ca/signing-ca.csr \
@@ -84,6 +88,7 @@ openssl ca \
 # 3.1 Create email request
 openssl req \
     -provider tpm2 -provider default \
+    -propquery '?provider=tpm2' \
     -new \
     -config $PKIDIR/etc/email.conf \
     -out testdb/certs/fred.csr \
@@ -92,6 +97,7 @@ openssl req \
 # 3.2 Create email certificate
 openssl ca \
     -provider tpm2 -provider default \
+    -propquery '?provider=tpm2' \
     -config $PKIDIR/etc/signing-ca.conf \
     -batch \
     -in testdb/certs/fred.csr \
@@ -107,6 +113,7 @@ openssl ca \
 SAN=DNS:www.simple.org \
 openssl req \
     -provider tpm2 -provider default \
+    -propquery '?provider=tpm2' \
     -new \
     -config $PKIDIR/etc/server.conf \
     -out testdb/certs/simple.org.csr \
@@ -115,6 +122,7 @@ openssl req \
 # 3.4 Create TLS server certificate
 openssl ca \
     -provider tpm2 -provider default \
+    -propquery '?provider=tpm2' \
     -config $PKIDIR/etc/signing-ca.conf \
     -batch \
     -in testdb/certs/simple.org.csr \
@@ -129,6 +137,7 @@ openssl ca \
 # 3.5 Revoke certificate
 openssl ca \
     -provider tpm2 -provider default \
+    -propquery '?provider=tpm2' \
     -config $PKIDIR/etc/signing-ca.conf \
     -revoke testdb/ca/signing-ca/01.pem \
     -crl_reason superseded
@@ -136,6 +145,7 @@ openssl ca \
 # 3.6 Create CRL
 openssl ca \
     -provider tpm2 -provider default \
+    -propquery '?provider=tpm2' \
     -gencrl \
     -config $PKIDIR/etc/signing-ca.conf \
     -out testdb/crl/signing-ca.crl

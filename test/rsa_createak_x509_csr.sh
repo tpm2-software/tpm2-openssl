@@ -25,7 +25,8 @@ commonName          = Common Name
 EOF
 
 # create a private key and then generate a certificate request from it
-openssl req -provider tpm2 -provider default -new -config testcert.conf -key handle:${HANDLE} -out testcsr.pem
+openssl req -provider tpm2 -provider default -propquery '?provider=tpm2' \
+            -new -config testcert.conf -key handle:${HANDLE} -out testcsr.pem
 
 # display private key info
 openssl rsa -provider tpm2 -in handle:${HANDLE} -text -noout
