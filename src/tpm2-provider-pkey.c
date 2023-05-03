@@ -263,8 +263,8 @@ tpm2_load_parent(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
                 TPM2_ERROR_raise(core, TPM2_ERR_WRONG_DATA_LENGTH);
                 goto error1;
             }
-            auth->size = snprintf(auth->buffer, sizeof(auth->buffer),
-                    "%s", pauth);
+            auth->size = strlen(pauth);
+            memcpy(auth->buffer, pauth, auth->size);
         }
     }
 
