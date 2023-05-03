@@ -66,7 +66,7 @@ tpm2_hash_to_x509(TPM2_ALG_ID digalg)
         return NULL;
     if (X509_ALGOR_set0(res, pssoid, V_ASN1_NULL, NULL))
         return res;
-error:
+// error
     X509_ALGOR_free(res);
     return NULL;
 }
