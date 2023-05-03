@@ -270,12 +270,12 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
         DBG("RSA GEN parent: persistent 0x%x\n", gen->parentHandle);
         if (!tpm2_load_parent(pkey->core, pkey->esys_ctx,
                               gen->parentHandle, &gen->parentAuth, &parent))
-            goto error1;
+            goto error;
     } else {
         DBG("RSA GEN parent: primary 0x%x\n", TPM2_RH_OWNER);
         if (!tpm2_build_primary(pkey->core, pkey->esys_ctx, pkey->capability.algorithms,
                                 ESYS_TR_RH_OWNER, &gen->parentAuth, &parent))
-            goto error1;
+            goto error;
     }
 
     TPM2B_DATA outside_info = { .size = 0 };
@@ -286,7 +286,7 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
                     ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                     &gen->inSensitive, &gen->inPublic, &outside_info, &creation_pcr,
                     &keyPrivate, &keyPublic, NULL, NULL, NULL);
-    TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto error1);
+    TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto error);
 
     pkey->data.pub = *keyPublic;
     pkey->data.privatetype = KEY_TYPE_BLOB;
@@ -297,9 +297,8 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
                   keyPrivate, keyPublic, &pkey->object);
     free(keyPublic);
     free(keyPrivate);
-    TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto error1);
+    TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto error);
 
-final:
     if (gen->parentHandle && gen->parentHandle != TPM2_RH_OWNER)
         Esys_TR_Close(gen->esys_ctx, &parent);
     else
@@ -307,7 +306,7 @@ final:
 
     if (r == TSS2_RC_SUCCESS)
         return pkey;
-error1:
+error:
     OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
     return NULL;
 }
