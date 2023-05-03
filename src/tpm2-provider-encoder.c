@@ -79,14 +79,11 @@ tpm2_encoder_freectx(void *ctx)
         if ((bout = BIO_new_from_core_bio(ectx->libctx, cout)) == NULL) \
             return 0; \
         if (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) { \
-            if (tpm2_##otype##_encode_private_##ostructure##_##oformat) \
-                ret = tpm2_##otype##_encode_private_##ostructure##_##oformat(ectx, bout, pkey); \
+            ret = tpm2_##otype##_encode_private_##ostructure##_##oformat(ectx, bout, pkey); \
         } else if (selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) { \
-            if (tpm2_##otype##_encode_public_##ostructure##_##oformat) \
-                ret = tpm2_##otype##_encode_public_##ostructure##_##oformat(ectx, bout, pkey); \
+            ret = tpm2_##otype##_encode_public_##ostructure##_##oformat(ectx, bout, pkey); \
         } else if (selection & OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS) { \
-            if (tpm2_##otype##_encode_parameters_##ostructure##_##oformat) \
-                ret = tpm2_##otype##_encode_parameters_##ostructure##_##oformat(ectx, bout, pkey); \
+            ret = tpm2_##otype##_encode_parameters_##ostructure##_##oformat(ectx, bout, pkey); \
         } \
         BIO_free(bout); \
         return ret; \
