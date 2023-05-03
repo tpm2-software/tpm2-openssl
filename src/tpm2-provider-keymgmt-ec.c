@@ -257,7 +257,6 @@ tpm2_ec_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
     free(keyPrivate);
     TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto error1);
 
-final:
     if (gen->parentHandle && gen->parentHandle != TPM2_RH_OWNER)
         Esys_TR_Close(gen->esys_ctx, &parent);
     else
