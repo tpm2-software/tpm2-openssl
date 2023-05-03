@@ -19,8 +19,8 @@ struct tpm2_encoder_ctx_st {
 };
 
 static OSSL_FUNC_encoder_newctx_fn tpm2_encoder_newctx;
-static OSSL_FUNC_encoder_freectx_fn tpm2_encoder_freectx;
-static OSSL_FUNC_encoder_encode_fn tpm2_encoder_encode_text;
+// static OSSL_FUNC_encoder_freectx_fn tpm2_encoder_freectx;
+// static OSSL_FUNC_encoder_encode_fn tpm2_encoder_encode_text;
 
 static void *
 tpm2_encoder_newctx(void *provctx)
