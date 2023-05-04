@@ -1,0 +1,7 @@
+FROM ubuntu:22.04
+
+RUN apt-get update && apt-get -y install \
+    curl autoconf-archive git make build-essential libtool pkg-config \
+    libssl-dev libtss2-dev libtss2-tcti-tabrmd0 \
+    tpm2-abrmd tpm2-tools openssl dbus-daemon swtpm iproute2 systemd \
+    && mkdir build
