@@ -18,7 +18,7 @@ echo 1000 | tee testdb/{root,intermediate}/{serial,crlnumber}
 chmod 700 testdb/{root,intermediate,client,server}/private
 
 # Create the Root CA Key
-openssl ecparam -provider tpm2 -name $CURVE -genkey -out testdb/root/private/root.key.pem
+openssl ecparam -provider tpm2 -propquery '?provider=tpm2' -name $CURVE -genkey -out testdb/root/private/root.key.pem
 chmod 600 testdb/root/private/root.key.pem
 
 # Create a Self Signed Root Certificate
@@ -34,7 +34,7 @@ openssl req -provider tpm2 -provider default -propquery '?provider=tpm2' \
 openssl x509 -noout -text -in testdb/root/certs/root.cert.pem
 
 # Create an Intermediary CA Key
-openssl ecparam -provider tpm2 -name $CURVE -genkey -out testdb/intermediate/private/intermediate.key.pem
+openssl ecparam -provider tpm2 -propquery '?provider=tpm2' -name $CURVE -genkey -out testdb/intermediate/private/intermediate.key.pem
 chmod 600 testdb/intermediate/private/intermediate.key.pem
 
 # Create an Intermediary CSR
@@ -66,7 +66,7 @@ cat testdb/intermediate/certs/intermediate.cert.pem testdb/root/certs/root.cert.
 chmod 444 testdb/intermediate/certs/chain.cert.pem
 
 # Create a Client Key
-openssl ecparam -provider tpm2 -name $CURVE -genkey -out testdb/client/private/agd.key.pem
+openssl ecparam -provider tpm2 -propquery '?provider=tpm2' -name $CURVE -genkey -out testdb/client/private/agd.key.pem
 chmod 400 testdb/client/private/agd.key.pem
 
 # Create a Client CSR

@@ -17,13 +17,13 @@ tpm2_load -C primary.ctx -u key.pub -r key.priv -c testkey.ctx
 HANDLE=$(tpm2_evictcontrol -c testkey.ctx | cut -d ' ' -f 2 | head -n 1)
 
 # export public key
-openssl pkey -provider tpm2 -in handle:${HANDLE} -pubout -out testkey.pub
+openssl pkey -provider tpm2 -propquery '?provider=tpm2' -in handle:${HANDLE} -pubout -out testkey.pub
 
 # encrypt data
 openssl pkeyutl -encrypt -pubin -inkey testkey.pub -in testdata -out testdata.crypt
 
 # decrypt data
-openssl pkeyutl -provider tpm2 -inkey handle:${HANDLE} \
+openssl pkeyutl -provider tpm2 -propquery '?provider=tpm2' -inkey handle:${HANDLE} \
     -decrypt -in testdata.crypt -out testdata2
 
 # check the decryption

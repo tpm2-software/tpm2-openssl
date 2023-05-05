@@ -9,7 +9,7 @@ tpm2_create -C owner -G ecc -c testkey1.ctx
 HANDLE=$(tpm2_evictcontrol -c testkey1.ctx | cut -d ' ' -f 2 | head -n 1)
 
 # alice exports public key as PEM
-openssl pkey -provider tpm2 -in handle:${HANDLE} -pubout -out testkey1.pub
+openssl pkey -provider tpm2 -propquery '?provider=tpm2' -in handle:${HANDLE} -pubout -out testkey1.pub
 
 
 # bob generates private key as PEM
@@ -28,7 +28,7 @@ tpm2_nvwrite ${INDEX} -i testkey2.pub
 
 # alice derives her shared secret
 # both alice's private and bob's public key are loaded from the TPM
-openssl pkeyutl -provider tpm2 -provider base -derive -inkey handle:${HANDLE} -peerkey handle:${INDEX} -out secret1.key
+openssl pkeyutl -provider tpm2 -propquery '?provider=tpm2' -provider base -derive -inkey handle:${HANDLE} -peerkey handle:${INDEX} -out secret1.key
 
 # bob also derives his shared secret
 openssl pkeyutl -derive -inkey testkey2.priv -peerkey testkey1.pub -out secret2.key

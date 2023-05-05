@@ -9,7 +9,7 @@ function cleanup()
 }
 
 # create root CA key and certificate
-openssl req -provider tpm2 -provider default -x509 -newkey rsa:2048 -sha256 -nodes \
+openssl req -provider tpm2 -provider default -propquery '?provider=tpm2' -x509 -newkey rsa:2048 -sha256 -nodes \
             -subj "/C=GB/CN=root.example.com" -extensions v3_ca \
             -keyout test-ca-key.pem -out test-ca-cert.pem
 
@@ -47,7 +47,7 @@ trap "cleanup" EXIT
 sleep 1
 
 # send CMP Initial Request for certificate deployment
-openssl cmp -provider tpm2 -provider default -propquery tpm2.digest!=yes \
+openssl cmp -provider tpm2 -provider default -propquery '?provider=tpm2,tpm2.digest!=yes' \
             -cmd ir -server localhost:8880/pkix/ -recipient "/CN=CMPserver" \
             -secret pass:1234-5678 -newkey test-client-key.pem -subject "/CN=Client" \
             -certout test-my-cert.pem -cacertsout test-my-ca.pem
@@ -78,7 +78,7 @@ sleep 1
 
 # send CMP Key Update Request
 # FIXME: Temporarily use key2/cert2 to authenticate the message, see https://github.com/openssl/openssl/pull/16050
-openssl cmp -provider tpm2 -provider default -propquery tpm2.digest!=yes \
+openssl cmp -provider tpm2 -provider default -propquery '?provider=tpm2,tpm2.digest!=yes' \
             -cmd kur -server localhost:8881/pkix/ -trusted test-ca-cert.pem \
             -key test-client-key2.pem -cert test-client-cert2.pem \
             -newkey test-client-key2.pem -certout test-my-cert2.pem
