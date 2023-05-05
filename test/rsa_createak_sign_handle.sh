@@ -15,10 +15,10 @@ tpm2_createak -C ek_rsa.ctx -G rsa -g sha256 -s rsassa -c ak_rsa.ctx
 HANDLE=$(tpm2_evictcontrol -c ak_rsa.ctx | cut -d ' ' -f 2 | head -n 1)
 
 # sign using the EK (no scheme/hash needs to be defined)
-openssl pkeyutl -provider tpm2 -inkey handle:${HANDLE} -sign -rawin -in testdata -out testdata.sig
+openssl pkeyutl -provider tpm2 -propquery '?provider=tpm2' -inkey handle:${HANDLE} -sign -rawin -in testdata -out testdata.sig
 
 # export public key
-openssl pkey -provider tpm2 -in handle:${HANDLE} -pubout -out testkey.pub
+openssl pkey -provider tpm2 -propquery '?provider=tpm2' -in handle:${HANDLE} -pubout -out testkey.pub
 
 # verify the signature
 openssl pkeyutl -verify -pubin -inkey testkey.pub -sigfile testdata.sig -rawin -in testdata

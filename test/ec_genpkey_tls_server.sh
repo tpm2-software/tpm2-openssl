@@ -30,7 +30,7 @@ DNS.1               = localhost
 EOF
 
 # create a EC private key and then generate a self-signed certificate for it
-openssl req -provider tpm2 -provider default -x509 -config testcert.conf -new -newkey ec -pkeyopt group:P-256 -out testcert.pem
+openssl req -provider tpm2 -provider default -propquery '?provider=tpm2' -x509 -config testcert.conf -new -newkey ec -pkeyopt group:P-256 -out testcert.pem
 
 # display content of the certificate
 openssl x509 -text -noout -in testcert.pem
