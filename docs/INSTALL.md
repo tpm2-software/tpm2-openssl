@@ -159,3 +159,29 @@ make check-code-coverage
 This will run the test suite (`make check`) and build a code coverage report
 detailing the code which was touched.
 
+## Build and run all tests in a container
+
+To make the test setup as reproducible as possible and to reduce the risk
+of damaging the real TPM, a container environment is also available.
+
+Build and run a container with podman (Docker should work as well):
+
+```sh
+TEST_CONTAINER=ubuntu-2204
+# TEST_CONTAINER=fedora-38
+podman build -f "test/Containerfiles/Containerfile.$TEST_CONTAINER" --tag "tpm2-openssl-build-$TEST_CONTAINER"
+podman run -it --name tpm2-openssl-1 -v "$(pwd):/build:Z" --rm --userns=keep-id \
+       "localhost/tpm2-openssl-build-$TEST_CONTAINER" /bin/bash
+```
+
+Run all tests with the swtpm simulator in the container:
+
+```sh
+/build/test/run-with-simulator
+```
+
+Run all tests with the IBM simulator in the container:
+
+```sh
+/build/test/run-with-simulator ibm
+```
