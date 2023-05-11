@@ -284,12 +284,12 @@ get_signature_buffer(const TPMT_SIGNATURE *signature,
         *siglen = strlen;
         if (sig != NULL) {
             if (*siglen > sigsize) {
-                free(str);
+                OPENSSL_free(str);
                 return 0;
             }
             memcpy(sig, str, *siglen);
         }
-        free(str);
+        OPENSSL_free(str);
         return 1;
     } else
         return 0;
@@ -551,7 +551,7 @@ tpm2_signature_get_ctx_params(void *ctx, OSSL_PARAM params[])
             return 0;
 
         r = OSSL_PARAM_set_octet_string(p, aid, aid_len);
-        free(aid);
+        OPENSSL_free(aid);
         return r;
     }
 

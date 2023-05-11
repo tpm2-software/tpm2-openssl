@@ -289,7 +289,7 @@ tpm2_get_x509_rsa_pubkey(const TPM2_PKEY *pkey)
         return NULL;
 
     if ((pubkey = X509_PUBKEY_new()) == NULL) {
-        free(penc);
+        OPENSSL_free(penc);
         return NULL;
     }
 
