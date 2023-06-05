@@ -78,6 +78,8 @@ However, the application has to:
    provider with operations for file read/write, standard encoders/decoders,
    symmetric ciphers, and hashes.
 
+For further documentation see [latest github docs](docs).
+
 ### [Initialization](docs/initialization.md)
 
 Connect to the TPM2 using the
