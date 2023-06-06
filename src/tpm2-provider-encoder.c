@@ -176,7 +176,8 @@ tpm2_get_rsa_pubkey(const TPM2_PKEY *pkey)
     if (!exponent)
         exponent = 0x10001;
 
-    if (!ASN1_INTEGER_set(tpk->e, exponent))
+    // note the ASN1_INTEGER_set is not reliable for uin32_t on 32-bit machines
+    if (!ASN1_INTEGER_set_uint64(tpk->e, exponent))
         goto error2;
 
     return tpk;

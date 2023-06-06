@@ -74,11 +74,12 @@ tpm2_keydata_write(const TPM2_KEYDATA *keydata, BIO *bout, TPM2_PKEY_FORMAT form
     if (!tpk->type)
         goto error;
 
+    // note the ASN1_INTEGER_set is not reliable for uin32_t on 32-bit machines
     tpk->emptyAuth = ! !keydata->emptyAuth;
     if (keydata->parent != 0)
-        ASN1_INTEGER_set(tpk->parent, keydata->parent);
+        ASN1_INTEGER_set_uint64(tpk->parent, keydata->parent);
     else
-        ASN1_INTEGER_set(tpk->parent, TPM2_RH_OWNER);
+        ASN1_INTEGER_set_uint64(tpk->parent, TPM2_RH_OWNER);
 
     ASN1_STRING_set(tpk->privkey, &privbuf[0], privbuf_len);
     ASN1_STRING_set(tpk->pubkey, &pubbuf[0], pubbuf_len);
@@ -113,6 +114,7 @@ error:
 int
 tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata, TPM2_PKEY_FORMAT format)
 {
+    uint64_t parent;
     TSSPRIVKEY *tpk = NULL;
     char type_oid[64];
 
@@ -132,9 +134,16 @@ tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata, TPM2_PKEY_FORMAT format)
     keydata->privatetype = KEY_TYPE_BLOB;
     keydata->emptyAuth = tpk->emptyAuth;
 
-    keydata->parent = ASN1_INTEGER_get(tpk->parent);
-    if (keydata->parent == 0)
+    // the ASN1_INTEGER_get on a 32-bit machine will fail for numbers of UINT32_MAX
+    if (!ASN1_INTEGER_get_uint64(&parent, tpk->parent))
+        goto error;
+
+    if (parent == 0)
         keydata->parent = TPM2_RH_OWNER;
+    else if (parent <= UINT32_MAX)
+        keydata->parent = parent;
+    else
+        goto error;
 
     if (!OBJ_obj2txt(type_oid, sizeof(type_oid), tpk->type, 1) ||
             strcmp(type_oid, OID_loadableKey))
