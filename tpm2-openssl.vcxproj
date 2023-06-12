@@ -53,15 +53,19 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="dependencies.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="dependencies.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="dependencies.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="dependencies.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -83,7 +87,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;TPM2OPENSSL_EXPORTS;WIN32_LEAN_AND_MEAN;PACKAGE_VERSION="1.1.0";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\Default\source\repos\tpm2-tss\include\;C:\Program Files\OpenSSL\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(Tpm2TssDir)\include\;$(OpenSslDir)\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -93,13 +97,13 @@
       <TargetMachine>MachineX86</TargetMachine>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
-	  <AdditionalDependencies>C:\Program Files\OpenSSL\lib\libcrypto.lib;C:\Users\Default\source\repos\tpm2-tss\x64\Debug\tss2-esys.lib;C:\Users\Default\source\repos\tpm2-tss\x64\Debug\tss2-mu.lib;C:\Users\Default\source\repos\tpm2-tss\x64\Debug\tss2-tctildr.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(OpenSslDir)\lib\libcrypto.lib;$(Tpm2TssDir)\x64\Debug\tss2-esys.lib;$(Tpm2TssDir)\x64\Debug\tss2-mu.lib;$(Tpm2TssDir)\x64\Debug\tss2-tctildr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;TPM2OPENSSL_EXPORTS;WIN32_LEAN_AND_MEAN;PACKAGE_VERSION="1.1.0";NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\Default\source\repos\tpm2-tss\include\;C:\Program Files\OpenSSL\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(Tpm2TssDir)\include\;$(OpenSslDir)\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -110,22 +114,22 @@
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-	  <AdditionalDependencies>C:\Program Files\OpenSSL\lib\libcrypto.lib;C:\Users\Default\source\repos\tpm2-tss\x64\Debug\tss2-esys.lib;C:\Users\Default\source\repos\tpm2-tss\x64\Debug\tss2-mu.lib;C:\Users\Default\source\repos\tpm2-tss\x64\Debug\tss2-tctildr.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(OpenSslDir)\lib\libcrypto.lib;$(Tpm2TssDir)\x64\Debug\tss2-esys.lib;$(Tpm2TssDir)\x64\Debug\tss2-mu.lib;$(Tpm2TssDir)\x64\Debug\tss2-tctildr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\Default\source\repos\tpm2-tss\include\;C:\Program Files\OpenSSL\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(Tpm2TssDir)\include\;$(OpenSslDir)\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_WINDLL;WIN32_LEAN_AND_MEAN;PACKAGE_VERSION="1.1.0";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>C:\Program Files\OpenSSL\lib\libcrypto.lib;C:\Users\Default\source\repos\tpm2-tss\x64\Debug\tss2-esys.lib;C:\Users\Default\source\repos\tpm2-tss\x64\Debug\tss2-mu.lib;C:\Users\Default\source\repos\tpm2-tss\x64\Debug\tss2-tctildr.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(OpenSslDir)\lib\libcrypto.lib;$(Tpm2TssDir)\x64\Debug\tss2-esys.lib;$(Tpm2TssDir)\x64\Debug\tss2-mu.lib;$(Tpm2TssDir)\x64\Debug\tss2-tctildr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\Default\source\repos\tpm2-tss\include\;C:\Program Files\OpenSSL\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(Tpm2TssDir)\include\;$(OpenSslDir)\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_WINDLL;WIN32_LEAN_AND_MEAN;PACKAGE_VERSION="1.1.0";NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Optimization>MaxSpeed</Optimization>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -133,7 +137,7 @@
     <Link>
       <AdditionalLibraryDirectories>
       </AdditionalLibraryDirectories>
-      <AdditionalDependencies>C:\Program Files\OpenSSL\lib\libcrypto.lib;C:\Users\Default\source\repos\tpm2-tss\x64\Debug\tss2-esys.lib;C:\Users\Default\source\repos\tpm2-tss\x64\Debug\tss2-mu.lib;C:\Users\Default\source\repos\tpm2-tss\x64\Debug\tss2-tctildr.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(OpenSslDir)\lib\libcrypto.lib;$(Tpm2TssDir)\x64\Debug\tss2-esys.lib;$(Tpm2TssDir)\x64\Debug\tss2-mu.lib;$(Tpm2TssDir)\x64\Debug\tss2-tctildr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
