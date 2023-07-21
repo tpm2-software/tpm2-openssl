@@ -557,6 +557,9 @@ tpm2_rsa_keymgmt_export(void *keydata, int selection,
     if (pkey == NULL)
         return 0;
 
+    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
+        return 0;
+
     OSSL_PARAM params[3], *p = params;
 #if !defined(WORDS_BIGENDIAN)
     unsigned char *n = NULL;

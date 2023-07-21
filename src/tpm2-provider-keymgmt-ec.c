@@ -606,6 +606,9 @@ tpm2_ec_keymgmt_export(void *keydata, int selection,
     if (pkey == NULL)
         return 0;
 
+    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
+        return 0;
+
     curve_nid = tpm2_ecc_curve_to_nid(TPM2_PKEY_EC_CURVE(pkey));
 
     pubsize = tpm2_ecc_point_to_uncompressed(
