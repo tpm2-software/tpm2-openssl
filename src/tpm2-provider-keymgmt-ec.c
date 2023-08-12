@@ -422,6 +422,10 @@ tpm2_ec_keymgmt_get_params(void *keydata, OSSL_PARAM params[])
     p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_EC_PUB_Y);
     if (p != NULL && !tpm2_param_set_BN_from_buffer(p, pkey->data.pub.publicArea.unique.ecc.y))
         goto error;
+    p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY);
+    if (p != NULL && !tpm2_param_set_ecc_point(p, &pkey->data.pub.publicArea.unique.ecc.x,
+                                                  &pkey->data.pub.publicArea.unique.ecc.y))
+        goto error;
     free(details);
     return 1;
 error:
@@ -450,6 +454,7 @@ tpm2_ec_keymgmt_gettable_params(void *provctx)
         OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PUB_KEY, NULL, 0),
         OSSL_PARAM_BN(OSSL_PKEY_PARAM_EC_PUB_X, NULL, 0),
         OSSL_PARAM_BN(OSSL_PKEY_PARAM_EC_PUB_Y, NULL, 0),
+        OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY, NULL, 0),
         OSSL_PARAM_END
     };
 
