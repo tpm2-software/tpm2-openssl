@@ -6,6 +6,7 @@
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include <openssl/crypto.h>
+#include <openssl/evp.h>
 
 #include "tpm2-provider.h"
 
@@ -131,6 +132,8 @@ static const OSSL_PARAM *
 tpm2_rand_gettable_ctx_params(void *ctx, void *provctx)
 {
     static const OSSL_PARAM known_gettable_ctx_params[] = {
+        OSSL_PARAM_int(OSSL_RAND_PARAM_STATE, NULL),
+        OSSL_PARAM_uint(OSSL_RAND_PARAM_STRENGTH, NULL),
         OSSL_PARAM_size_t(OSSL_RAND_PARAM_MAX_REQUEST, NULL),
         OSSL_PARAM_END
     };
@@ -145,6 +148,17 @@ tpm2_rand_get_ctx_params(void *ctx, OSSL_PARAM params[])
     if (params == NULL)
         return 1;
     TRACE_PARAMS("RAND GET_CTX_PARAMS", params);
+
+    p = OSSL_PARAM_locate(params, OSSL_RAND_PARAM_STATE);
+    /* always ready */
+    if (p != NULL && !OSSL_PARAM_set_int(p, EVP_RAND_STATE_READY))
+        return 0;
+
+    p = OSSL_PARAM_locate(params, OSSL_RAND_PARAM_STRENGTH);
+    /* Part 1, 11.4.10.1: When accessed by an external call, it should be able
+       to provide 32 octets of randomness. */
+    if (p != NULL && !OSSL_PARAM_set_int(p, 256))
+        return 0;
 
     p = OSSL_PARAM_locate(params, OSSL_RAND_PARAM_MAX_REQUEST);
     /* how much fits into the TPM2B_DIGEST, see Part 3 section 16.1.1 */
