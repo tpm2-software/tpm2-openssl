@@ -80,6 +80,9 @@ However, the application has to:
 
 For further documentation see [latest github docs](docs).
 
+You may also review documentation of the individual TPM2 vendors, such as the
+[OPTIGA™ TPM 2.0 command reference and code examples](https://github.com/Infineon/optiga-tpm-cheatsheet).
+
 ### [Initialization](docs/initialization.md)
 
 Connect to the TPM2 using the
