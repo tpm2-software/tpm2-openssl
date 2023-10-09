@@ -59,15 +59,15 @@ typedef struct {
 
 static const OSSL_ALGORITHM *
 tpm2_operation(const TPM2_CAPABILITY *caps,
-               const TPM2_ALGORITHM *algs, size_t count)
+               const TPM2_ALGORITHM *algs, size_t algs_size)
 {
     OSSL_ALGORITHM *res;
     int i, j = 0;
 
-    if ((res = OPENSSL_malloc(count * sizeof(OSSL_ALGORITHM))) == NULL)
+    if ((res = OPENSSL_malloc(algs_size * sizeof(OSSL_ALGORITHM))) == NULL)
         return NULL;
 
-    for (i = 0; i < count && algs[i].algs != NULL; i++) {
+    for (i = 0; algs[i].algs != NULL; i++) {
         /* retrieve the implementation,
          * or NULL when the current TPM does not support this algorithm */
         if ((res[j].implementation = algs[i].dispatch(caps)) == NULL)
