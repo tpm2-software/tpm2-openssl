@@ -139,12 +139,16 @@ rsa_asymcipher_set_ctx_params(void *ctx, const OSSL_PARAM params[])
             if (pad_mode == RSA_PKCS1_PADDING
                     || pad_mode == RSA_PKCS1_WITH_TLS_PADDING)
                 actx->decrypt.scheme = TPM2_ALG_RSAES;
+            else if (pad_mode == RSA_NO_PADDING)
+                actx->decrypt.scheme = TPM2_ALG_NULL;
             else
                 return 0;
             break;
         case OSSL_PARAM_UTF8_STRING:
             if (!strcasecmp(p->data, OSSL_PKEY_RSA_PAD_MODE_PKCSV15))
                 actx->decrypt.scheme = TPM2_ALG_RSAES;
+            else if (!strcasecmp(p->data, OSSL_PKEY_RSA_PAD_MODE_NONE))
+                actx->decrypt.scheme = TPM2_ALG_NULL;
             else
                 return 0;
             break;

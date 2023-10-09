@@ -22,14 +22,38 @@ openssl pkey -provider tpm2 -propquery '?provider=tpm2' -in handle:${HANDLE} -pu
 # encrypt data
 openssl pkeyutl -encrypt -pubin -inkey testkey.pub -in testdata -out testdata.crypt
 
-# decrypt data
+# decrypt data, default padding
 openssl pkeyutl -provider tpm2 -propquery '?provider=tpm2' -inkey handle:${HANDLE} \
     -decrypt -in testdata.crypt -out testdata2
 
 # check the decryption
-test "x$(cat testdata2)" = "xabcde12345abcde12345"
+cmp testdata testdata2
+
+# decrypt data, explicit padding specification
+openssl pkeyutl -provider tpm2 -propquery '?provider=tpm2' -inkey handle:${HANDLE} \
+    -decrypt -pkeyopt rsa_padding_mode:pkcs1 -in testdata.crypt -out testdata3
+
+# check the decryption
+cmp testdata testdata3
+
+# generate a random message
+# it must be of the key size (2048 bits, 256 bytes), but less bits than the modulus
+echo -n -e "\\x00" > testdata
+openssl rand 255 >> testdata
+
+# encrypt data, no padding
+openssl pkeyutl -encrypt -pubin -inkey testkey.pub -pkeyopt rsa_padding_mode:none \
+    -in testdata -out testdata.crypt
+
+# decrypt data
+openssl pkeyutl -provider tpm2 -propquery '?provider=tpm2' -inkey handle:${HANDLE} \
+    -decrypt -pkeyopt rsa_padding_mode:none -in testdata.crypt -out testdata2
+
+# check the decryption
+cmp testdata testdata2
 
 # release the persistent key
 tpm2_evictcontrol -c ${HANDLE}
 
-rm primary.ctx key.pub key.priv testkey.ctx testkey.pub testdata testdata.crypt testdata2
+rm primary.ctx key.pub key.priv testkey.ctx testkey.pub testdata testdata.crypt \
+    testdata2 testdata3
