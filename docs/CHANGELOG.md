@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
-## [1.2.0] - 2023-10-xx
+## [1.2.0] - 2023-10-14
 ### Added
 - Added support for ECDH with a KDF, which is used by ECC-based CMS (S/MIME).
 - Added retrieval of OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY for EC keys and
