@@ -25,8 +25,6 @@ AX_IS_RELEASE([dash-version])
 AX_CHECK_ENABLE_DEBUG([info])
 
 AC_PROG_CC
-AC_PROG_CC_C99
-AM_PROG_CC_C_O
 AC_C_BIGENDIAN
 LT_INIT([disable-static])
 
