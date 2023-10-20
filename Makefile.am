@@ -79,7 +79,8 @@ TESTS_SHELL = test/list.sh \
               test/rsa_createak_auth.sh \
               test/rsa_createak_sign_object.sh \
               test/rsa_createak_sign_handle.sh \
-              test/rsa_create_decrypt.sh \
+              test/rsa_create_decrypt_pkcs1.sh \
+              test/rsa_create_decrypt_oaep.sh \
               test/rsa_genpkey_x509_cert.sh \
               test/rsa_genpkey_x509_cmp.sh \
               test/rsa_genpkey_x509_cms.sh \

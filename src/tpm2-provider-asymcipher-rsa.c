@@ -8,8 +8,9 @@
 #include <openssl/rsa.h>
 
 #include "tpm2-provider-pkey.h"
+#include "tpm2-provider-types.h"
 
-#ifdef _MSC_VER 
+#ifdef _MSC_VER
 //not #if defined(_WIN32) || defined(_WIN64) because we have strncasecmp in mingw
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
@@ -20,6 +21,7 @@ typedef struct tpm2_rsa_asymcipher_ctx_st TPM2_RSA_ASYMCIPHER_CTX;
 struct tpm2_rsa_asymcipher_ctx_st {
     const OSSL_CORE_HANDLE *core;
     ESYS_CONTEXT *esys_ctx;
+    TPM2_CAPABILITY capability;
     TPMT_RSA_DECRYPT decrypt;
     /* TLS padding */
     unsigned int client_version;
@@ -46,6 +48,7 @@ static void
 
     actx->core = cprov->core;
     actx->esys_ctx = cprov->esys_ctx;
+    actx->capability = cprov->capability;
     actx->decrypt.scheme = TPM2_ALG_RSAES;
     return actx;
 }
@@ -139,6 +142,8 @@ rsa_asymcipher_set_ctx_params(void *ctx, const OSSL_PARAM params[])
             if (pad_mode == RSA_PKCS1_PADDING
                     || pad_mode == RSA_PKCS1_WITH_TLS_PADDING)
                 actx->decrypt.scheme = TPM2_ALG_RSAES;
+            else if (pad_mode == RSA_PKCS1_OAEP_PADDING)
+                actx->decrypt.scheme = TPM2_ALG_OAEP;
             else if (pad_mode == RSA_NO_PADDING)
                 actx->decrypt.scheme = TPM2_ALG_NULL;
             else
@@ -147,12 +152,24 @@ rsa_asymcipher_set_ctx_params(void *ctx, const OSSL_PARAM params[])
         case OSSL_PARAM_UTF8_STRING:
             if (!strcasecmp(p->data, OSSL_PKEY_RSA_PAD_MODE_PKCSV15))
                 actx->decrypt.scheme = TPM2_ALG_RSAES;
+            else if (!strcasecmp(p->data, OSSL_PKEY_RSA_PAD_MODE_OAEP))
+                actx->decrypt.scheme = TPM2_ALG_OAEP;
             else if (!strcasecmp(p->data, OSSL_PKEY_RSA_PAD_MODE_NONE))
                 actx->decrypt.scheme = TPM2_ALG_NULL;
             else
                 return 0;
             break;
         default:
+            return 0;
+        }
+    }
+
+    p = OSSL_PARAM_locate_const(params, OSSL_ASYM_CIPHER_PARAM_OAEP_DIGEST);
+    if (p != NULL) {
+        if (p->data_type != OSSL_PARAM_UTF8_STRING ||
+                ((actx->decrypt.details.oaep.hashAlg =
+                    tpm2_hash_name_to_alg(actx->capability.algorithms, p->data)) == TPM2_ALG_ERROR)) {
+            TPM2_ERROR_raise(actx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
             return 0;
         }
     }
@@ -183,6 +200,7 @@ rsa_asymcipher_settable_ctx_params(void *ctx, void *provctx)
 {
     static const OSSL_PARAM known_settable_ctx_params[] = {
         OSSL_PARAM_utf8_string(OSSL_ASYM_CIPHER_PARAM_PAD_MODE, NULL, 0),
+        OSSL_PARAM_utf8_string(OSSL_ASYM_CIPHER_PARAM_OAEP_DIGEST, NULL, 0),
         OSSL_PARAM_uint(OSSL_ASYM_CIPHER_PARAM_TLS_CLIENT_VERSION, NULL),
         OSSL_PARAM_uint(OSSL_ASYM_CIPHER_PARAM_TLS_NEGOTIATED_VERSION, NULL),
         OSSL_PARAM_END
