@@ -5,8 +5,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
 ## [1.3.0] - 2023-xx-yy
 ### Added
-- Added support for RSA-OAEP decryption
+- Implemented loading keys from the FAPI metadata store using the `tss2:` prefix,
+  followed by the key path, e.g. `tss2:HS/SRK/testkey`.
 - Added Parent to textual information printed by 'openssl pkey -text'
+- Added support for RSA-OAEP decryption.
 
 ## [1.2.0] - 2023-10-14
 ### Added

@@ -240,10 +240,16 @@ static const OSSL_ALGORITHM tpm2_decoders[] = {
 };
 
 extern const OSSL_DISPATCH tpm2_handle_store_functions[];
+#if WITH_TSS2_FAPI
+extern const OSSL_DISPATCH tpm2_tss2_store_functions[];
+#endif
 
 static const OSSL_ALGORITHM tpm2_stores[] = {
     { "handle", TPM2_PROPS(store), tpm2_handle_store_functions },
     { "object", TPM2_PROPS(store), tpm2_handle_store_functions },
+#if WITH_TSS2_FAPI
+    { "tss2", TPM2_PROPS(store), tpm2_tss2_store_functions },
+#endif
     { NULL, NULL, NULL }
 };
 

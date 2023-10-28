@@ -146,9 +146,9 @@ and
 [OSSL_DECODER](https://www.openssl.org/docs/manmaster/man3/OSSL_DECODER.html) API
 to load (TPM2_Load) a private key from a previously generated file, as well as
 persistent keys generated with the
-[tpm2-tools](https://github.com/tpm2-software/tpm2-tools). Both the hexadecimal
-key `handle` as well as the serialized `object` file may be used. These URI
-prefixes may be used with any openssl command.
+[tpm2-tools](https://github.com/tpm2-software/tpm2-tools). The hexadecimal key
+`handle`, the serialized `object` file as well as the `tss2` metadata path may
+be used. These URI prefixes may be used with any openssl command.
 
 The corresponding public key can be stored using the
 [`openssl pkey`](https://www.openssl.org/docs/manmaster/man1/openssl-pkey.html)

@@ -47,6 +47,11 @@ endif
 
 tpm2_la_CFLAGS = $(TSS2_ESYS_CFLAGS) $(TSS2_TCTILDR_CFLAGS) $(COMMON_CFLAGS) $(CODE_COVERAGE_CFLAGS)
 tpm2_la_LIBADD = $(TSS2_ESYS_LIBS) $(TSS2_TCTILDR_LIBS) $(LIBS) $(CODE_COVERAGE_LIBS)
+if TSS2_FAPI
+tpm2_la_SOURCES += src/tpm2-provider-store-tss2.c
+tpm2_la_CFLAGS += $(TSS2_FAPI_CFLAGS)
+tpm2_la_LIBADD += $(TSS2_FAPI_LIBS)
+endif
 if TSS2_RC
 tpm2_la_LIBADD += $(TSS2_RC_LIBS)
 endif
@@ -114,6 +119,9 @@ TESTS_SHELL += test/cipher_aes128_ecb.sh \
                test/cipher_aes256.sh \
                test/cipher_aes256_nopad.sh \
                test/cipher_camellia128.sh
+endif
+if TSS2_FAPI
+TESTS_SHELL += test/rsa_fapi_sign.sh
 endif
 
 TEST_EXTENSIONS = .sh

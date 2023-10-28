@@ -9,7 +9,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Install dependencies
-      run: sudo apt-get install curl autoconf-archive lcov libtss2-dev libtss2-tcti-tabrmd0 tpm2-abrmd tpm2-tools
+      run: sudo apt-get install -y autoconf-archive lcov libcurl4-openssl-dev libjson-c-dev libtss2-dev libtss2-tcti-tabrmd0 tpm2-abrmd tpm2-tools
 
     - name: Build TPM2 simulator
       run: |

@@ -42,6 +42,10 @@ AC_ARG_ENABLE([asan],
     AS_HELP_STRING([--enable-asan], [Enable asan build, useful for testing]))
 AM_CONDITIONAL(WITH_ASAN, test "x$enable_asan" = "xyes")
 
+AC_ARG_ENABLE([tss2-fapi],
+    AS_HELP_STRING([--disable-tss2-fapi], [Disable support for the FAPI key paths]))
+AM_CONDITIONAL(TSS2_FAPI, test "x$enable_tss2_fapi" != "xno")
+
 AC_ARG_ENABLE([tss2-rc],
     AS_HELP_STRING([--disable-tss2-rc], [Disable verbose TSS2 return code reporting]))
 AM_CONDITIONAL(TSS2_RC, test "x$enable_tss2_rc" != "xno")
@@ -58,6 +62,10 @@ AC_SUBST(MODULESDIR, "$with_modulesdir")
 
 PKG_CHECK_MODULES([TSS2_ESYS], [tss2-esys >= 3.2.0])
 PKG_CHECK_MODULES([TSS2_TCTILDR], [tss2-tctildr])
+AS_IF([test "x$enable_tss2_fapi" != "xno"], [
+    PKG_CHECK_MODULES([TSS2_FAPI], [tss2-fapi >= 3.2.0])
+    AC_DEFINE(WITH_TSS2_FAPI)
+    ])
 AS_IF([test "x$enable_tss2_rc" != "xno"], [
     PKG_CHECK_MODULES([TSS2_RC], [tss2-rc >= 3.2.0])
     AC_DEFINE(WITH_TSS2_RC)

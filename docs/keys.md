@@ -169,6 +169,7 @@ loaders:
  * **handle**, to load persistent keys, or data (public keys or certificates)
    from NV indices;
  * **object**, to load serialized object representing a persistent handle.
+ * **tss2**, to load persistent or transient objects from the FAPI metadata store.
 
 These are used by the
 [OSSL_STORE](https://www.openssl.org/docs/manmaster/man7/ossl_store.html)
@@ -247,4 +248,18 @@ To load a persistent key using the serialized object, specify the prefix
 `object:` and then a file name:
 ```
 openssl rsa -provider tpm2 -modulus -noout -in object:ak_rsa.obj
+```
+
+### Using FAPI Metadata Store
+
+The `tss2_createkey` creates a key inside the TPM and stores it in the FAPI
+metadata store:
+```
+tss2_createkey --path=HS/SRK/testkey --type="noDa,sign"
+```
+
+To load a key from the FAPI metadata store, specify the prefix `tss2:` and then
+the object path:
+```
+openssl rsa -provider tpm2 -modulus -noout -in tss2:HS/SRK/testkey
 ```

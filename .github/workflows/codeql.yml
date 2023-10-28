@@ -26,7 +26,7 @@ jobs:
       - name: Install Packages
         run: |
           sudo apt-get update
-          sudo apt-get install --yes autoconf-archive libtss2-dev
+          sudo apt-get install -y autoconf-archive libcurl4-openssl-dev libjson-c-dev libtss2-dev
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2

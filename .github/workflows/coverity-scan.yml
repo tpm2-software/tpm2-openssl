@@ -13,7 +13,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Install dependencies
-      run: sudo apt-get install autoconf-archive libtss2-dev
+      run: sudo apt-get install -y autoconf-archive libcurl4-openssl-dev libjson-c-dev libtss2-dev
 
     - name: Download Coverity Build Tool
       run: |

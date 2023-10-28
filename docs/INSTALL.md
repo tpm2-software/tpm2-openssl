@@ -10,8 +10,8 @@ are required:
  * [GNU Autoconf Archive](https://www.gnu.org/software/autoconf-archive/),
    version >= 2017.03.21
  * C compiler and C library
- * [TPM2.0 TSS ESAPI library](https://github.com/tpm2-software/tpm2-tss)
-   (libtss2-esys) >= 3.2.0 with header files
+ * [TPM2.0 TSS libraries](https://github.com/tpm2-software/tpm2-tss)
+   (libtss2-esys, libtss2-fapi) >= 3.2.0 with header files
  * [OpenSSL](https://www.openssl.org/) >= 3.0.0 with header files
 
 Although the software can run with the in-kernel resource manager (`/dev/tpmrm`)

@@ -22,6 +22,10 @@ should_fail "Could not open file or uri"
 openssl rsa -provider tpm2 -in handle:0xBAD -modulus -noout 2> out
 should_fail "Could not (find|read)"
 
+# unknown TSS2 path
+openssl rsa -provider tpm2 -in tss2:/SRK/unknown -modulus -noout 2> out
+should_fail "Could not (find|read)"
+
 # unknown TPM2 object
 openssl rsa -provider tpm2 -in object:unknown -modulus -noout 2> out
 should_fail "Could not open file or uri"
