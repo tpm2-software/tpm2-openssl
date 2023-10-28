@@ -9,9 +9,9 @@
 
 #include "tpm2-provider-pkey.h"
 
-typedef struct tpm2_object_ctx_st TPM2_OBJECT_CTX;
+typedef struct tpm2_handle_ctx_st TPM2_HANDLE_CTX;
 
-struct tpm2_object_ctx_st {
+struct tpm2_handle_ctx_st {
     const OSSL_CORE_HANDLE *core;
     ESYS_CONTEXT *esys_ctx;
     TPM2_CAPABILITY capability;
@@ -21,23 +21,23 @@ struct tpm2_object_ctx_st {
     int load_done;
 };
 
-static OSSL_FUNC_store_open_fn tpm2_object_open;
-static OSSL_FUNC_store_attach_fn tpm2_object_attach;
-static OSSL_FUNC_store_settable_ctx_params_fn tpm2_object_settable_params;
-static OSSL_FUNC_store_set_ctx_params_fn tpm2_object_set_params;
-static OSSL_FUNC_store_load_fn tpm2_object_load;
-static OSSL_FUNC_store_eof_fn tpm2_object_eof;
-static OSSL_FUNC_store_close_fn tpm2_object_close;
+static OSSL_FUNC_store_open_fn tpm2_handle_open;
+static OSSL_FUNC_store_attach_fn tpm2_handle_attach;
+static OSSL_FUNC_store_settable_ctx_params_fn tpm2_handle_settable_params;
+static OSSL_FUNC_store_set_ctx_params_fn tpm2_handle_set_params;
+static OSSL_FUNC_store_load_fn tpm2_handle_load;
+static OSSL_FUNC_store_eof_fn tpm2_handle_eof;
+static OSSL_FUNC_store_close_fn tpm2_handle_close;
 
 static void *
-tpm2_object_open(void *provctx, const char *uri)
+tpm2_handle_open(void *provctx, const char *uri)
 {
     TPM2_PROVIDER_CTX *cprov = provctx;
-    TPM2_OBJECT_CTX *ctx;
+    TPM2_HANDLE_CTX *ctx;
     char *baseuri, *opts;
 
-    DBG("STORE/OBJECT OPEN %s\n", uri);
-    if ((ctx = OPENSSL_zalloc(sizeof(TPM2_OBJECT_CTX))) == NULL)
+    DBG("STORE/HANDLE OPEN %s\n", uri);
+    if ((ctx = OPENSSL_zalloc(sizeof(TPM2_HANDLE_CTX))) == NULL)
         return NULL;
 
     ctx->core = cprov->core;
@@ -77,18 +77,18 @@ tpm2_object_open(void *provctx, const char *uri)
 error2:
     OPENSSL_free(baseuri);
 error1:
-    OPENSSL_clear_free(ctx, sizeof(TPM2_OBJECT_CTX));
+    OPENSSL_clear_free(ctx, sizeof(TPM2_HANDLE_CTX));
     return NULL;
 }
 
 static void *
-tpm2_object_attach(void *provctx, OSSL_CORE_BIO *cin)
+tpm2_handle_attach(void *provctx, OSSL_CORE_BIO *cin)
 {
     TPM2_PROVIDER_CTX *cprov = provctx;
-    TPM2_OBJECT_CTX *ctx;
+    TPM2_HANDLE_CTX *ctx;
 
-    DBG("STORE/OBJECT ATTACH\n");
-    if ((ctx = OPENSSL_zalloc(sizeof(TPM2_OBJECT_CTX))) == NULL)
+    DBG("STORE/HANDLE ATTACH\n");
+    if ((ctx = OPENSSL_zalloc(sizeof(TPM2_HANDLE_CTX))) == NULL)
         return NULL;
 
     ctx->core = cprov->core;
@@ -100,12 +100,12 @@ tpm2_object_attach(void *provctx, OSSL_CORE_BIO *cin)
 
     return ctx;
 error:
-    OPENSSL_clear_free(ctx, sizeof(TPM2_OBJECT_CTX));
+    OPENSSL_clear_free(ctx, sizeof(TPM2_HANDLE_CTX));
     return NULL;
 }
 
 static const OSSL_PARAM *
-tpm2_object_settable_params(void *provctx)
+tpm2_handle_settable_params(void *provctx)
 {
     static const OSSL_PARAM known_settable_ctx_params[] = {
         OSSL_PARAM_END
@@ -114,9 +114,9 @@ tpm2_object_settable_params(void *provctx)
 }
 
 static int
-tpm2_object_set_params(void *loaderctx, const OSSL_PARAM params[])
+tpm2_handle_set_params(void *loaderctx, const OSSL_PARAM params[])
 {
-    TRACE_PARAMS("STORE/OBJECT SET_PARAMS", params);
+    TRACE_PARAMS("STORE/HANDLE SET_PARAMS", params);
     return 1;
 }
 
@@ -155,7 +155,7 @@ error:
 }
 
 static int
-tpm2_object_load_pkey(TPM2_OBJECT_CTX *sctx, ESYS_TR object,
+tpm2_handle_load_pkey(TPM2_HANDLE_CTX *sctx, ESYS_TR object,
                       OSSL_CALLBACK *object_cb, void *object_cbarg)
 {
     TPM2B_PUBLIC *out_public = NULL;
@@ -163,7 +163,7 @@ tpm2_object_load_pkey(TPM2_OBJECT_CTX *sctx, ESYS_TR object,
     TSS2_RC r;
     int ret = 0;
 
-    DBG("STORE/OBJECT LOAD pkey\n");
+    DBG("STORE/HANDLE LOAD pkey\n");
     pkey = OPENSSL_zalloc(sizeof(TPM2_PKEY));
     if (pkey == NULL)
         return 0;
@@ -196,7 +196,7 @@ tpm2_object_load_pkey(TPM2_OBJECT_CTX *sctx, ESYS_TR object,
         TPM2_ERROR_raise(sctx->core, TPM2_ERR_UNKNOWN_ALGORITHM);
         goto final;
     }
-    DBG("STORE/OBJECT LOAD found %s\n", keytype);
+    DBG("STORE/HANDLE LOAD found %s\n", keytype);
     params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
                                                  (char *)keytype, 0);
     /* The address of the key becomes the octet string */
@@ -211,7 +211,7 @@ final:
 }
 
 static int
-tpm2_object_load_index(TPM2_OBJECT_CTX *sctx, ESYS_TR object,
+tpm2_handle_load_index(TPM2_HANDLE_CTX *sctx, ESYS_TR object,
                        OSSL_CALLBACK *object_cb, void *object_cbarg)
 {
     TPM2B_NV_PUBLIC *metadata = NULL;
@@ -228,7 +228,7 @@ tpm2_object_load_index(TPM2_OBJECT_CTX *sctx, ESYS_TR object,
 
     read_len = metadata->nvPublic.dataSize;
     read_max = tpm2_max_nvindex_buffer(sctx->capability.properties);
-    DBG("STORE/OBJECT LOAD index %u bytes (buffer %u bytes)\n", read_len, read_max);
+    DBG("STORE/HANDLE LOAD index %u bytes (buffer %u bytes)\n", read_len, read_max);
 
     if ((data = malloc(read_len)) == NULL)
         goto final;
@@ -261,7 +261,7 @@ tpm2_object_load_index(TPM2_OBJECT_CTX *sctx, ESYS_TR object,
     /* the ossl_store_handle_load_result() supports DER objects only */
     if (PEM_read_bio(bufio, &pem_name, &pem_header, &der_data, &der_len) > 0) {
         if (pem_name != NULL) {
-            DBG("STORE/OBJECT LOAD(PEM) %s %li bytes\n", pem_name, der_len);
+            DBG("STORE/HANDLE LOAD(PEM) %s %li bytes\n", pem_name, der_len);
 
             if (!strcmp(pem_name, TSSPRIVKEY_PEM_STRING))
                 object_type = OSSL_OBJECT_PKEY;
@@ -299,16 +299,16 @@ final:
 }
 
 static int
-tpm2_object_load(void *ctx,
+tpm2_handle_load(void *ctx,
                  OSSL_CALLBACK *object_cb, void *object_cbarg,
                  OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
-    TPM2_OBJECT_CTX *sctx = ctx;
+    TPM2_HANDLE_CTX *sctx = ctx;
     ESYS_TR object;
     TSS2_RC r;
     int ret = 0;
 
-    DBG("STORE/OBJECT LOAD\n");
+    DBG("STORE/HANDLE LOAD\n");
     if (sctx->bio) {
         uint8_t *buffer;
         int buffer_size;
@@ -348,12 +348,12 @@ tpm2_object_load(void *ctx,
     switch (tag) {
     case TPM2_HT_TRANSIENT:
     case TPM2_HT_PERSISTENT:
-        ret = tpm2_object_load_pkey(sctx, object, object_cb, object_cbarg);
+        ret = tpm2_handle_load_pkey(sctx, object, object_cb, object_cbarg);
         if (!ret)
             Esys_TR_Close(sctx->esys_ctx, &object);
         break;
     case TPM2_HT_NV_INDEX:
-        ret = tpm2_object_load_index(sctx, object, object_cb, object_cbarg);
+        ret = tpm2_handle_load_index(sctx, object, object_cb, object_cbarg);
         Esys_TR_Close(sctx->esys_ctx, &object);
         break;
     }
@@ -365,35 +365,35 @@ error:
 }
 
 static int
-tpm2_object_eof(void *ctx)
+tpm2_handle_eof(void *ctx)
 {
-    TPM2_OBJECT_CTX *sctx = ctx;
+    TPM2_HANDLE_CTX *sctx = ctx;
     return (sctx->bio && BIO_eof(sctx->bio)) || sctx->load_done;
 }
 
 static int
-tpm2_object_close(void *ctx)
+tpm2_handle_close(void *ctx)
 {
-    TPM2_OBJECT_CTX *sctx = ctx;
+    TPM2_HANDLE_CTX *sctx = ctx;
 
     if (sctx == NULL)
         return 0;
 
-    DBG("STORE/OBJECT CLOSE\n");
+    DBG("STORE/HANDLE CLOSE\n");
     BIO_free(sctx->bio);
 
-    OPENSSL_clear_free(ctx, sizeof(TPM2_OBJECT_CTX));
+    OPENSSL_clear_free(ctx, sizeof(TPM2_HANDLE_CTX));
     return 1;
 }
 
-const OSSL_DISPATCH tpm2_object_store_functions[] = {
-    { OSSL_FUNC_STORE_OPEN, (void(*)(void))tpm2_object_open },
-    { OSSL_FUNC_STORE_ATTACH, (void(*)(void))tpm2_object_attach },
-    { OSSL_FUNC_STORE_SETTABLE_CTX_PARAMS, (void(*)(void))tpm2_object_settable_params },
-    { OSSL_FUNC_STORE_SET_CTX_PARAMS, (void(*)(void))tpm2_object_set_params },
-    { OSSL_FUNC_STORE_LOAD, (void(*)(void))tpm2_object_load },
-    { OSSL_FUNC_STORE_EOF, (void(*)(void))tpm2_object_eof },
-    { OSSL_FUNC_STORE_CLOSE, (void(*)(void))tpm2_object_close },
+const OSSL_DISPATCH tpm2_handle_store_functions[] = {
+    { OSSL_FUNC_STORE_OPEN, (void(*)(void))tpm2_handle_open },
+    { OSSL_FUNC_STORE_ATTACH, (void(*)(void))tpm2_handle_attach },
+    { OSSL_FUNC_STORE_SETTABLE_CTX_PARAMS, (void(*)(void))tpm2_handle_settable_params },
+    { OSSL_FUNC_STORE_SET_CTX_PARAMS, (void(*)(void))tpm2_handle_set_params },
+    { OSSL_FUNC_STORE_LOAD, (void(*)(void))tpm2_handle_load },
+    { OSSL_FUNC_STORE_EOF, (void(*)(void))tpm2_handle_eof },
+    { OSSL_FUNC_STORE_CLOSE, (void(*)(void))tpm2_handle_close },
     { 0, NULL }
 };
 

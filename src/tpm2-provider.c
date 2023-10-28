@@ -239,11 +239,11 @@ static const OSSL_ALGORITHM tpm2_decoders[] = {
     { NULL, NULL, NULL }
 };
 
-extern const OSSL_DISPATCH tpm2_object_store_functions[];
+extern const OSSL_DISPATCH tpm2_handle_store_functions[];
 
 static const OSSL_ALGORITHM tpm2_stores[] = {
-    { "object", TPM2_PROPS(store), tpm2_object_store_functions },
-    { "handle", TPM2_PROPS(store), tpm2_object_store_functions },
+    { "handle", TPM2_PROPS(store), tpm2_handle_store_functions },
+    { "object", TPM2_PROPS(store), tpm2_handle_store_functions },
     { NULL, NULL, NULL }
 };
 
