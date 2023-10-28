@@ -62,20 +62,20 @@ int sign_message(EVP_PKEY *pkey)
     size_t sig_len = 0;
     int ret = 1;
 
-    const char* message = "Sabai Sabai";
+    const char *message = "Sabai Sabai";
 
     // sign
     if (!(sctx = EVP_MD_CTX_new()))
         goto error;
 
     if (!EVP_DigestSignInit_ex(sctx, NULL, "SHA-256", NULL, "provider=tpm2", pkey, NULL)
-            || !EVP_DigestSign(sctx, NULL, &sig_len, message, strlen(message)))
+            || !EVP_DigestSign(sctx, NULL, &sig_len, (const unsigned char *)message, strlen(message)))
         goto error;
 
     if (!(sig = OPENSSL_malloc(sig_len)))
         goto error;
 
-    if (!EVP_DigestSign(sctx, sig, &sig_len, message, strlen(message)))
+    if (!EVP_DigestSign(sctx, sig, &sig_len, (const unsigned char *)message, strlen(message)))
         goto error;
 
     // verify
@@ -83,7 +83,7 @@ int sign_message(EVP_PKEY *pkey)
         goto error;
 
     if (!EVP_DigestVerifyInit_ex(vctx, NULL, "SHA-256", NULL, "provider=tpm2", pkey, NULL)
-            || EVP_DigestVerify(vctx, sig, sig_len, message, strlen(message)) != 1)
+            || EVP_DigestVerify(vctx, sig, sig_len, (const unsigned char *)message, strlen(message)) != 1)
         goto error;
 
     ret = 0;
@@ -103,7 +103,7 @@ int load_and_sign(const char *filename, const char *password)
     if (!(ui_method = UI_UTIL_wrap_read_pem_callback(provide_password, 0)))
         goto error;
 
-    if (ctx = OSSL_STORE_open(filename, ui_method, (void *)password, NULL, NULL)) {
+    if ((ctx = OSSL_STORE_open(filename, ui_method, (void *)password, NULL, NULL))) {
         while (OSSL_STORE_eof(ctx) == 0) {
             OSSL_STORE_INFO *info = OSSL_STORE_load(ctx);
             if (info && OSSL_STORE_INFO_get_type(info) == OSSL_STORE_INFO_PKEY) {
