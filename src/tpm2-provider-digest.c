@@ -308,6 +308,8 @@ tpm2_digest_gettable_params(void *provctx)
     static const OSSL_PARAM known_gettable_params[] = {
         OSSL_PARAM_size_t(OSSL_DIGEST_PARAM_BLOCK_SIZE, NULL),
         OSSL_PARAM_size_t(OSSL_DIGEST_PARAM_SIZE, NULL),
+        OSSL_PARAM_int(OSSL_DIGEST_PARAM_XOF, NULL),
+        OSSL_PARAM_int(OSSL_DIGEST_PARAM_ALGID_ABSENT, NULL),
         OSSL_PARAM_END
     };
     return known_gettable_params;
@@ -327,6 +329,15 @@ tpm2_digest_get_params_int(OSSL_PARAM params[], size_t block, size_t size)
 
     p = OSSL_PARAM_locate(params, OSSL_DIGEST_PARAM_SIZE);
     if (p != NULL && !OSSL_PARAM_set_size_t(p, size))
+        return 0;
+
+    /* OSSL_DIGEST_PARAM_XOFLEN is never supported */
+    p = OSSL_PARAM_locate(params, OSSL_DIGEST_PARAM_XOF);
+    if (p != NULL && !OSSL_PARAM_set_int(p, 0))
+        return 0;
+
+    p = OSSL_PARAM_locate(params, OSSL_DIGEST_PARAM_ALGID_ABSENT);
+    if (p != NULL && !OSSL_PARAM_set_int(p, 0))
         return 0;
 
     return 1;
