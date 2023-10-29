@@ -30,6 +30,7 @@ static const hash_names_t hashes[] = {
     { "SHA512", TPM2_ALG_SHA512 },
     { "SHA-512", TPM2_ALG_SHA512 },
     { "SHA2-512", TPM2_ALG_SHA512 },
+    { "SM3", TPM2_ALG_SM3_256 },
     { NULL, TPM2_ALG_ERROR }
 };
 
