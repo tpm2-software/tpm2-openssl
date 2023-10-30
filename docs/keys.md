@@ -142,8 +142,10 @@ The following encoders are supported:
 | PKCS1                | DER                      | `-RSAPublicKey_out -outform der` |
 | (null)               | text                     | `-text -noout`                   |
 
-For example, to export the X.509 SubjectPublicKeyInfo in PEM (`PUBLIC KEY`),
-which is the most common public key format, do:
+The `TSS2 PRIVATE KEY` file is protected by the TPM and cannot be used on another machine.
+
+To export the X.509 SubjectPublicKeyInfo in PEM (`PUBLIC KEY`), which is the most
+common public key format, do:
 ```
 openssl pkey -provider tpm2 -provider base -in testkey.priv -pubout -out testkey.pub
 ```
