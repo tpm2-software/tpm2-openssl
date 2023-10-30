@@ -510,6 +510,7 @@ tpm2_rsa_encoder_encode_text(void *ctx, OSSL_CORE_BIO *cout, const void *key,
 
     BIO_printf(bout, "Private-Key: (RSA %i bit, TPM 2.0)\n",
         TPM2_PKEY_RSA_BITS(pkey));
+    BIO_printf(bout, "Parent: 0x%x\n", pkey->data.parent);
 
     print_labeled_buf(bout, "Modulus:",
                       pkey->data.pub.publicArea.unique.rsa.buffer,
@@ -559,6 +560,7 @@ tpm2_ec_encoder_encode_text(void *ctx, OSSL_CORE_BIO *cout, const void *key,
 
     curve_nid = tpm2_ecc_curve_to_nid(TPM2_PKEY_EC_CURVE(pkey));
     BIO_printf(bout, "Private-Key: (EC %s, TPM 2.0)\n", EC_curve_nid2nist(curve_nid));
+    BIO_printf(bout, "Parent: 0x%x\n", pkey->data.parent);
 
     size = tpm2_ecc_point_to_uncompressed(
                 &pkey->data.pub.publicArea.unique.ecc.x,

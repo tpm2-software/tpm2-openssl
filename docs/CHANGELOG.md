@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 ## [1.3.0] - 2023-xx-yy
 ### Added
 - Added support for RSA-OAEP decryption
+- Added Parent to textual information printed by 'openssl pkey -text'
 
 ## [1.2.0] - 2023-10-14
 ### Added
