@@ -10,7 +10,7 @@ jobs:
   build:
     strategy:
       matrix:
-        branch: [openssl-3.0, openssl-3.1, master]
+        branch: [openssl-3.0, openssl-3.1, openssl-3.2, master]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -31,9 +31,8 @@ jobs:
         unzip -q $BRANCH.zip
         cd openssl-$BRANCH
         # disable all unnecessary features, with deprecated functions
-        ./Configure linux-x86_64-clang enable-asan \
-                    no-aria no-async no-autoload-config no-bf \
-                    no-blake2 no-cast no-chacha \
+        ./Configure linux-x86_64-clang enable-asan no-aria no-async \
+                    no-autoload-config no-bf no-blake2 no-cast no-chacha \
                     no-comp no-ct no-dgram no-ec2m \
                     no-filenames no-fips no-fips-securitychecks no-gost no-idea \
                     no-ktls no-makedepend no-md4 no-multiblock \
