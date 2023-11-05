@@ -16,7 +16,9 @@ tpm2_la_SOURCES = \
     src/tpm2-provider-pkey.h \
     src/tpm2-provider-store-handle.c \
     src/tpm2-provider-decoder-der.c \
-    src/tpm2-provider-decoder-tss2.c \
+    src/tpm2-provider-decoder-tss2key.c \
+    src/tpm2-provider-decoder-ctx.c \
+    src/tpm2-provider-decoder-ctx2key.c \
     src/tpm2-provider-encoder.c \
     src/tpm2-provider-keymgmt-rsa.c \
     src/tpm2-provider-keymgmt-ec.c \
@@ -73,6 +75,7 @@ TESTS = $(TESTS_SHELL) $(check_PROGRAMS)
 TESTS_SHELL = test/list.sh \
               test/rand.sh \
               test/rsa_genrsa_check.sh \
+              test/rsa_import_null_sign.sh \
               test/rsa_genpkey_sign.sh \
               test/rsa_genpkey_sign_rawin.sh \
               test/rsa_genpkey_auth_parent.sh \

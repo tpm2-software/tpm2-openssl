@@ -69,12 +69,12 @@ decode_privkey(TPM2_TSS2_DECODER_CTX *dctx, TPM2_PKEY *pkey,
         ESYS_TR parent = ESYS_TR_NONE;
 
         if (pkey->data.parent && pkey->data.parent != TPM2_RH_OWNER) {
-            DBG("TSS2 DECODER LOAD parent: persistent 0x%x\n", pkey->data.parent);
+            DBG("DER-TSS2 DECODER LOAD parent: persistent 0x%x\n", pkey->data.parent);
             if (!tpm2_load_parent(pkey->core, pkey->esys_ctx,
                                   pkey->data.parent, &dctx->parentAuth, &parent))
                 goto error1;
         } else {
-            DBG("TSS2 DECODER LOAD parent: primary 0x%x\n", TPM2_RH_OWNER);
+            DBG("DER-TSS2 DECODER LOAD parent: primary 0x%x\n", TPM2_RH_OWNER);
             if (!tpm2_build_primary(pkey->core, pkey->esys_ctx, pkey->capability.algorithms,
                                     ESYS_TR_RH_OWNER, &dctx->parentAuth, &parent))
                 goto error1;
@@ -142,18 +142,15 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
     BIO *bin;
     const char *keytype = NULL;
     OSSL_PARAM params[4];
-    int fpos, object_type;
+    int object_type;
     int res = 0;
 
-    DBG("TSS2 DECODER DECODE 0x%x\n", selection);
+    DBG("DER-TSS2 DECODER DECODE 0x%x\n", selection);
     if ((pkey = OPENSSL_zalloc(sizeof(TPM2_PKEY))) == NULL)
         return 0;
 
     if ((bin = BIO_new_from_core_bio(dctx->libctx, cin)) == NULL)
         goto error1;
-
-    if ((fpos = BIO_tell(bin)) == -1)
-        goto error2;
 
     pkey->core = dctx->core;
     pkey->esys_ctx = dctx->esys_ctx;
@@ -167,7 +164,7 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
         object_type = OSSL_OBJECT_PKEY;
         params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
 
-        DBG("TSS2 DECODER DECODE found %s\n", keytype);
+        DBG("DER-TSS2 DECODER DECODE found %s\n", keytype);
         params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
                                                      (char *)keytype, 0);
         /* The address of the key becomes the octet string */
@@ -183,15 +180,9 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
         /* We return "empty handed". This is not an error. */
         res = 1;
     }
-error2:
+
     BIO_free(bin);
 error1:
-    if (pkey->object != ESYS_TR_NONE) {
-        if (pkey->data.privatetype == KEY_TYPE_HANDLE)
-            Esys_TR_Close(pkey->esys_ctx, &pkey->object);
-        else
-            Esys_FlushContext(pkey->esys_ctx, pkey->object);
-    }
     OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
     return res;
 }
@@ -220,7 +211,7 @@ tpm2_tss2_decoder_export_object(void *ctx, const void *objref, size_t objref_sz,
 {
     TPM2_PKEY *keydata;
 
-    DBG("TSS2 DECODER EXPORT_OBJECT\n");
+    DBG("DER-TSS2 DECODER EXPORT_OBJECT\n");
     if (objref_sz == sizeof(keydata)) {
         /* The contents of the reference is the address to our object */
         keydata = *(TPM2_PKEY **)objref;

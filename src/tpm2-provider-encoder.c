@@ -510,7 +510,7 @@ tpm2_rsa_encoder_encode_text(void *ctx, OSSL_CORE_BIO *cout, const void *key,
 
     BIO_printf(bout, "Private-Key: (RSA %i bit, TPM 2.0)\n",
         TPM2_PKEY_RSA_BITS(pkey));
-    BIO_printf(bout, "Parent: 0x%x\n", pkey->data.parent);
+    BIO_printf(bout, "Parent: 0x%08x\n", pkey->data.parent);
 
     print_labeled_buf(bout, "Modulus:",
                       pkey->data.pub.publicArea.unique.rsa.buffer,
