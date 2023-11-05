@@ -150,21 +150,27 @@ static const OSSL_ALGORITHM tpm2_rands[] = {
     { NULL, NULL, NULL }
 };
 
+#define PROV_NAMES_EC "EC:id-ecPublicKey:1.2.840.10045.2.1"
+#define PROV_NAMES_ECDH "ECDH"
+#define PROV_NAMES_ECDSA "ECDSA"
+#define PROV_NAMES_RSA "RSA:rsaEncryption:1.2.840.113549.1.1.1"
+#define PROV_NAMES_RSA_PSS "RSA-PSS:RSASSA-PSS:1.2.840.113549.1.1.10"
+
 extern tpm2_dispatch_t tpm2_rsa_keymgmt_dispatch;
 extern tpm2_dispatch_t tpm2_rsapss_keymgmt_dispatch;
 extern tpm2_dispatch_t tpm2_ec_keymgmt_dispatch;
 
 static const TPM2_ALGORITHM tpm2_keymgmts[] = {
-    { "RSA:rsaEncryption", "provider=tpm2", &tpm2_rsa_keymgmt_dispatch },
-    { "RSA-PSS:RSASSA-PSS", "provider=tpm2", &tpm2_rsapss_keymgmt_dispatch },
-    { "EC:id-ecPublicKey", "provider=tpm2", &tpm2_ec_keymgmt_dispatch },
+    { PROV_NAMES_RSA, "provider=tpm2", &tpm2_rsa_keymgmt_dispatch },
+    { PROV_NAMES_RSA_PSS, "provider=tpm2", &tpm2_rsapss_keymgmt_dispatch },
+    { PROV_NAMES_EC, "provider=tpm2", &tpm2_ec_keymgmt_dispatch },
     { NULL, NULL, NULL }
 };
 
 extern const OSSL_DISPATCH tpm2_ecdh_keyexch_functions[];
 
 static const OSSL_ALGORITHM tpm2_keyexchs[] = {
-    { "ECDH", "provider=tpm2", tpm2_ecdh_keyexch_functions },
+    { PROV_NAMES_ECDH, "provider=tpm2", tpm2_ecdh_keyexch_functions },
     { NULL, NULL, NULL }
 };
 
@@ -172,15 +178,15 @@ extern const OSSL_DISPATCH tpm2_rsa_signature_functions[];
 extern const OSSL_DISPATCH tpm2_ecdsa_signature_functions[];
 
 static const OSSL_ALGORITHM tpm2_signatures[] = {
-    { "RSA:rsaEncryption", TPM2_PROPS(signature), tpm2_rsa_signature_functions },
-    { "ECDSA", TPM2_PROPS(signature), tpm2_ecdsa_signature_functions },
+    { PROV_NAMES_RSA, TPM2_PROPS(signature), tpm2_rsa_signature_functions },
+    { PROV_NAMES_ECDSA, TPM2_PROPS(signature), tpm2_ecdsa_signature_functions },
     { NULL, NULL, NULL }
 };
 
 extern const OSSL_DISPATCH tpm2_rsa_asymcipher_functions[];
 
 static const OSSL_ALGORITHM tpm2_asymciphers[] = {
-    { "RSA:rsaEncryption", "provider=tpm2", tpm2_rsa_asymcipher_functions },
+    { PROV_NAMES_RSA, "provider=tpm2", tpm2_rsa_asymcipher_functions },
     { NULL, NULL, NULL }
 };
 
@@ -228,8 +234,8 @@ extern const OSSL_DISPATCH tpm2_tss_to_ec_decoder_functions[];
 
 static const OSSL_ALGORITHM tpm2_decoders[] = {
     { "DER", "provider=tpm2,input=pem", tpm2_der_decoder_functions },
-    { "RSA:rsaEncryption", "provider=tpm2,input=der,structure=TSS2", tpm2_tss_to_rsa_decoder_functions },
-    { "EC:id-ecPublicKey", "provider=tpm2,input=der,structure=TSS2", tpm2_tss_to_ec_decoder_functions },
+    { "RSA", "provider=tpm2,input=der,structure=TSS2", tpm2_tss_to_rsa_decoder_functions },
+    { "EC", "provider=tpm2,input=der,structure=TSS2", tpm2_tss_to_ec_decoder_functions },
     { NULL, NULL, NULL }
 };
 
