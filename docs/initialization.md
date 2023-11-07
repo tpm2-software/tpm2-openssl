@@ -68,6 +68,46 @@ available operations except OSSL_OP_DIGEST, specify:
 -provider tpm2 -provider default -propquery ?provider=tpm2,tpm2.digest!=yes
 ```
 
+### OpenSSL Configuration File
+
+The providers can be also activated in the
+[OpenSSL configuration](https://www.openssl.org/docs/manmaster/man5/config.html)
+file. The default configuration is usually stored in `/etc/ssl/openssl.cnf`,
+but you can specify a custom configuration file using the `OPENSSL_CONF`
+[environment variable](https://www.openssl.org/docs/manmaster/man7/openssl-env.html).
+
+The `providers` section can be used to specify whether and how to load the
+individual providers.
+
+When the `activate` name is present (the value is not significant), the provider
+is always activated and you don't have load it explicitly using the `-provider`
+argument.
+
+For example, the following `/etc/ssl/openssl.cnf` enables both the `default`
+and the `tpm2` provider:
+```
+[openssl_init]
+providers = provider_sect
+
+[provider_sect]
+default = default_sect
+tpm2 = tpm2_sect
+
+[default_sect]
+activate = 1
+
+[tpm2_sect]
+activate = 1
+```
+
+If no providers are activated explicitly (either in `openssl.cnf` or using
+the `-provider` argument), just the `default` one is activated implicitly.
+
+Some distributions (e.g. Debian and Ubuntu) have `openssl.cnf` with all
+providers disabled, so you can load just the `tpm2` provider. Other
+distributions (e.g. Fedora) enable the `default` provider, so you always
+have select the right provider using `-propquery ?provider=tpm2`.
+
 ### TPM Command Transmission Interface (TCTI)
 
 By default the provider will access the `/dev/tpm0` device. The TPM Command
