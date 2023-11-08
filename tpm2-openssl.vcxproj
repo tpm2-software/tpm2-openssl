@@ -154,7 +154,7 @@
     <ClCompile Include="src\tpm2-provider-pkey.c" />
     <ClCompile Include="src\tpm2-provider-rand.c" />
     <ClCompile Include="src\tpm2-provider-signature.c" />
-    <ClCompile Include="src\tpm2-provider-store-object.c" />
+    <ClCompile Include="src\tpm2-provider-store-handle.c" />
     <ClCompile Include="src\tpm2-provider-types.c" />
     <ClCompile Include="src\tpm2-provider-x509.c" />
     <ClCompile Include="src\tpm2-provider.c" />
