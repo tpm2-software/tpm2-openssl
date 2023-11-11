@@ -14,6 +14,8 @@
 #define TPM2_PKEY_PARAM_PARENT_AUTH "parent-auth"
 #define TPM2_PKEY_PARAM_USER_AUTH   "user-auth"
 
+#define NELEMS(x)  (sizeof(x) / sizeof((x)[0]))
+
 typedef struct tpm2_provider_ctx_st TPM2_PROVIDER_CTX;
 
 typedef struct {

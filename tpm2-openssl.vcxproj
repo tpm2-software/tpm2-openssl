@@ -142,6 +142,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\tpm2-provider-asymcipher-rsa.c" />
+    <ClCompile Include="src\tpm2-provider-capabilities.c" />
     <ClCompile Include="src\tpm2-provider-cipher.c" />
     <ClCompile Include="src\tpm2-provider-core.c" />
     <ClCompile Include="src\tpm2-provider-decoder-der.c" />
