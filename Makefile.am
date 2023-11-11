@@ -52,17 +52,25 @@ tpm2_la_LIBADD += $(TSS2_RC_LIBS)
 endif
 tpm2_la_LDFLAGS = -module -avoid-version -no-undefined -export-symbols-regex 'OSSL_provider_init' $(COMMON_LDFLAGS) $(CODE_COVERAGE_LDFLAGS)
 
-check_PROGRAMS = test/selftest test/ec_genpkey_store_load test/rsa_genpkey_decrypt
+check_PROGRAMS = test/selftest
 test_selftest_SOURCES = test/selftest.c
 test_selftest_CFLAGS = $(COMMON_CFLAGS)
 test_selftest_LDADD = $(CRYPTO_LIBS)
 test_selftest_LDFLAGS = $(COMMON_LDFLAGS)
 
+check_PROGRAMS += test/ec_genpkey_store_load
 test_ec_genpkey_store_load_SOURCES = test/ec_genpkey_store_load.c
 test_ec_genpkey_store_load_CFLAGS = $(COMMON_CFLAGS)
 test_ec_genpkey_store_load_LDADD = $(CRYPTO_LIBS)
 test_ec_genpkey_store_load_LDFLAGS = $(COMMON_LDFLAGS)
 
+check_PROGRAMS += test/ec_genpkey_x509_csr
+test_ec_genpkey_x509_csr_SOURCES = test/ec_genpkey_x509_csr.c
+test_ec_genpkey_x509_csr_CFLAGS = $(COMMON_CFLAGS)
+test_ec_genpkey_x509_csr_LDADD = $(CRYPTO_LIBS)
+test_ec_genpkey_x509_csr_LDFLAGS = $(COMMON_LDFLAGS)
+
+check_PROGRAMS += test/rsa_genpkey_decrypt
 test_rsa_genpkey_decrypt_SOURCES = test/rsa_genpkey_decrypt.c
 test_rsa_genpkey_decrypt_CFLAGS = $(COMMON_CFLAGS)
 test_rsa_genpkey_decrypt_LDADD = $(CRYPTO_LIBS)

@@ -27,6 +27,9 @@ test/.dirstamp
 test/*.o
 test/*.trs
 test/selftest
+test/ec_genpkey_store_load
+test/ec_genpkey_x509_csr
+test/rsa_genpkey_decrypt
 tpm2-openssl-*-coverage.info
 tpm2-openssl-*-coverage/
 NVChip
