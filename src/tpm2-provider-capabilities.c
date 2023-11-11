@@ -6,6 +6,8 @@
 
 #include "tpm2-provider.h"
 
+/* TLS-GROUP */
+
 typedef struct tls_group_constants_st {
     unsigned int group_id;   /* Group ID */
     unsigned int secbits;    /* Bits of security */
@@ -57,27 +59,32 @@ static const TLS_GROUP_CONSTANTS tls_group_list[] = {
         OSSL_PARAM_END \
     }
 
-static const OSSL_PARAM param_tls_group_list[][10] = {
-    TLS_GROUP_ENTRY("secp192r1", "prime192v1", "EC", 0),
-    TLS_GROUP_ENTRY("P-192", "prime192v1", "EC", 0), /* Alias of previous */
-    TLS_GROUP_ENTRY("secp224r1", "secp224r1", "EC", 1),
-    TLS_GROUP_ENTRY("P-224", "secp224r1", "EC", 1), /* Alias of previous */
-    TLS_GROUP_ENTRY("secp256r1", "prime256v1", "EC", 2),
-    TLS_GROUP_ENTRY("P-256", "prime256v1", "EC", 2), /* Alias of previous */
-    TLS_GROUP_ENTRY("secp384r1", "secp384r1", "EC", 3),
-    TLS_GROUP_ENTRY("P-384", "secp384r1", "EC", 3), /* Alias of previous */
-    TLS_GROUP_ENTRY("secp521r1", "secp521r1", "EC", 4),
-    TLS_GROUP_ENTRY("P-521", "secp521r1", "EC", 4), /* Alias of above */
+static struct {
+    TPM2_ECC_CURVE curve;
+    OSSL_PARAM params[10];
+} param_tls_group_list[] = {
+    { TPM2_ECC_NIST_P192, TLS_GROUP_ENTRY("secp192r1", "prime192v1", "EC", 0) },
+    { TPM2_ECC_NIST_P192, TLS_GROUP_ENTRY("P-192", "prime192v1", "EC", 0) },
+    { TPM2_ECC_NIST_P224, TLS_GROUP_ENTRY("secp224r1", "secp224r1", "EC", 1) },
+    { TPM2_ECC_NIST_P224, TLS_GROUP_ENTRY("P-224", "secp224r1", "EC", 1) },
+    { TPM2_ECC_NIST_P256, TLS_GROUP_ENTRY("secp256r1", "prime256v1", "EC", 2) },
+    { TPM2_ECC_NIST_P256, TLS_GROUP_ENTRY("P-256", "prime256v1", "EC", 2) },
+    { TPM2_ECC_NIST_P384, TLS_GROUP_ENTRY("secp384r1", "secp384r1", "EC", 3) },
+    { TPM2_ECC_NIST_P384, TLS_GROUP_ENTRY("P-384", "secp384r1", "EC", 3) },
+    { TPM2_ECC_NIST_P521, TLS_GROUP_ENTRY("secp521r1", "secp521r1", "EC", 4) },
+    { TPM2_ECC_NIST_P521, TLS_GROUP_ENTRY("P-521", "secp521r1", "EC", 4) },
 };
 
 int
-tpm2_get_capability_tls_group(TPM2_PROVIDER_CTX *provctx, OSSL_CALLBACK *cb, void *arg)
+tpm2_tls_group_capability(TPM2_PROVIDER_CTX *provctx, OSSL_CALLBACK *cb, void *arg)
 {
     size_t i;
 
-    for (i = 0; i < NELEMS(param_tls_group_list); i++)
-        if (!cb(param_tls_group_list[i], arg))
+    for (i = 0; i < NELEMS(param_tls_group_list); i++) {
+        if (tpm2_supports_curve(provctx->capability.curves, param_tls_group_list[i].curve)
+                && !cb(param_tls_group_list[i].params, arg))
             return 0;
+    }
 
     return 1;
 }

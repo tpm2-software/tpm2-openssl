@@ -329,15 +329,16 @@ tpm2_get_reason_strings(void *provctx)
     return reason_strings;
 }
 
-extern int tpm2_get_capability_tls_group(TPM2_PROVIDER_CTX *provctx, OSSL_CALLBACK *cb, void *arg);
+extern int tpm2_tls_group_capability(TPM2_PROVIDER_CTX *provctx, OSSL_CALLBACK *cb, void *arg);
 
 static int tpm2_get_capabilities(void *provctx, const char *capability,
                                  OSSL_CALLBACK *cb, void *arg)
 {
     TPM2_PROVIDER_CTX *cprov = provctx;
 
+    DBG("PROVIDER GET_CAPABILITIES %s\n", capability);
     if (OPENSSL_strcasecmp(capability, "TLS-GROUP") == 0)
-        return tpm2_get_capability_tls_group(cprov, cb, arg);
+        return tpm2_tls_group_capability(cprov, cb, arg);
 
     return 0;
 }
@@ -367,6 +368,7 @@ tpm2_teardown(void *provctx)
     free(cprov->capability.properties);
     free(cprov->capability.algorithms);
     free(cprov->capability.commands);
+    free(cprov->capability.curves);
     OSSL_LIB_CTX_free(cprov->libctx);
 
     r = Esys_GetTcti(cprov->esys_ctx, &tcti_ctx);
@@ -429,23 +431,16 @@ OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
     r = Esys_Initialize(&cprov->esys_ctx, tcti_ctx, NULL);
     TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_CONNECT, goto err2);
 
-    r = Esys_GetCapability(cprov->esys_ctx,
-                           ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
-                           TPM2_CAP_TPM_PROPERTIES, 0, TPM2_MAX_TPM_PROPERTIES,
-                           NULL, &cprov->capability.properties);
+#define LOAD_CAPABILITY(capname, capcount, capbuf) \
+    r = Esys_GetCapability(cprov->esys_ctx, \
+                           ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE, \
+                           capname, 0, capcount, NULL, capbuf); \
     TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto err3);
 
-    r = Esys_GetCapability(cprov->esys_ctx,
-                           ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
-                           TPM2_CAP_ALGS, 0, TPM2_MAX_CAP_ALGS,
-                           NULL, &cprov->capability.algorithms);
-    TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto err3);
-
-    r = Esys_GetCapability(cprov->esys_ctx,
-                           ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
-                           TPM2_CAP_COMMANDS, 0, TPM2_MAX_CAP_CC,
-                           NULL, &cprov->capability.commands);
-    TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto err3);
+    LOAD_CAPABILITY(TPM2_CAP_TPM_PROPERTIES, TPM2_MAX_TPM_PROPERTIES, &cprov->capability.properties)
+    LOAD_CAPABILITY(TPM2_CAP_ALGS, TPM2_MAX_CAP_ALGS, &cprov->capability.algorithms)
+    LOAD_CAPABILITY(TPM2_CAP_COMMANDS, TPM2_MAX_CAP_CC, &cprov->capability.commands)
+    LOAD_CAPABILITY(TPM2_CAP_ECC_CURVES, TPM2_MAX_ECC_CURVES, &cprov->capability.curves)
 
     *out = tpm2_dispatch_table;
     *provctx = cprov;

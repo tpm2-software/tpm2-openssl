@@ -126,6 +126,19 @@ tpm2_supports_command(const TPMS_CAPABILITY_DATA *caps, TPM2_CC command)
     return 0;
 }
 
+int
+tpm2_supports_curve(const TPMS_CAPABILITY_DATA *caps, TPM2_ECC_CURVE curve)
+{
+    UINT32 index;
+
+    for (index = 0; index < caps->data.eccCurves.count; index++) {
+        if (caps->data.eccCurves.eccCurves[index] == curve)
+            return 1;
+    }
+
+    return 0;
+}
+
 uint16_t
 tpm2_max_nvindex_buffer(const TPMS_CAPABILITY_DATA *caps)
 {

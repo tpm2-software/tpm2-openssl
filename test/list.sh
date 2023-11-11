@@ -17,3 +17,6 @@ for command in -providers \
 do
 openssl list $command -provider tpm2 -verbose
 done
+
+# list ssl ciphers
+openssl ciphers -provider tpm2 -provider default -propquery ?provider=tpm2 -s -stdname
