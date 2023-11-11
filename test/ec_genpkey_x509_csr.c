@@ -42,7 +42,7 @@ int generate_csr(const char *password, const char *filename)
 
     name = X509_REQ_get_subject_name(x509);
     if (!X509_NAME_add_entry_by_NID(name, NID_countryName, MBSTRING_ASC, (unsigned char *)"CZ", -1, -1, 0)
-            || !X509_NAME_add_entry_by_NID(name, NID_commonName, MBSTRING_ASC, "www.example.com", -1, -1, 0))
+            || !X509_NAME_add_entry_by_NID(name, NID_commonName, MBSTRING_ASC, (const unsigned char *)"www.example.com", -1, -1, 0))
         goto error1;
 
     // set requested extensions
