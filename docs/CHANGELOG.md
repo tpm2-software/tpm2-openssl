@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
 ## [1.3.0] - 2023-xx-yy
+### Fixed
+- Set authorization value of newly generated keys. This allows users of the
+  C API to direcly use just generated EVP_PKEY.
 ### Added
 - Added support for RSA-OAEP decryption
 - Added Parent to textual information printed by 'openssl pkey -text'
