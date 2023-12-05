@@ -79,6 +79,7 @@ test_rsa_genpkey_decrypt_LDFLAGS = $(COMMON_LDFLAGS)
 TESTS = $(TESTS_SHELL) $(check_PROGRAMS)
 
 TESTS_SHELL = test/list.sh \
+              test/speed.sh \
               test/rand.sh \
               test/rsa_genrsa_check.sh \
               test/rsa_genpkey_sign.sh \
