@@ -123,8 +123,15 @@ set:
 export TPM2OPENSSL_TCTI="tabrmd:bus_name=com.intel.tss2.Tabrmd"
 ```
 
-The provider operations can be invoked either via the `openssl` command line
-tool, or via the
+Alternatively you can set the `tcti` paramater in the `openssl.cnf` file:
+```
+[tpm2_sect]
+activate = 1
+tcti = tabrmd:bus_name=com.intel.tss2.Tabrmd
+```
+
+Once loaded, the provider operations can be invoked either via the `openssl`
+command line tool, or via the
 [EVP library](https://www.openssl.org/docs/manmaster/man7/evp.html) functions
 from any custom application.
 
