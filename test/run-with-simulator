@@ -116,6 +116,11 @@ build_tpm2_openssl() {
 }
 
 SIM_TYPE=${1:-swtpm}
-build_tpm2_openssl || { echo "Compiling tpm2-openssl failed"; exit 1; }
+SKIP_BUILD=${2:-build}
+if [ "$SKIP_BUILD" = "skip-build" ]; then
+    echo "Skipping the build"
+else
+    build_tpm2_openssl || { echo "Compiling tpm2-openssl failed"; exit 1; }
+fi
 start_tpm2_sim_env "${SIM_TYPE}" || { echo "Starting tpm2 simulator failed ($SIM_TYPE)"; exit 1; }
 make_check || { echo "tpm2-openssl make check failed"; exit 1; }
