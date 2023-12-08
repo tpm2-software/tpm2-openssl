@@ -143,5 +143,6 @@ EXTRA_DIST = \
     VERSION \
     $(TESTS_SHELL) \
     $(SH_LOG_COMPILER) \
+    test/run-with-simulator \
     test/ec_pki/openssl.cnf \
     test/rsa_pki/etc
