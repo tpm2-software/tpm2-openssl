@@ -50,7 +50,7 @@ tpm2_la_LIBADD = $(TSS2_ESYS_LIBS) $(TSS2_TCTILDR_LIBS) $(LIBS) $(CODE_COVERAGE_
 if TSS2_RC
 tpm2_la_LIBADD += $(TSS2_RC_LIBS)
 endif
-tpm2_la_LDFLAGS = -module -avoid-version -no-undefined -export-symbols-regex 'OSSL_provider_init' $(COMMON_LDFLAGS) $(CODE_COVERAGE_LDFLAGS)
+tpm2_la_LDFLAGS = -module -avoid-version -export-symbols-regex 'OSSL_provider_init' $(COMMON_LDFLAGS) $(CODE_COVERAGE_LDFLAGS)
 
 check_PROGRAMS = test/selftest
 test_selftest_SOURCES = test/selftest.c
