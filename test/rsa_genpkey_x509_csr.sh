@@ -3,7 +3,7 @@
 set -eufx
 
 # create a TPM based private key
-openssl genpkey -provider tpm2 -algorithm RSA -pkeyopt bits:2048 -out rootca.key
+openssl genpkey -provider tpm2 -propquery '?provider=tpm2' -algorithm RSA -pkeyopt bits:2048 -out rootca.key
 
 # create a self-signed CA certificate
 openssl req -provider tpm2 -provider default -propquery '?provider=tpm2' \
