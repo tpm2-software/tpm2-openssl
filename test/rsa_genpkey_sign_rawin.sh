@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 set -eufx
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 echo -n "abcde12345abcde12345" > testdata
 
 # generate key with no scheme/hash constraints
@@ -13,7 +15,7 @@ openssl pkey -provider tpm2 -provider base -in testkey.priv -pubout -out testkey
 # check default scheme with various digests
 for HASH in sha1 sha256 sha384 sha512; do
     # skip unsupported algorithms
-    tpm2_getcap algorithms | grep $HASH || continue
+    "$SCRIPT_DIR/check_hash_support.sh" $HASH || continue
 
     # sign using a defined scheme/hash
     openssl pkeyutl -provider tpm2 -provider base -sign -inkey testkey.priv -rawin -in testdata \
