@@ -1,0 +1,7 @@
+FROM fedora:rawhide
+
+RUN dnf -y install gcc make pkg-config \
+    autoconf automake libtool autoconf-archive \
+    tpm2-tss-devel openssl-devel tpm2-abrmd \
+    openssl tpm2-tools dbus-daemon swtpm procps-ng git iproute \
+    && mkdir build
