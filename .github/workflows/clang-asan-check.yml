@@ -5,6 +5,8 @@ on:
   schedule:
     # Execute a weekly build on Monday at 2AM UTC
     - cron:  '0 2 * * 1'
+env:
+  IBMSWTPM_VER: rev183-2024-08-02
 
 jobs:
   build:
@@ -20,9 +22,8 @@ jobs:
 
     - name: Build TPM2 simulator
       run: |
-        mkdir ibmtpm
-        curl -Ls https://downloads.sourceforge.net/project/ibmswtpm2/ibmtpm1682.tar.gz | tar xz -C ibmtpm
-        cd ibmtpm/src
+        curl -Ls https://github.com/kgoldman/ibmswtpm2/archive/refs/tags/$IBMSWTPM_VER.tar.gz | tar xz
+        cd ibmswtpm2-$IBMSWTPM_VER/src
         make
 
     - name: Build openssl
@@ -65,7 +66,7 @@ jobs:
       run: |
         export DBUS_SESSION_BUS_ADDRESS=`dbus-daemon --session --print-address --fork`
         echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> $GITHUB_ENV
-        ibmtpm/src/tpm_server &
+        ibmswtpm2-$IBMSWTPM_VER/src/tpm_server &
         timeout 20 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' localhost 2321
         tpm2-abrmd --session --tcti mssim:host=localhost,port=2321 &
         echo "TCTI_ADDRESS=tabrmd:bus_name=com.intel.tss2.Tabrmd,bus_type=session" >> $GITHUB_ENV

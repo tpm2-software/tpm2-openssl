@@ -7,6 +7,7 @@ task:
     PATH: ${PATH}:/usr/local/sbin:/usr/sbin
     TPM2TOOLS_TCTI: "tabrmd:bus_name=com.intel.tss2.Tabrmd"
     TPM2OPENSSL_TCTI: ${TPM2TOOLS_TCTI}
+    IBMSWTPM_VER: rev183-2024-08-02
 
   install_packages_script: |
     pkg install -y bash wget gmake libtool pkgconf automake autoconf autoconf-archive \
@@ -20,17 +21,16 @@ task:
     gmake
 
   build_simulator_script: |
-    wget --no-verbose https://downloads.sourceforge.net/project/ibmswtpm2/ibmtpm1682.tar.gz
-    mkdir ibmtpm
-    tar xfz ibmtpm1682.tar.gz -C ibmtpm
-    cd ibmtpm/src
+    wget --no-verbose https://github.com/kgoldman/ibmswtpm2/archive/refs/tags/$IBMSWTPM_VER.tar.gz
+    tar xfz rev183-2024-08-02.tar.gz
+    cd ibmswtpm2-$IBMSWTPM_VER/src
     sed -i '' -e 's/gcc/clang/g' makefile
     sed -i '' -e 's/-Wall //g' makefile
     sed -i '' -e 's/-Werror //g' makefile
     gmake
 
   run_simulator_background_script:
-    ibmtpm/src/tpm_server
+    ibmswtpm2-$IBMSWTPM_VER/src/tpm_server
 
   run_abrmd_background_script: |
     sudo -u _tss tpm2-abrmd --tcti mssim:host=localhost,port=2321
