@@ -167,8 +167,8 @@ of damaging the real TPM, a container environment is also available.
 Build and run a container with podman (Docker should work as well):
 
 ```sh
-TEST_CONTAINER=ubuntu-2204
-# TEST_CONTAINER=fedora-38
+TEST_CONTAINER=ubuntu-2404
+# TEST_CONTAINER=fedora-41
 podman build -f "test/Containerfiles/Containerfile.$TEST_CONTAINER" --tag "tpm2-openssl-build-$TEST_CONTAINER"
 podman run -it --name tpm2-openssl-1 -v "$(pwd):/build:Z" --rm --userns=keep-id \
        "localhost/tpm2-openssl-build-$TEST_CONTAINER" /bin/bash
