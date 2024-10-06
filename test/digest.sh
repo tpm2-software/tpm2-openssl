@@ -4,7 +4,7 @@ set -eufx
 
 echo -n "abcde12345abcde12345" > testdata
 
-for HASH in sha1 sha256 sha384 sha512; do
+for HASH in ${TPM2_TEST_HASHES:-sha256 sha384 sha512}; do
     # skip unsupported algorithms
     tpm2_getcap algorithms | grep $HASH || continue
 

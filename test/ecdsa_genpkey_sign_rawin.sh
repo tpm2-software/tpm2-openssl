@@ -11,7 +11,7 @@ openssl genpkey -provider tpm2 -algorithm EC -pkeyopt group:P-256 -out testkey.p
 openssl pkey -provider tpm2 -provider base -in testkey.priv -pubout -out testkey.pub
 
 # check various digests
-for HASH in sha1 sha256 sha384 sha512; do
+for HASH in ${TPM2_TEST_HASHES:-sha256 sha384 sha512}; do
     # skip unsupported algorithms
     tpm2_getcap algorithms | grep $HASH || continue
 

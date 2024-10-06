@@ -8,6 +8,7 @@ task:
     TPM2TOOLS_TCTI: "tabrmd:bus_name=com.intel.tss2.Tabrmd"
     TPM2OPENSSL_TCTI: ${TPM2TOOLS_TCTI}
     IBMSWTPM_VER: rev183-2024-08-02
+    TPM2_TEST_HASHES: "sha1 sha256 sha384 sha512"
 
   install_packages_script: |
     pkg install -y bash wget gmake libtool pkgconf automake autoconf autoconf-archive \

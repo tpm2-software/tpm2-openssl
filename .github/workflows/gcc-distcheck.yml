@@ -3,6 +3,8 @@ on:
   [push, pull_request]
 env:
   IBMSWTPM_VER: rev183-2024-08-02
+  # sha1 is not tested by default because Fedora 41+ does not support it
+  TPM2_TEST_HASHES: "sha1 sha256 sha384 sha512"
 
 jobs:
   build:
