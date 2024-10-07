@@ -132,7 +132,7 @@ tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata, TPM2_PKEY_FORMAT format)
         return 0;
 
     keydata->privatetype = KEY_TYPE_BLOB;
-    keydata->emptyAuth = tpk->emptyAuth;
+    keydata->emptyAuth = (tpk->emptyAuth != V_ASN1_UNDEF && tpk->emptyAuth);
 
     // the ASN1_INTEGER_get on a 32-bit machine will fail for numbers of UINT32_MAX
     if (!ASN1_INTEGER_get_uint64(&parent, tpk->parent))

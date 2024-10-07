@@ -3,13 +3,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
-## [1.3.0] - 2023-xx-yy
-### Fixed
-- Set authorization value of newly generated keys. This allows users of the
-  C API to direcly use just generated EVP_PKEY.
+## [1.3.0] - 2024-xx-yy
 ### Added
 - Added support for RSA-OAEP decryption
 - Added Parent to textual information printed by 'openssl pkey -text'
+### Fixed
+- Fixed handling of absent emptyAuth value in the TSS2 PRIVATE KEY file.
+- Set authorization value of newly generated keys. This allows users of the
+  C API to direcly use just generated EVP_PKEY.
 
 ## [1.2.0] - 2023-10-14
 ### Added
