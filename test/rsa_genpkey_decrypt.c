@@ -26,7 +26,7 @@ int main()
         goto error;
 
     /* generate a RSA-2048 key using the TPM2 */
-    if (!(privkey = EVP_PKEY_Q_keygen(NULL, "provider=tpm2", "RSA", 2048)))
+    if (!(privkey = EVP_PKEY_Q_keygen(NULL, "provider=tpm2", "RSA", (size_t)2048)))
         goto error;
 
     /* export the public key */
