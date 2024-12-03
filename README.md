@@ -38,7 +38,7 @@ The tpm2-openssl project
   from the Trusted Computing Groups (TCG)
   [TPM Software Stack (TSS 2.0)](https://trustedcomputinggroup.org/work-groups/software-stack/)
   and uses the
-  [tpm2-tss](https://www.github.org/tpm2-software/tpm2-tss) software stack
+  [tpm2-tss](https://github.com/tpm2-software/tpm2-tss) software stack
   implementation, version 3.2.0 or later.
 
 
