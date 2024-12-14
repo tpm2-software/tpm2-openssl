@@ -100,6 +100,34 @@ tpm2_list_params(const char *text, const OSSL_PARAM params[])
     fprintf(stderr, " ]\n");
 }
 
+TSS2_RC
+tpm2_esys_tr_close(tpm2_semaphore_t esys_lock, ESYS_CONTEXT *esys_ctx, ESYS_TR *object)
+{
+    TSS2_RC r;
+
+    if (!tpm2_semaphore_lock(esys_lock))
+        return TSS2_ESYS_RC_GENERAL_FAILURE;
+
+    r = Esys_TR_Close(esys_ctx, object);
+
+    tpm2_semaphore_unlock(esys_lock);
+    return r;
+}
+
+TSS2_RC
+tpm2_esys_flush_context(tpm2_semaphore_t esys_lock, ESYS_CONTEXT *esys_ctx, ESYS_TR flush_handle)
+{
+    TSS2_RC r;
+
+    if (!tpm2_semaphore_lock(esys_lock))
+        return TSS2_ESYS_RC_GENERAL_FAILURE;
+
+    r = Esys_FlushContext(esys_ctx, flush_handle);
+
+    tpm2_semaphore_unlock(esys_lock);
+    return r;
+}
+
 int
 tpm2_supports_algorithm(const TPMS_CAPABILITY_DATA *caps, TPM2_ALG_ID algorithm)
 {

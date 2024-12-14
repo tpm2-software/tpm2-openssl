@@ -156,16 +156,17 @@
     <ClCompile Include="src\tpm2-provider-keymgmt-rsa.c" />
     <ClCompile Include="src\tpm2-provider-pkey.c" />
     <ClCompile Include="src\tpm2-provider-rand.c" />
+    <ClCompile Include="src\tpm2-provider-semaphore.c" />
     <ClCompile Include="src\tpm2-provider-signature.c" />
     <ClCompile Include="src\tpm2-provider-store-handle.c" />
     <ClCompile Include="src\tpm2-provider-types.c" />
     <ClCompile Include="src\tpm2-provider-x509.c" />
     <ClCompile Include="src\tpm2-provider.c" />
-    <ClCompile Include="test\selftest.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\tpm2-provider-digest.h" />
     <ClInclude Include="src\tpm2-provider-pkey.h" />
+    <ClInclude Include="src\tpm2-provider-semaphore.h" />
     <ClInclude Include="src\tpm2-provider-types.h" />
     <ClInclude Include="src\tpm2-provider-x509.h" />
     <ClInclude Include="src\tpm2-provider.h" />

@@ -28,11 +28,11 @@ int
 tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata, TPM2_PKEY_FORMAT format);
 
 int
-tpm2_load_parent(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
+tpm2_load_parent(const OSSL_CORE_HANDLE *core, tpm2_semaphore_t esys_lock, ESYS_CONTEXT *esys_ctx,
                  TPM2_HANDLE handle, TPM2B_DIGEST *auth, ESYS_TR *object);
 
 int
-tpm2_build_primary(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
+tpm2_build_primary(const OSSL_CORE_HANDLE *core, tpm2_semaphore_t esys_lock, ESYS_CONTEXT *esys_ctx,
                    const TPMS_CAPABILITY_DATA *capability, ESYS_TR hierarchy,
                    const TPM2B_DIGEST *auth, ESYS_TR *object);
 

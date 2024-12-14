@@ -14,6 +14,7 @@ tpm2_hash_sequence_init(TPM2_HASH_SEQUENCE *seq,
                         TPM2_PROVIDER_CTX *cprov, TPM2_ALG_ID algin)
 {
     seq->core = cprov->core;
+    seq->esys_lock = cprov->esys_lock;
     seq->esys_ctx = cprov->esys_ctx;
     seq->algorithm = algin;
     seq->handle = ESYS_TR_NONE;
@@ -23,7 +24,7 @@ void
 tpm2_hash_sequence_flush(TPM2_HASH_SEQUENCE *seq)
 {
     if (seq->handle != ESYS_TR_NONE)
-        Esys_FlushContext(seq->esys_ctx, seq->handle);
+        tpm2_esys_flush_context(seq->esys_lock, seq->esys_ctx, seq->handle);
 }
 
 int
@@ -33,14 +34,18 @@ tpm2_hash_sequence_dup(TPM2_HASH_SEQUENCE *seq, const TPM2_HASH_SEQUENCE *src)
     TSS2_RC r;
 
     seq->core = src->core;
+    seq->esys_lock = src->esys_lock;
     seq->esys_ctx = src->esys_ctx;
     seq->algorithm = src->algorithm;
 
     if (src->handle != ESYS_TR_NONE) {
+        if (!tpm2_semaphore_lock(seq->esys_lock))
+            return 0;
         /* duplicate the sequence */
         r = Esys_ContextSave(src->esys_ctx, src->handle, &context);
-        TPM2_CHECK_RC(src->core, r, TPM2_ERR_CANNOT_DUPLICATE, goto error);
-        r = Esys_ContextLoad(seq->esys_ctx, context, &seq->handle);
+        if (!r)
+            r = Esys_ContextLoad(seq->esys_ctx, context, &seq->handle);
+        tpm2_semaphore_unlock(seq->esys_lock);
         TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_DUPLICATE, goto error);
         free(context);
     } else {
@@ -64,8 +69,11 @@ tpm2_hash_sequence_start(TPM2_HASH_SEQUENCE *seq)
 
     seq->buffer.size = 0;
 
+    if (!tpm2_semaphore_lock(seq->esys_lock))
+        return 0;
     r = Esys_HashSequenceStart(seq->esys_ctx, ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                                &null_auth, seq->algorithm, &seq->handle);
+    tpm2_semaphore_unlock(seq->esys_lock);
     TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
 
     return 1;
@@ -94,9 +102,12 @@ tpm2_hash_sequence_update(TPM2_HASH_SEQUENCE *seq,
         if (seq->buffer.size < TPM2_MAX_DIGEST_BUFFER)
             return 1; /* wait for more data */
 
+        if (!tpm2_semaphore_lock(seq->esys_lock))
+            return 0;
         r = Esys_SequenceUpdate(seq->esys_ctx, seq->handle,
                                 ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE, &seq->buffer);
         seq->buffer.size = 0;
+        tpm2_semaphore_unlock(seq->esys_lock);
         TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
     }
 
@@ -110,15 +121,21 @@ tpm2_hash_sequence_complete(TPM2_HASH_SEQUENCE *seq,
     TSS2_RC r;
 
     if (seq->buffer.size > 0) {
+        if (!tpm2_semaphore_lock(seq->esys_lock))
+            return 0;
         r = Esys_SequenceUpdate(seq->esys_ctx, seq->handle,
                                 ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE, &seq->buffer);
         seq->buffer.size = 0;
+        tpm2_semaphore_unlock(seq->esys_lock);
         TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
     }
 
+    if (!tpm2_semaphore_lock(seq->esys_lock))
+        return 0;
     r = Esys_SequenceComplete(seq->esys_ctx, seq->handle,
                               ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                               NULL, ESYS_TR_RH_OWNER, digest, validation);
+    tpm2_semaphore_unlock(seq->esys_lock);
     TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
 
     /* the update may be called again to sign another data block */
@@ -138,9 +155,12 @@ tpm2_hash_sequence_hash(TPM2_HASH_SEQUENCE *seq,
         if (data != NULL)
             memcpy(seq->buffer.buffer, data, datalen);
 
+        if (!tpm2_semaphore_lock(seq->esys_lock))
+            return 0;
         r = Esys_Hash(seq->esys_ctx, ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                       &seq->buffer, seq->algorithm, ESYS_TR_RH_OWNER,
                       digest, validation);
+        tpm2_semaphore_unlock(seq->esys_lock);
         TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
     } else {
         /* too much data, we need a full sequence hashing */

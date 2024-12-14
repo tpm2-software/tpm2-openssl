@@ -8,6 +8,8 @@
 
 #include <tss2/tss2_esys.h>
 
+#include "tpm2-provider-semaphore.h"
+
 #define TPM2_MAX_OSSL_NAME 50 /* OSSL_MAX_NAME_SIZE */
 
 #define TPM2_PKEY_PARAM_PARENT      "parent"
@@ -25,6 +27,7 @@ typedef struct {
 struct tpm2_provider_ctx_st {
     const OSSL_CORE_HANDLE *core;
     OSSL_LIB_CTX *libctx;
+    tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
     TPM2_CAPABILITY capability;
 };
@@ -52,6 +55,7 @@ typedef struct {
     TPM2_KEYDATA data;
     TPM2B_DIGEST userauth;
     const OSSL_CORE_HANDLE *core;
+    tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
     TPM2_CAPABILITY capability;
     ESYS_TR object;
@@ -130,6 +134,12 @@ tpm2_list_params(const char *text, const OSSL_PARAM params[]);
 #define TRACE_PARAMS(text, params) tpm2_list_params((text), (params))
 #define TPM2_ERROR_set_debug(core) tpm2_set_error_debug((core), OPENSSL_FILE, OPENSSL_LINE, OPENSSL_FUNC)
 #endif
+
+TSS2_RC
+tpm2_esys_tr_close(tpm2_semaphore_t esys_lock, ESYS_CONTEXT *esys_ctx, ESYS_TR *object);
+
+TSS2_RC
+tpm2_esys_flush_context(tpm2_semaphore_t esys_lock, ESYS_CONTEXT *esys_ctx, ESYS_TR flush_handle);
 
 int
 tpm2_supports_algorithm(const TPMS_CAPABILITY_DATA *caps, TPM2_ALG_ID algorithm);

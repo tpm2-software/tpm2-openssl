@@ -13,6 +13,7 @@ typedef struct tpm2_handle_ctx_st TPM2_HANDLE_CTX;
 
 struct tpm2_handle_ctx_st {
     const OSSL_CORE_HANDLE *core;
+    tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
     TPM2_CAPABILITY capability;
     int has_pass;
@@ -41,6 +42,7 @@ tpm2_handle_open(void *provctx, const char *uri)
         return NULL;
 
     ctx->core = cprov->core;
+    ctx->esys_lock = cprov->esys_lock;
     ctx->esys_ctx = cprov->esys_ctx;
     ctx->capability = cprov->capability;
 
@@ -92,6 +94,7 @@ tpm2_handle_attach(void *provctx, OSSL_CORE_BIO *cin)
         return NULL;
 
     ctx->core = cprov->core;
+    ctx->esys_lock = cprov->esys_lock;
     ctx->esys_ctx = cprov->esys_ctx;
     ctx->capability = cprov->capability;
 
@@ -169,13 +172,17 @@ tpm2_handle_load_pkey(TPM2_HANDLE_CTX *sctx, ESYS_TR object,
         return 0;
 
     pkey->core = sctx->core;
+    pkey->esys_lock = sctx->esys_lock;
     pkey->esys_ctx = sctx->esys_ctx;
     pkey->capability = sctx->capability;
     pkey->object = object;
 
+    if (!tpm2_semaphore_lock(sctx->esys_lock))
+        goto final;
     r = Esys_ReadPublic(sctx->esys_ctx, object,
                         ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                         &out_public, NULL, NULL);
+    tpm2_semaphore_unlock(sctx->esys_lock);
     TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto final);
 
     pkey->data.pub = *out_public;
@@ -221,9 +228,12 @@ tpm2_handle_load_index(TPM2_HANDLE_CTX *sctx, ESYS_TR object,
     TSS2_RC r;
     int ret = 0;
 
+    if (!tpm2_semaphore_lock(sctx->esys_lock))
+        goto final;
     r = Esys_NV_ReadPublic(sctx->esys_ctx, object,
                            ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                            &metadata, NULL);
+    tpm2_semaphore_unlock(sctx->esys_lock);
     TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto final);
 
     read_len = metadata->nvPublic.dataSize;
@@ -237,9 +247,12 @@ tpm2_handle_load_index(TPM2_HANDLE_CTX *sctx, ESYS_TR object,
         uint16_t bytes_to_read = read_len < read_max ? read_len : read_max;
         TPM2B_MAX_NV_BUFFER *buff = NULL;
 
+        if (!tpm2_semaphore_lock(sctx->esys_lock))
+            goto final;
         r = Esys_NV_Read(sctx->esys_ctx, object, object,
                          ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                          bytes_to_read, data_len, &buff);
+        tpm2_semaphore_unlock(sctx->esys_lock);
         TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto final);
 
         memcpy(data + data_len, buff->buffer, buff->size);
@@ -315,18 +328,26 @@ tpm2_handle_load(void *ctx,
 
         if ((buffer_size = read_until_eof(sctx->bio, &buffer)) < 0)
             return 0;
+        if (!tpm2_semaphore_lock(sctx->esys_lock)) {
+            OPENSSL_free(buffer);
+            return 0;
+        }
         /* read object metadata */
         r = Esys_TR_Deserialize(sctx->esys_ctx, buffer, buffer_size, &object);
-        OPENSSL_free(buffer);
-        /* TODO: should use Esys_TR_GetTpmHandle */
-        sctx->handle = TPM2_HR_PERSISTENT;
+        if (!r) {
+            OPENSSL_free(buffer);
+            r = Esys_TR_GetTpmHandle(sctx->esys_ctx, object, &sctx->handle);
+        }
     } else {
+        if (!tpm2_semaphore_lock(sctx->esys_lock))
+            return 0;
         /* create reference to a pre-existing TPM object */
         r = Esys_TR_FromTPMPublic(sctx->esys_ctx, sctx->handle,
                                   ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                                   &object);
         sctx->load_done = 1;
     }
+    tpm2_semaphore_unlock(sctx->esys_lock);
     TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, return 0);
 
     if (sctx->has_pass) {
@@ -340,7 +361,10 @@ tpm2_handle_load(void *ctx,
         }
         userauth.size = plen;
 
+        if (!tpm2_semaphore_lock(sctx->esys_lock))
+            goto error;
         r = Esys_TR_SetAuth(sctx->esys_ctx, object, &userauth);
+        tpm2_semaphore_unlock(sctx->esys_lock);
         TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error);
     }
 
@@ -350,17 +374,17 @@ tpm2_handle_load(void *ctx,
     case TPM2_HT_PERSISTENT:
         ret = tpm2_handle_load_pkey(sctx, object, object_cb, object_cbarg);
         if (!ret)
-            Esys_TR_Close(sctx->esys_ctx, &object);
+            tpm2_esys_tr_close(sctx->esys_lock, sctx->esys_ctx, &object);
         break;
     case TPM2_HT_NV_INDEX:
         ret = tpm2_handle_load_index(sctx, object, object_cb, object_cbarg);
-        Esys_TR_Close(sctx->esys_ctx, &object);
+        tpm2_esys_tr_close(sctx->esys_lock, sctx->esys_ctx, &object);
         break;
     }
 
     return ret;
 error:
-    Esys_TR_Close(sctx->esys_ctx, &object);
+    tpm2_esys_tr_close(sctx->esys_lock, sctx->esys_ctx, &object);
     return 0;
 }
 

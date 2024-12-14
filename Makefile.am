@@ -7,6 +7,8 @@ tpm2_la_SOURCES = \
     src/tpm2-provider.c \
     src/tpm2-provider.h \
     src/tpm2-provider-core.c \
+    src/tpm2-provider-semaphore.c \
+    src/tpm2-provider-semaphore.h \
     src/tpm2-provider-types.c \
     src/tpm2-provider-types.h \
     src/tpm2-provider-x509.c \
@@ -57,6 +59,18 @@ test_selftest_SOURCES = test/selftest.c
 test_selftest_CFLAGS = $(COMMON_CFLAGS)
 test_selftest_LDADD = $(CRYPTO_LIBS)
 test_selftest_LDFLAGS = $(COMMON_LDFLAGS)
+
+check_PROGRAMS += test/rand_processes
+test_rand_processes_SOURCES = test/rand_processes.c
+test_rand_processes_CFLAGS = $(COMMON_CFLAGS)
+test_rand_processes_LDADD = $(CRYPTO_LIBS)
+test_rand_processes_LDFLAGS = $(COMMON_LDFLAGS)
+
+check_PROGRAMS += test/rand_threads
+test_rand_threads_SOURCES = test/rand_threads.c
+test_rand_threads_CFLAGS = $(COMMON_CFLAGS)
+test_rand_threads_LDADD = $(CRYPTO_LIBS)
+test_rand_threads_LDFLAGS = $(COMMON_LDFLAGS)
 
 check_PROGRAMS += test/ec_genpkey_store_load
 test_ec_genpkey_store_load_SOURCES = test/ec_genpkey_store_load.c

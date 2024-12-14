@@ -20,6 +20,7 @@ typedef struct tpm2_tss2_decoder_ctx_st TPM2_TSS2_DECODER_CTX;
 struct tpm2_tss2_decoder_ctx_st {
     const OSSL_CORE_HANDLE *core;
     OSSL_LIB_CTX *libctx;
+    tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
     TPM2_CAPABILITY capability;
     TPM2B_DIGEST parentAuth;
@@ -42,6 +43,7 @@ tpm2_tss2_decoder_newctx(void *provctx)
 
     dctx->core = cprov->core;
     dctx->libctx = cprov->libctx;
+    dctx->esys_lock = cprov->esys_lock;
     dctx->esys_ctx = cprov->esys_ctx;
     dctx->capability = cprov->capability;
     return dctx;
@@ -70,16 +72,19 @@ decode_privkey(TPM2_TSS2_DECODER_CTX *dctx, TPM2_PKEY *pkey,
 
         if (pkey->data.parent && pkey->data.parent != TPM2_RH_OWNER) {
             DBG("TSS2 DECODER LOAD parent: persistent 0x%x\n", pkey->data.parent);
-            if (!tpm2_load_parent(pkey->core, pkey->esys_ctx,
+            if (!tpm2_load_parent(pkey->core, pkey->esys_lock, pkey->esys_ctx,
                                   pkey->data.parent, &dctx->parentAuth, &parent))
                 goto error1;
         } else {
             DBG("TSS2 DECODER LOAD parent: primary 0x%x\n", TPM2_RH_OWNER);
-            if (!tpm2_build_primary(pkey->core, pkey->esys_ctx, pkey->capability.algorithms,
+            if (!tpm2_build_primary(pkey->core, pkey->esys_lock, pkey->esys_ctx,
+                                    pkey->capability.algorithms,
                                     ESYS_TR_RH_OWNER, &dctx->parentAuth, &parent))
                 goto error1;
         }
 
+        if (!tpm2_semaphore_lock(pkey->esys_lock))
+            goto error1;
         r = Esys_Load(pkey->esys_ctx, parent,
                       ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                       &pkey->data.priv, &pkey->data.pub, &pkey->object);
@@ -89,11 +94,15 @@ decode_privkey(TPM2_TSS2_DECODER_CTX *dctx, TPM2_PKEY *pkey,
         else
             Esys_FlushContext(pkey->esys_ctx, parent);
 
+        tpm2_semaphore_unlock(pkey->esys_lock);
         TPM2_CHECK_RC(pkey->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error1);
     } else if (pkey->data.privatetype == KEY_TYPE_HANDLE) {
+        if (!tpm2_semaphore_lock(pkey->esys_lock))
+            goto error1;
         r = Esys_TR_FromTPMPublic(pkey->esys_ctx, pkey->data.handle,
                                   ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                                   &pkey->object);
+        tpm2_semaphore_unlock(pkey->esys_lock);
         TPM2_CHECK_RC(pkey->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error1);
     } else {
         TPM2_ERROR_raise(pkey->core, TPM2_ERR_INPUT_CORRUPTED);
@@ -111,7 +120,10 @@ decode_privkey(TPM2_TSS2_DECODER_CTX *dctx, TPM2_PKEY *pkey,
         }
         userauth.size = plen;
 
+        if (!tpm2_semaphore_lock(pkey->esys_lock))
+            goto error2;
         r = Esys_TR_SetAuth(dctx->esys_ctx, pkey->object, &userauth);
+        tpm2_semaphore_unlock(pkey->esys_lock);
         TPM2_CHECK_RC(dctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error2);
     }
 
@@ -123,9 +135,9 @@ decode_privkey(TPM2_TSS2_DECODER_CTX *dctx, TPM2_PKEY *pkey,
     return keytype;
 error2:
     if (pkey->data.privatetype == KEY_TYPE_HANDLE)
-        Esys_TR_Close(pkey->esys_ctx, &pkey->object);
+        tpm2_esys_tr_close(pkey->esys_lock, pkey->esys_ctx, &pkey->object);
     else
-        Esys_FlushContext(pkey->esys_ctx, pkey->object);
+        tpm2_esys_flush_context(pkey->esys_lock, pkey->esys_ctx, pkey->object);
 error1:
     pkey->object = ESYS_TR_NONE;
     return NULL;
@@ -156,6 +168,7 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
         goto error2;
 
     pkey->core = dctx->core;
+    pkey->esys_lock = dctx->esys_lock;
     pkey->esys_ctx = dctx->esys_ctx;
     pkey->capability = dctx->capability;
     pkey->object = ESYS_TR_NONE;
@@ -188,9 +201,9 @@ error2:
 error1:
     if (pkey->object != ESYS_TR_NONE) {
         if (pkey->data.privatetype == KEY_TYPE_HANDLE)
-            Esys_TR_Close(pkey->esys_ctx, &pkey->object);
+            tpm2_esys_tr_close(pkey->esys_lock, pkey->esys_ctx, &pkey->object);
         else
-            Esys_FlushContext(pkey->esys_ctx, pkey->object);
+            tpm2_esys_flush_context(pkey->esys_lock, pkey->esys_ctx, pkey->object);
     }
     OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
     return res;

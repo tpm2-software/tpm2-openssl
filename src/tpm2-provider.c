@@ -340,9 +340,13 @@ tpm2_self_test(void *provctx)
     TSS2_RC r;
 
     DBG("PROVIDER SELFTEST\n");
+
+    if (!tpm2_semaphore_lock(cprov->esys_lock))
+        return 0;
     r = Esys_SelfTest(cprov->esys_ctx,
                       ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                       TPM2_YES);
+    tpm2_semaphore_unlock(cprov->esys_lock);
 
     return r == TPM2_RC_SUCCESS;
 }
@@ -358,6 +362,7 @@ tpm2_teardown(void *provctx)
     free(cprov->capability.properties);
     free(cprov->capability.algorithms);
     free(cprov->capability.commands);
+    tpm2_semaphore_free(cprov->esys_lock);
     OSSL_LIB_CTX_free(cprov->libctx);
 
     r = Esys_GetTcti(cprov->esys_ctx, &tcti_ctx);
@@ -500,28 +505,33 @@ OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
     r = Esys_Initialize(&cprov->esys_ctx, tcti_ctx, NULL);
     TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_CONNECT, goto err2);
 
+    if ((cprov->esys_lock = tpm2_semaphore_new()) == NULL)
+        goto err3;
+
     r = Esys_GetCapability(cprov->esys_ctx,
                            ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                            TPM2_CAP_TPM_PROPERTIES, 0, TPM2_MAX_TPM_PROPERTIES,
                            NULL, &cprov->capability.properties);
-    TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto err3);
+    TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto err4);
 
     r = Esys_GetCapability(cprov->esys_ctx,
                            ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                            TPM2_CAP_ALGS, 0, TPM2_MAX_CAP_ALGS,
                            NULL, &cprov->capability.algorithms);
-    TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto err3);
+    TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto err4);
 
     r = Esys_GetCapability(cprov->esys_ctx,
                            ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                            TPM2_CAP_COMMANDS, 0, TPM2_MAX_CAP_CC,
                            NULL, &cprov->capability.commands);
-    TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto err3);
+    TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto err4);
 
     *out = tpm2_dispatch_table;
     *provctx = cprov;
 
     return 1;
+err4:
+    tpm2_semaphore_free(cprov->esys_lock);
 err3:
     Esys_Finalize(&cprov->esys_ctx);
 err2:

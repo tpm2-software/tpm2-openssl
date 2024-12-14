@@ -18,6 +18,7 @@ struct tpm2_signature_ctx_st {
         TPM2_HASH_SEQUENCE hashSequence;
         struct {
             const OSSL_CORE_HANDLE *core;
+            tpm2_semaphore_t esys_lock;
             ESYS_CONTEXT *esys_ctx;
         };
     };
@@ -113,10 +114,13 @@ ensure_key_loaded(TPM2_PKEY *pkey)
     /* imported public keys are not auto-loaded by keymgmt */
     if (pkey->object == ESYS_TR_NONE)
     {
+        if (!tpm2_semaphore_lock(pkey->esys_lock))
+            return 0;
         r = Esys_LoadExternal(pkey->esys_ctx,
                               ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                               NULL, &pkey->data.pub, ESYS_TR_RH_NULL,
                               &pkey->object);
+        tpm2_semaphore_unlock(pkey->esys_lock);
         TPM2_CHECK_RC(pkey->core, r, TPM2_ERR_CANNOT_LOAD_KEY, return 0);
     }
 
@@ -351,9 +355,12 @@ tpm2_signature_sign(void *ctx, unsigned char *sig, size_t *siglen, size_t sigsiz
     digest.size = tbslen;
     memcpy(digest.buffer, tbs, tbslen);
 
+    if (!tpm2_semaphore_lock(sctx->esys_lock))
+        return 0;
     r = Esys_Sign(sctx->esys_ctx, sctx->pkey->object,
                   ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                   &digest, &sctx->signScheme, &empty_validation, &sctx->signature);
+    tpm2_semaphore_unlock(sctx->esys_lock);
     TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_SIGN, return 0);
 
     if (!get_signature_buffer(sctx->signature, sig, siglen, sigsize))
@@ -428,11 +435,14 @@ digest_sign_calculate(TPM2_SIGNATURE_CTX *sctx)
     if (validation->digest.size == 0)
         DBG("SIGN DIGEST_SIGN_CALCULATE zero size ticket\n");
 
+    if (!tpm2_semaphore_lock(sctx->esys_lock))
+        return 0;
     r = Esys_Sign(sctx->esys_ctx, sctx->pkey->object,
                   ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                   digest, &sctx->signScheme, validation, &sctx->signature);
     free(digest);
     free(validation);
+    tpm2_semaphore_unlock(sctx->esys_lock);
     TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_SIGN, return 0);
 
     return 1;
@@ -490,11 +500,14 @@ tpm2_signature_digest_sign(void *ctx, unsigned char *sig, size_t *siglen,
     if (validation->digest.size == 0)
         DBG("SIGN DIGEST_SIGN zero size ticket\n");
 
+    if (!tpm2_semaphore_lock(sctx->esys_lock))
+        return 0;
     r = Esys_Sign(sctx->esys_ctx, sctx->pkey->object,
                   ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                   digest, &sctx->signScheme, validation, &sctx->signature);
     free(digest);
     free(validation);
+    tpm2_semaphore_unlock(sctx->esys_lock);
     TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_SIGN, return 0);
 
     if (!get_signature_buffer(sctx->signature, sig, siglen, sigsize))
@@ -521,11 +534,14 @@ tpm2_signature_digest_verify_final(void *ctx, const unsigned char *sig, size_t s
                                      &digest, NULL))
         return 0;
 
+    if (!tpm2_semaphore_lock(sctx->esys_lock))
+        return 0;
     r = Esys_VerifySignature(sctx->esys_ctx, sctx->pkey->object,
                              ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                              digest, &signature, &validation);
     free(digest);
     free(validation);
+    tpm2_semaphore_unlock(sctx->esys_lock);
     TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_VERIFICATION_FAILED, return 0);
 
     return 1;

@@ -27,6 +27,8 @@ test/.dirstamp
 test/*.o
 test/*.trs
 test/selftest
+test/rand_processes
+test/rand_threads
 test/ec_genpkey_store_load
 test/ec_genpkey_x509_csr
 test/rsa_genpkey_decrypt

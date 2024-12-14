@@ -8,7 +8,7 @@ on:
 jobs:
   latest:
     if: github.repository == 'tpm2-software/tpm2-openssl'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
 

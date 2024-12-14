@@ -14,6 +14,7 @@ typedef struct tpm2_rand_ctx_st TPM2_RAND_CTX;
 
 struct tpm2_rand_ctx_st {
     const OSSL_CORE_HANDLE *core;
+    tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
     CRYPTO_RWLOCK *lock;
 };
@@ -41,6 +42,7 @@ tpm2_rand_newctx(void *provctx, void *parent,
         return NULL;
 
     rand->core = cprov->core;
+    rand->esys_lock = cprov->esys_lock;
     rand->esys_ctx = cprov->esys_ctx;
     return rand;
 }
@@ -85,9 +87,12 @@ tpm2_rand_generate(void *ctx, unsigned char *out, size_t outlen,
         TSS2_RC r;
         TPM2B_DIGEST *b;
 
+        if (!tpm2_semaphore_lock(rand->esys_lock))
+            return 0;
         r = Esys_GetRandom(rand->esys_ctx,
                            ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                            outlen, &b);
+        tpm2_semaphore_unlock(rand->esys_lock);
         TPM2_CHECK_RC(rand->core, r, TPM2_ERR_CANNOT_GET_RANDOM, return 0);
 
         memcpy(out, &b->buffer, b->size);

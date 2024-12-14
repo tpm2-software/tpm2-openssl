@@ -16,6 +16,7 @@ typedef struct tpm2_keyexch_ctx_st TPM2_KEYEXCH_CTX;
 struct tpm2_keyexch_ctx_st {
     const OSSL_CORE_HANDLE *core;
     OSSL_LIB_CTX *libctx;
+    tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
     TPM2_PKEY *pkey;
     TPM2B_ECC_POINT peer;
@@ -48,6 +49,7 @@ tpm2_keyexch_newctx(void *provctx)
 
     kexc->core = cprov->core;
     kexc->libctx = cprov->libctx;
+    kexc->esys_lock = cprov->esys_lock;
     kexc->esys_ctx = cprov->esys_ctx;
     return kexc;
 }
@@ -110,9 +112,12 @@ tpm2_keyexch_derive_kdf(TPM2_KEYEXCH_CTX *kexc, unsigned char *secret,
         return 0;
     }
 
+    if (!tpm2_semaphore_lock(kexc->esys_lock))
+        return 0;
     r = Esys_ECDH_ZGen(kexc->esys_ctx, kexc->pkey->object,
                        ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                        &kexc->peer, &outPoint);
+    tpm2_semaphore_unlock(kexc->esys_lock);
     TPM2_CHECK_RC(kexc->core, r, TPM2_ERR_CANNOT_GENERATE, return 0);
 
     if ((kdf = EVP_KDF_fetch(kexc->libctx, kexc->kdf_name, kexc->kdf_propq)) == NULL
@@ -146,9 +151,12 @@ tpm2_keyexch_derive_plain(TPM2_KEYEXCH_CTX *kexc, unsigned char *secret,
 
     DBG("KEYEXCH DERIVE plain\n");
 
+    if (!tpm2_semaphore_lock(kexc->esys_lock))
+        return 0;
     r = Esys_ECDH_ZGen(kexc->esys_ctx, kexc->pkey->object,
                        ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                        &kexc->peer, &outPoint);
+    tpm2_semaphore_unlock(kexc->esys_lock);
     TPM2_CHECK_RC(kexc->core, r, TPM2_ERR_CANNOT_GENERATE, return 0);
 
     /* shared value is the x-coordinate */

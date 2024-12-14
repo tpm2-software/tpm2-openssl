@@ -14,6 +14,7 @@ typedef struct tpm2_cipher_ctx_st TPM2_CIPHER_CTX;
 
 struct tpm2_cipher_ctx_st {
     const OSSL_CORE_HANDLE *core;
+    tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
     TPM2_CAPABILITY capability;
     ESYS_TR object;
@@ -46,6 +47,7 @@ tpm2_cipher_all_newctx(void *provctx,
         return NULL;
 
     cctx->core = cprov->core;
+    cctx->esys_lock = cprov->esys_lock;
     cctx->esys_ctx = cprov->esys_ctx;
     cctx->capability = cprov->capability;
     cctx->algorithm = algdef;
@@ -82,7 +84,7 @@ tpm2_cipher_freectx(void *ctx)
     if (cctx == NULL)
         return;
 
-    Esys_FlushContext(cctx->esys_ctx, cctx->object);
+    tpm2_esys_flush_context(cctx->esys_lock, cctx->esys_ctx, cctx->object);
     OPENSSL_clear_free(cctx->ivector, sizeof(TPM2B_IV));
 
     OPENSSL_clear_free(cctx, sizeof(TPM2_CIPHER_CTX));
@@ -127,18 +129,21 @@ tpm2_load_external_key(TPM2_CIPHER_CTX *cctx, ESYS_TR parent,
     TPM2B_PUBLIC *keyPublic = NULL;
     TPM2B_PRIVATE *keyPrivate = NULL;
 
+    if (!tpm2_semaphore_lock(cctx->esys_lock))
+        return 0;
     /* older TPM2 chips do not support Esys_CreateLoaded */
     r = Esys_Create(cctx->esys_ctx, parent,
                     ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                     &inSensitive, &inPublic, &outside_info, &creation_pcr,
                     &keyPrivate, &keyPublic, NULL, NULL, NULL);
-    TPM2_CHECK_RC(cctx->core, r, TPM2_ERR_CANNOT_CREATE_KEY, return 0);
-
-    r = Esys_Load(cctx->esys_ctx, parent,
-                  ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
-                  keyPrivate, keyPublic, &cctx->object);
-    free(keyPublic);
-    free(keyPrivate);
+    if (!r) {
+        r = Esys_Load(cctx->esys_ctx, parent,
+                      ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                      keyPrivate, keyPublic, &cctx->object);
+        free(keyPublic);
+        free(keyPrivate);
+    }
+    tpm2_semaphore_unlock(cctx->esys_lock);
     TPM2_CHECK_RC(cctx->core, r, TPM2_ERR_CANNOT_CREATE_KEY, return 0);
 
     return 1;
@@ -158,12 +163,13 @@ tpm2_cipher_init(TPM2_CIPHER_CTX *cctx,
         DBG("CIPHER %sCRYPT_INIT load key %zu bytes\n",
             cctx->decrypt ? "DE" : "EN", keylen);
 
-        if (!tpm2_build_primary(cctx->core, cctx->esys_ctx, cctx->capability.algorithms,
+        if (!tpm2_build_primary(cctx->core, cctx->esys_lock, cctx->esys_ctx,
+                                cctx->capability.algorithms,
                                 ESYS_TR_RH_NULL, NULL, &parent))
             return 0;
 
         res = tpm2_load_external_key(cctx, parent, key, keylen);
-        Esys_FlushContext(cctx->esys_ctx, parent);
+        tpm2_esys_flush_context(cctx->esys_lock, cctx->esys_ctx, parent);
         if (!res)
             return 0;
     }
@@ -212,6 +218,8 @@ encrypt_decrypt(TPM2_CIPHER_CTX *cctx,
 {
     TSS2_RC r;
 
+    if (!tpm2_semaphore_lock(cctx->esys_lock))
+        return 0;
     r = Esys_EncryptDecrypt2(cctx->esys_ctx, cctx->object,
                              ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                              &cctx->buffer, cctx->decrypt, TPM2_ALG_NULL,
@@ -222,6 +230,7 @@ encrypt_decrypt(TPM2_CIPHER_CTX *cctx,
                                 cctx->decrypt, TPM2_ALG_NULL, cctx->ivector,
                                 &cctx->buffer, outbuff, ivector);
     }
+    tpm2_semaphore_unlock(cctx->esys_lock);
 
     return r;
 }

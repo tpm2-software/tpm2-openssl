@@ -20,6 +20,7 @@ typedef struct tpm2_rsa_asymcipher_ctx_st TPM2_RSA_ASYMCIPHER_CTX;
 
 struct tpm2_rsa_asymcipher_ctx_st {
     const OSSL_CORE_HANDLE *core;
+    tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
     TPM2_CAPABILITY capability;
     TPMT_RSA_DECRYPT decrypt;
@@ -47,6 +48,7 @@ static void
         return NULL;
 
     actx->core = cprov->core;
+    actx->esys_lock = cprov->esys_lock;
     actx->esys_ctx = cprov->esys_ctx;
     actx->capability = cprov->capability;
     actx->decrypt.scheme = TPM2_ALG_RSAES;
@@ -78,9 +80,12 @@ decrypt_message(TPM2_RSA_ASYMCIPHER_CTX *actx,
     cipher.size = inlen;
     memcpy(cipher.buffer, in, inlen);
 
+    if (!tpm2_semaphore_lock(actx->esys_lock))
+        return 0;
     r = Esys_RSA_Decrypt(actx->esys_ctx, actx->pkey->object,
                          ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                          &cipher, &actx->decrypt, &label, &actx->message);
+    tpm2_semaphore_unlock(actx->esys_lock);
     TPM2_CHECK_RC(actx->core, r, TPM2_ERR_CANNOT_DECRYPT, return 0);
 
     return 1;
@@ -114,9 +119,7 @@ rsa_asymcipher_freectx(void *ctx)
     if (actx == NULL)
         return;
 
-    if (actx->message != NULL)
-        free(actx->message);
-
+    free(actx->message);
     OPENSSL_clear_free(actx, sizeof(TPM2_RSA_ASYMCIPHER_CTX));
 }
 

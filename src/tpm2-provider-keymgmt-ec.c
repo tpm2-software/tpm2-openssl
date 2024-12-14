@@ -42,6 +42,7 @@ typedef struct tpm2_ecgen_ctx_st TPM2_ECGEN_CTX;
 
 struct tpm2_ecgen_ctx_st {
     const OSSL_CORE_HANDLE *core;
+    tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
     TPM2_CAPABILITY capability;
     TPM2_HANDLE parentHandle;
@@ -82,6 +83,7 @@ tpm2_ec_keymgmt_new(void *provctx)
     }
 
     pkey->core = cprov->core;
+    pkey->esys_lock = cprov->esys_lock;
     pkey->esys_ctx = cprov->esys_ctx;
     pkey->capability = cprov->capability;
     pkey->object = ESYS_TR_NONE;
@@ -105,6 +107,7 @@ tpm2_ec_keymgmt_gen_init(void *provctx, int selection, const OSSL_PARAM params[]
         return NULL;
 
     gen->core = cprov->core;
+    gen->esys_lock = cprov->esys_lock;
     gen->esys_ctx = cprov->esys_ctx;
     gen->capability = cprov->capability;
 
@@ -216,6 +219,7 @@ tpm2_ec_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
     }
 
     pkey->core = gen->core;
+    pkey->esys_lock = gen->esys_lock;
     pkey->esys_ctx = gen->esys_ctx;
     pkey->capability = gen->capability;
 
@@ -226,12 +230,13 @@ tpm2_ec_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
     /* load parent */
     if (gen->parentHandle && gen->parentHandle != TPM2_RH_OWNER) {
         DBG("EC GEN parent: persistent 0x%x\n", gen->parentHandle);
-        if (!tpm2_load_parent(pkey->core, pkey->esys_ctx,
+        if (!tpm2_load_parent(pkey->core, pkey->esys_lock, pkey->esys_ctx,
                               gen->parentHandle, &gen->parentAuth, &parent))
             goto error1;
     } else {
         DBG("EC GEN parent: primary 0x%x\n", TPM2_RH_OWNER);
-        if (!tpm2_build_primary(pkey->core, pkey->esys_ctx, pkey->capability.algorithms,
+        if (!tpm2_build_primary(pkey->core, pkey->esys_lock, pkey->esys_ctx,
+                                pkey->capability.algorithms,
                                 ESYS_TR_RH_OWNER, &gen->parentAuth, &parent))
             goto error1;
     }
@@ -239,6 +244,8 @@ tpm2_ec_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
     TPM2B_DATA outside_info = { .size = 0 };
     TPML_PCR_SELECTION creation_pcr = { .count = 0 };
 
+    if (!tpm2_semaphore_lock(gen->esys_lock))
+        return 0;
     /* older TPM2 chips do not support Esys_CreateLoaded */
     r = Esys_Create(gen->esys_ctx, parent,
                     ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
@@ -266,10 +273,12 @@ tpm2_ec_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
         r = Esys_TR_SetAuth(gen->esys_ctx, pkey->object, &gen->inSensitive.sensitive.userAuth);
         TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error2);
     }
+    tpm2_semaphore_unlock(gen->esys_lock);
     return pkey;
 error2:
     Esys_FlushContext(gen->esys_ctx, pkey->object);
 error1:
+    tpm2_semaphore_unlock(gen->esys_lock);
     OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
     return NULL;
 }
@@ -314,9 +323,9 @@ tpm2_ec_keymgmt_free(void *keydata)
 
     if (pkey->object != ESYS_TR_NONE) {
         if (pkey->data.privatetype == KEY_TYPE_HANDLE)
-            Esys_TR_Close(pkey->esys_ctx, &pkey->object);
+            tpm2_esys_tr_close(pkey->esys_lock, pkey->esys_ctx, &pkey->object);
         else
-            Esys_FlushContext(pkey->esys_ctx, pkey->object);
+            tpm2_esys_flush_context(pkey->esys_lock, pkey->esys_ctx, pkey->object);
     }
 
     OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
@@ -349,8 +358,11 @@ tpm2_ec_keymgmt_get_params(void *keydata, OSSL_PARAM params[])
         return 1;
     TRACE_PARAMS("EC GET_PARAMS", params);
 
+    if (!tpm2_semaphore_lock(pkey->esys_lock))
+        return 0;
     r = Esys_ECC_Parameters(pkey->esys_ctx, ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
             TPM2_PKEY_EC_CURVE(pkey), &details);
+    tpm2_semaphore_unlock(pkey->esys_lock);
     TPM2_CHECK_RC(pkey->core, r, TPM2_ERR_UNKNOWN_ALGORITHM, return 0);
 
     p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_GROUP_NAME);
