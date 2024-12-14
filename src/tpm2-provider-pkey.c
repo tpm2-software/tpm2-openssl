@@ -256,7 +256,7 @@ static const TPML_PCR_SELECTION allCreationPCR = {
 };
 
 int
-tpm2_load_parent(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
+tpm2_load_parent(const OSSL_CORE_HANDLE *core, CRYPTO_RWLOCK *esys_lock, ESYS_CONTEXT *esys_ctx,
                  TPM2_HANDLE handle, TPM2B_DIGEST *auth, ESYS_TR *object)
 {
     TSS2_RC r;
@@ -277,6 +277,8 @@ tpm2_load_parent(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
         }
     }
 
+    if (!CRYPTO_THREAD_write_lock(esys_lock))
+        return 0;
     r = Esys_TR_FromTPMPublic(esys_ctx, handle,
                               ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                               object);
@@ -287,21 +289,26 @@ tpm2_load_parent(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
         TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_LOAD_PARENT, goto error2);
     }
 
+    CRYPTO_THREAD_unlock(esys_lock);
     return 1;
-error2:
+error3:
     Esys_FlushContext(esys_ctx, *object);
+error2:
+    CRYPTO_THREAD_unlock(esys_lock);
 error1:
     return 0;
 }
 
 int
-tpm2_build_primary(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
+tpm2_build_primary(const OSSL_CORE_HANDLE *core, CRYPTO_RWLOCK *esys_lock, ESYS_CONTEXT *esys_ctx,
                    const TPMS_CAPABILITY_DATA *algorithms, ESYS_TR hierarchy,
                    const TPM2B_DIGEST *auth, ESYS_TR *object)
 {
     const TPM2B_PUBLIC *primaryTemplate = NULL;
     TSS2_RC r;
 
+    if (!CRYPTO_THREAD_write_lock(esys_lock))
+        return 0;
     r = Esys_TR_SetAuth(esys_ctx, hierarchy, auth);
     TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_CREATE_PRIMARY, goto error);
 
@@ -326,8 +333,10 @@ tpm2_build_primary(const OSSL_CORE_HANDLE *core, ESYS_CONTEXT *esys_ctx,
     }
     TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_CREATE_PRIMARY, goto error);
 
+    CRYPTO_THREAD_unlock(esys_lock);
     return 1;
 error:
+    CRYPTO_THREAD_unlock(esys_lock);
     return 0;
 }
 
