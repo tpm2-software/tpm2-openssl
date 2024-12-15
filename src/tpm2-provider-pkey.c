@@ -278,15 +278,15 @@ tpm2_load_parent(const OSSL_CORE_HANDLE *core, CRYPTO_RWLOCK *esys_lock, ESYS_CO
     }
 
     if (!CRYPTO_THREAD_write_lock(esys_lock))
-        return 0;
+        goto error1;
     r = Esys_TR_FromTPMPublic(esys_ctx, handle,
                               ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
                               object);
-    TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_LOAD_PARENT, goto error1);
+    TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_LOAD_PARENT, goto error2);
 
     if (auth->size > 0) {
         r = Esys_TR_SetAuth(esys_ctx, *object, auth);
-        TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_LOAD_PARENT, goto error2);
+        TPM2_CHECK_RC(core, r, TPM2_ERR_CANNOT_LOAD_PARENT, goto error3);
     }
 
     CRYPTO_THREAD_unlock(esys_lock);
