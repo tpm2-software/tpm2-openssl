@@ -38,7 +38,7 @@ else
 @CODE_COVERAGE_RULES@
 endif
 
-COMMON_CFLAGS = $(CRYPTO_CFLAGS)
+COMMON_CFLAGS = -Werror -Wall $(CRYPTO_CFLAGS)
 COMMON_LDFLAGS =
 if WITH_ASAN
 COMMON_CFLAGS += -O1 -g -fsanitize=address -fno-omit-frame-pointer
