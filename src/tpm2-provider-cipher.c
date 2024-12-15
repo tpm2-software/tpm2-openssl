@@ -56,7 +56,7 @@ tpm2_cipher_all_newctx(void *provctx,
 }
 
 #define IMPLEMENT_CIPHER_NEWCTX(alg,kbits,amode,blkbits) \
-    static OSSL_FUNC_cipher_newctx_fn tpm2_cipher_##alg##kbits##lcmode##_newctx; \
+    static OSSL_FUNC_cipher_newctx_fn tpm2_cipher_##alg##kbits##amode##_newctx; \
     static void * \
     tpm2_cipher_##alg##kbits##amode##_newctx(void *provctx) \
     { \

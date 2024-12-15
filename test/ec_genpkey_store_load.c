@@ -96,7 +96,7 @@ error:
 
 int load_and_sign(const char *filename, const char *password)
 {
-    OSSL_STORE_CTX *ctx;
+    OSSL_STORE_CTX *ctx = NULL;
     UI_METHOD *ui_method = NULL;
     int ret = 1;
 
