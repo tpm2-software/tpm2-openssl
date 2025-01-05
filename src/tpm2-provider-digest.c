@@ -106,8 +106,8 @@ tpm2_hash_sequence_update(TPM2_HASH_SEQUENCE *seq,
             return 0;
         r = Esys_SequenceUpdate(seq->esys_ctx, seq->handle,
                                 ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE, &seq->buffer);
-        seq->buffer.size = 0;
         tpm2_semaphore_unlock(seq->esys_lock);
+        seq->buffer.size = 0;
         TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
     }
 
@@ -125,8 +125,8 @@ tpm2_hash_sequence_complete(TPM2_HASH_SEQUENCE *seq,
             return 0;
         r = Esys_SequenceUpdate(seq->esys_ctx, seq->handle,
                                 ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE, &seq->buffer);
-        seq->buffer.size = 0;
         tpm2_semaphore_unlock(seq->esys_lock);
+        seq->buffer.size = 0;
         TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
     }
 

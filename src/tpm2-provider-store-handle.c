@@ -392,6 +392,7 @@ static int
 tpm2_handle_eof(void *ctx)
 {
     TPM2_HANDLE_CTX *sctx = ctx;
+    /* coverity[missing_lock] */
     return (sctx->bio && BIO_eof(sctx->bio)) || sctx->load_done;
 }
 
