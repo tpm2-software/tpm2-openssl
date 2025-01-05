@@ -52,6 +52,9 @@ jobs:
 
     - name: Submit code coverage
       uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        verbose: true
 
     - name: Check the distribution
       # AM_DISTCHECK_CONFIGURE_FLAGS are not ready for clang and asan
