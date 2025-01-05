@@ -116,6 +116,20 @@ tpm2_rsa_scheme_alg_to_name(const TPMI_ALG_RSA_SCHEME alg)
     return NULL;
 }
 
+int
+tpm2_rsa_size(const TPM2B_PUBLIC_KEY_RSA *rsa)
+{
+    BIGNUM *bn;
+    int ret = TPM2_MAX_RSA_KEY_BYTES;
+
+    if (rsa && (bn = BN_bin2bn(rsa->buffer, rsa->size, NULL))) {
+        ret = BN_num_bytes(bn);
+        BN_free(bn);
+    }
+
+    return ret;
+}
+
 typedef struct {
     int nid;
     TPM2_ECC_CURVE curve;

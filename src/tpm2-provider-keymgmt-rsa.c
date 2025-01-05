@@ -410,7 +410,8 @@ tpm2_rsa_keymgmt_get_params(void *keydata, OSSL_PARAM params[])
             return 0;
     }
     p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_MAX_SIZE);
-    if (p != NULL && !OSSL_PARAM_set_int(p, TPM2_MAX_RSA_KEY_BYTES))
+    if (p != NULL && !OSSL_PARAM_set_int(p,
+                            tpm2_rsa_size(&pkey->data.pub.publicArea.unique.rsa)))
         return 0;
 
     if (TPM2_PKEY_RSA_SCHEME(pkey) != TPM2_ALG_NULL) {

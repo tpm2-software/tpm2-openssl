@@ -3,13 +3,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
-## [1.3.0] - 2024-xx-yy
+## [1.3.0] - 2025-01-yy
 ### Added
 - Added support for RSA-OAEP decryption.
 - Added Parent to textual information printed by 'openssl pkey -text'.
 ### Fixed
 - Fixed multi-threaded operation, preventing the 'Esys called in bad sequence'
   errors (thanks to @Danigaralfo, @famez, and @AndreasFuchsTPM).
+- Fixed retrieval of OSSL_PKEY_PARAM_MAX_SIZE for RSA keys. The exact value
+  is returned instead of a fixed TPM2_MAX_RSA_KEY_BYTES.
 - Fixed handling of absent emptyAuth value in the TSS2 PRIVATE KEY file.
 - Set authorization value of newly generated keys. This allows users of the
   C API to direcly use just generated EVP_PKEY.

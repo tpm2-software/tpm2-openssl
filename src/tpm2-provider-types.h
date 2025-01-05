@@ -26,6 +26,9 @@ tpm2_rsa_scheme_name_to_alg(const char *name);
 const char *
 tpm2_rsa_scheme_alg_to_name(const TPMI_ALG_RSA_SCHEME alg);
 
+int
+tpm2_rsa_size(const TPM2B_PUBLIC_KEY_RSA *rsa);
+
 TPM2_ECC_CURVE
 tpm2_nid_to_ecc_curve(int nid);
 
