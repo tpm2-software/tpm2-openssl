@@ -3,9 +3,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
-## [1.3.0] - 2025-01-yy
+## [1.3.0-rc0] - 2025-01-08
 ### Added
 - Added support for RSA-OAEP decryption.
+- Added 'xof' and 'algid-absent' parameters to digests.
 - Added Parent to textual information printed by 'openssl pkey -text'.
 ### Fixed
 - Fixed multi-threaded operation, preventing the 'Esys called in bad sequence'
