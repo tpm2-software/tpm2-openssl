@@ -16,10 +16,11 @@ openssl req -new -newkey rsa:2048 -subj '/CN=My Server/C=TH/ST=Phuket/L=Phuket/O
 # check the CSR
 openssl req -verify -in server.csr -text -noout
 
+echo 01 > rootca.srl
 # issue the certificate by the TPM-based CA
 openssl x509 -provider tpm2 -provider default -propquery '?provider=tpm2' \
-    -req -in server.csr -CAkey rootca.key -CA rootca.crt -CAcreateserial -out server.crt
+    -req -in server.csr -CAkey rootca.key -CA rootca.crt -CAserial rootca.srl -out server.crt
 # check the certificate
 openssl x509 -in server.crt -text -noout
 
-rm rootca.key rootca.crt server.key server.csr server.crt
+rm rootca.key rootca.crt rootca.srl server.key server.csr server.crt
