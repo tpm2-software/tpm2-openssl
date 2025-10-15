@@ -210,7 +210,7 @@ tpm2_get_ecdsa_algor(TPM2_ALG_ID digalg)
 
     if ((x509_algor = X509_ALGOR_new()) == NULL)
         return NULL;
-    X509_ALGOR_set0(x509_algor, oid, V_ASN1_NULL, NULL);
+    X509_ALGOR_set0(x509_algor, oid, V_ASN1_UNDEF, NULL);
 
     return x509_algor;
 }
