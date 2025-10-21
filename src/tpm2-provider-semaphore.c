@@ -68,7 +68,7 @@ int tpm2_semaphore_unlock(tpm2_semaphore_t sem)
 
 void tpm2_semaphore_free(tpm2_semaphore_t sem)
 {
-    sem_close(sem);
+    sem_destroy(sem);
     munmap(sem, sizeof(sem_t));
 }
 
