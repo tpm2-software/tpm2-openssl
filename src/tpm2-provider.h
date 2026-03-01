@@ -119,11 +119,13 @@ tpm2_list_params(const char *text, const OSSL_PARAM params[]);
      TPM2_ERROR_set_debug(core))
 
 #define TPM2_CHECK_RC(core, rc, reason, command) \
-    if ((rc)) { \
-        tpm2_new_error_rc((core), (reason), (rc)); \
-        TPM2_ERROR_set_debug(core); \
-        command; \
-    }
+    do { \
+        if ((rc)) { \
+            tpm2_new_error_rc((core), (reason), (rc)); \
+            TPM2_ERROR_set_debug(core); \
+            command; \
+        } \
+    } while (0)
 
 #ifdef NDEBUG
 #define DBG(...) ((void) 0)
