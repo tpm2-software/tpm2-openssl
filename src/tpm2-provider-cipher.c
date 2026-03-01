@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include <openssl/core_dispatch.h>
+#include <openssl/crypto.h>
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 
@@ -54,6 +55,10 @@ tpm2_cipher_all_newctx(void *provctx,
     cctx->block_size = block_bits/8;
     cctx->padding = 1;
     cctx->ivector = OPENSSL_zalloc(sizeof(TPM2B_IV));
+    if (cctx->ivector == NULL) {
+        OPENSSL_clear_free(cctx, sizeof(TPM2_CIPHER_CTX));
+        return NULL;
+    }
     return cctx;
 }
 
@@ -263,19 +268,19 @@ tpm2_cipher_process_buffer(TPM2_CIPHER_CTX *cctx, int padded,
         return 1;
 
     if (padded && cctx->decrypt) {
-        int i;
+        unsigned char pad_value[TPM2_MAX_DIGEST_BUFFER];
 
         if (outbuff->size == 0)
             goto error;
 
         padlen = outbuff->buffer[outbuff->size - 1];
-        if (padlen > outbuff->size)
+        if (padlen < 1 || padlen > cctx->block_size || padlen > outbuff->size)
             goto error;
         outbuff->size -= padlen;
-        /* check the padding */
-        for (i = 0; i < padlen; i++)
-            if (outbuff->buffer[outbuff->size + i] != padlen)
-                goto error;
+        /* check the padding using constant-time comparison */
+        memset(pad_value, padlen, padlen);
+        if (CRYPTO_memcmp(outbuff->buffer + outbuff->size, pad_value, padlen) != 0)
+            goto error;
     }
 
     if (*outl + outbuff->size > outsize)
@@ -297,6 +302,7 @@ tpm2_cipher_update_block(void *ctx,
                          const unsigned char *in, size_t inlen)
 {
     TPM2_CIPHER_CTX *cctx = ctx;
+    size_t in_offset = 0;
 
     DBG("CIPHER UPDATE block %zu\n", inlen);
     *outl = 0;
@@ -308,8 +314,9 @@ tpm2_cipher_update_block(void *ctx,
             consume = inlen;
 
         if (consume > 0) {
-            memcpy(cctx->buffer.buffer + cctx->buffer.size, in + *outl, consume);
+            memcpy(cctx->buffer.buffer + cctx->buffer.size, in + in_offset, consume);
             cctx->buffer.size += consume;
+            in_offset += consume;
 
             inlen -= consume;
         }
