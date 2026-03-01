@@ -168,9 +168,9 @@ ecdsa_signature_scheme_init(TPM2_SIGNATURE_CTX *sctx, const char *mdname)
         if (sctx->signScheme.details.any.hashAlg != TPM2_ALG_NULL)
             /* hash algorithm was specified in SET_CTX_PARAMS */
             sctx->hashSequence.algorithm = sctx->signScheme.details.any.hashAlg;
-        else if (sctx->pkey && TPM2_PKEY_RSA_SCHEME(sctx->pkey) != TPM2_ALG_NULL)
+        else if (sctx->pkey && TPM2_PKEY_EC_SCHEME(sctx->pkey) != TPM2_ALG_NULL)
             /* hash algorithm is associated with the key */
-            sctx->hashSequence.algorithm = TPM2_PKEY_RSA_HASH(sctx->pkey);
+            sctx->hashSequence.algorithm = TPM2_PKEY_EC_HASH(sctx->pkey);
         else
             sctx->hashSequence.algorithm = TPM2_ALG_SHA256;
     } else if ((sctx->hashSequence.algorithm = tpm2_hash_name_to_alg(sctx->capability.algorithms, mdname)) == TPM2_ALG_ERROR) {
