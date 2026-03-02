@@ -37,7 +37,9 @@ int main() {
 
     /* count failures */
     for (i = 0; i < PROCESS_COUNT; i++) {
-        if (waitpid(process[i], &res, 0) != process[i] || !res)
+        if (waitpid(process[i], &res, 0) != process[i]
+            || !WIFEXITED(res)
+            || WEXITSTATUS(res) != 1)
             failed++;
     }
 
