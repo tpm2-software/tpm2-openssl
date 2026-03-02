@@ -74,7 +74,7 @@ decrypt_message(TPM2_RSA_ASYMCIPHER_CTX *actx,
     TPM2B_PUBLIC_KEY_RSA cipher;
     TPM2B_DATA label = { .size = 0 };
 
-    if (inlen > (int)sizeof(cipher.buffer))
+    if (inlen > sizeof(cipher.buffer))
         return 0;
 
     cipher.size = inlen;
