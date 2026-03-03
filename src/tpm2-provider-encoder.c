@@ -489,7 +489,7 @@ print_object_attributes(BIO *bout, TPMA_OBJECT objectAttributes)
             BIO_printf(bout, "  %s\n", tab[i].name);
     }
 
-    return 0;
+    return 1;
 }
 
 static int
