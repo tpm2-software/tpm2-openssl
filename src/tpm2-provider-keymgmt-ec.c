@@ -261,7 +261,7 @@ tpm2_ec_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
                   ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                   keyPrivate, keyPublic, &pkey->object);
     free(keyPublic);
-    free(keyPrivate);
+    cleanse_free(keyPrivate, sizeof(TPM2B_PRIVATE));
     TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto error1);
 
     if (gen->parentHandle && gen->parentHandle != TPM2_RH_OWNER)
@@ -697,4 +697,3 @@ const OSSL_DISPATCH *tpm2_ec_keymgmt_dispatch(const TPM2_CAPABILITY *capability)
     else
         return NULL;
 }
-

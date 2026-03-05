@@ -138,7 +138,7 @@ tpm2_keyexch_derive_kdf(TPM2_KEYEXCH_CTX *kexc, unsigned char *secret,
 error:
     EVP_KDF_CTX_free(kctx);
     EVP_KDF_free(kdf);
-    free(outPoint);
+    cleanse_free(outPoint, sizeof(TPM2B_ECC_POINT));
     return res;
 }
 
@@ -163,13 +163,13 @@ tpm2_keyexch_derive_plain(TPM2_KEYEXCH_CTX *kexc, unsigned char *secret,
     *secretlen = outPoint->point.x.size;
     if (secret != NULL) {
         if (*secretlen > outlen) {
-            free(outPoint);
+            cleanse_free(outPoint, sizeof(TPM2B_ECC_POINT));
             return 0;
         }
         memcpy(secret, outPoint->point.x.buffer, *secretlen);
     }
 
-    free(outPoint);
+    cleanse_free(outPoint, sizeof(TPM2B_ECC_POINT));
     return 1;
 }
 
@@ -260,4 +260,3 @@ const OSSL_DISPATCH tpm2_ecdh_keyexch_functions[] = {
     { OSSL_FUNC_KEYEXCH_SETTABLE_CTX_PARAMS, (void(*)(void))tpm2_keyexch_settable_ctx_params },
     { 0, NULL }
 };
-

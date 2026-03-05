@@ -5,6 +5,7 @@
 #include <openssl/core_dispatch.h>
 #include <openssl/crypto.h>
 #include <openssl/core_names.h>
+#include <openssl/crypto.h>
 #include <openssl/params.h>
 
 #include <tss2/tss2_mu.h>
@@ -147,7 +148,7 @@ tpm2_load_external_key(TPM2_CIPHER_CTX *cctx, ESYS_TR parent,
                       ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                       keyPrivate, keyPublic, &cctx->object);
         free(keyPublic);
-        free(keyPrivate);
+        cleanse_free(keyPrivate, sizeof(TPM2B_PRIVATE));
     }
     tpm2_semaphore_unlock(cctx->esys_lock);
     TPM2_CHECK_RC(cctx->core, r, TPM2_ERR_CANNOT_CREATE_KEY, return 0);
@@ -290,10 +291,10 @@ tpm2_cipher_process_buffer(TPM2_CIPHER_CTX *cctx, int padded,
     memcpy(out + *outl, outbuff->buffer, outbuff->size);
     *outl += outbuff->size;
 
-    free(outbuff);
+    cleanse_free(outbuff, sizeof(TPM2B_MAX_BUFFER));
     return 1;
 error:
-    free(outbuff);
+    cleanse_free(outbuff, sizeof(TPM2B_MAX_BUFFER));
     return 0;
 }
 
@@ -394,14 +395,13 @@ tpm2_cipher_update_stream(void *ctx,
 
         if (outbuff->size < consume
                 || *outl + consume > outsize) {
-            free(outbuff);
+            cleanse_free(outbuff, sizeof(TPM2B_MAX_BUFFER));
             return 0;
         }
         /* in a stream cipher we may skip the padding bytes */
         memcpy(out + *outl, outbuff->buffer, consume);
         *outl += consume;
-
-        free(outbuff);
+        cleanse_free(outbuff, sizeof(TPM2B_MAX_BUFFER));
     }
 
     return 1;
@@ -564,4 +564,3 @@ DECLARE_3CIPHERS(CAMELLIA,CBC,128,128,block)
 DECLARE_3CIPHERS(CAMELLIA,OFB,128,128,stream)
 DECLARE_3CIPHERS(CAMELLIA,CFB,128,128,stream)
 DECLARE_3CIPHERS(CAMELLIA,CTR,128,128,stream)
-
