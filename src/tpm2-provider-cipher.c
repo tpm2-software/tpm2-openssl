@@ -254,8 +254,9 @@ tpm2_cipher_process_buffer(TPM2_CIPHER_CTX *cctx, int padded,
     r = encrypt_decrypt(cctx, &outbuff, &ivector);
     TPM2_CHECK_RC(cctx->core, r, TPM2_ERR_CANNOT_ENCRYPT, return 0);
 
-    OPENSSL_clear_free(cctx->ivector, sizeof(TPM2B_IV));
-    cctx->ivector = ivector;
+    memcpy(cctx->ivector, ivector, sizeof(TPM2B_IV));
+    OPENSSL_cleanse(ivector, sizeof(TPM2B_IV));
+    free(ivector);
 
     cctx->buffer.size = 0;
 
@@ -381,8 +382,9 @@ tpm2_cipher_update_stream(void *ctx,
         r = encrypt_decrypt(cctx, &outbuff, &ivector);
         TPM2_CHECK_RC(cctx->core, r, TPM2_ERR_CANNOT_ENCRYPT, return 0);
 
-        OPENSSL_clear_free(cctx->ivector, sizeof(TPM2B_IV));
-        cctx->ivector = ivector;
+        memcpy(cctx->ivector, ivector, sizeof(TPM2B_IV));
+        OPENSSL_cleanse(ivector, sizeof(TPM2B_IV));
+        free(ivector);
 
         if (outbuff->size < consume
                 || *outl + consume > outsize) {
