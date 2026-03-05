@@ -4,6 +4,7 @@
 
 #include <openssl/core_dispatch.h>
 #include <openssl/core_names.h>
+#include <openssl/crypto.h>
 #include <openssl/params.h>
 #include <openssl/rsa.h>
 
@@ -119,7 +120,7 @@ rsa_asymcipher_freectx(void *ctx)
     if (actx == NULL)
         return;
 
-    free(actx->message);
+    cleanse_free(actx->message, sizeof(TPM2B_PUBLIC_KEY_RSA));
     OPENSSL_clear_free(actx, sizeof(TPM2_RSA_ASYMCIPHER_CTX));
 }
 
@@ -220,4 +221,3 @@ const OSSL_DISPATCH tpm2_rsa_asymcipher_functions[] = {
     { OSSL_FUNC_ASYM_CIPHER_SETTABLE_CTX_PARAMS, (void (*)(void))rsa_asymcipher_settable_ctx_params },
     { 0, NULL }
 };
-

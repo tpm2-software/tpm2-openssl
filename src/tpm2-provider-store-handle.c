@@ -2,12 +2,14 @@
 
 #include <string.h>
 
+#include <openssl/crypto.h>
 #include <openssl/core_dispatch.h>
 #include <openssl/core_names.h>
 #include <openssl/core_object.h>
 #include <openssl/params.h>
 
 #include "tpm2-provider-pkey.h"
+#include "tpm2-provider-types.h"
 
 typedef struct tpm2_handle_ctx_st TPM2_HANDLE_CTX;
 
@@ -222,7 +224,8 @@ tpm2_handle_load_index(TPM2_HANDLE_CTX *sctx, ESYS_TR object,
                        OSSL_CALLBACK *object_cb, void *object_cbarg)
 {
     TPM2B_NV_PUBLIC *metadata = NULL;
-    uint16_t read_len, read_max, data_len = 0;
+    uint16_t read_len, read_max = 0;
+    size_t data_len = 0;
     unsigned char *data = NULL;
     BIO *bufio;
     TSS2_RC r;
@@ -240,7 +243,7 @@ tpm2_handle_load_index(TPM2_HANDLE_CTX *sctx, ESYS_TR object,
     read_max = tpm2_max_nvindex_buffer(sctx->capability.properties);
     DBG("STORE/HANDLE LOAD index %u bytes (buffer %u bytes)\n", read_len, read_max);
 
-    if ((data = malloc(read_len)) == NULL)
+    if (!read_len || (data = malloc(read_len)) == NULL)
         goto final;
 
     while (read_len > 0) {
@@ -258,6 +261,7 @@ tpm2_handle_load_index(TPM2_HANDLE_CTX *sctx, ESYS_TR object,
         memcpy(data + data_len, buff->buffer, buff->size);
         read_len -= buff->size;
         data_len += buff->size;
+        OPENSSL_cleanse(buff, sizeof(TPM2B_MAX_NV_BUFFER));
         free(buff);
     }
 
@@ -303,10 +307,10 @@ tpm2_handle_load_index(TPM2_HANDLE_CTX *sctx, ESYS_TR object,
 
     OPENSSL_free(pem_name);
     OPENSSL_free(pem_header);
-    OPENSSL_free(der_data);
+    OPENSSL_clear_free(der_data, der_len);
     BIO_free(bufio);
 final:
-    free(data);
+    cleanse_free(data, data_len);
     free(metadata);
     return ret;
 }
@@ -421,4 +425,3 @@ const OSSL_DISPATCH tpm2_handle_store_functions[] = {
     { OSSL_FUNC_STORE_CLOSE, (void(*)(void))tpm2_handle_close },
     { 0, NULL }
 };
-
