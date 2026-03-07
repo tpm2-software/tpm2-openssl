@@ -15,7 +15,7 @@ int generate_csr(const char *password, const char *filename)
     EVP_PKEY_CTX *pctx = NULL;
     EVP_PKEY *pkey = NULL;
     X509_REQ *x509 = NULL;
-    X509_NAME *name;
+    X509_NAME *name = NULL;
     STACK_OF(X509_EXTENSION) *exts = NULL;
     X509_EXTENSION *ex;
     FILE *csr_file = NULL;
@@ -40,9 +40,10 @@ int generate_csr(const char *password, const char *filename)
             || X509_REQ_set_pubkey(x509, pkey) != 1)
         goto error1;
 
-    name = X509_REQ_get_subject_name(x509);
-    if (!X509_NAME_add_entry_by_NID(name, NID_countryName, MBSTRING_ASC, (unsigned char *)"CZ", -1, -1, 0)
-            || !X509_NAME_add_entry_by_NID(name, NID_commonName, MBSTRING_ASC, (const unsigned char *)"www.example.com", -1, -1, 0))
+    if (!(name = X509_NAME_new())
+            || !X509_NAME_add_entry_by_NID(name, NID_countryName, MBSTRING_ASC, (unsigned char *)"CZ", -1, -1, 0)
+            || !X509_NAME_add_entry_by_NID(name, NID_commonName, MBSTRING_ASC, (const unsigned char *)"www.example.com", -1, -1, 0)
+            || X509_REQ_set_subject_name(x509, name) != 1)
         goto error1;
 
     // set requested extensions
@@ -75,6 +76,7 @@ error2:
     fclose(csr_file);
 error1:
     sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free);
+    X509_NAME_free(name);
     X509_REQ_free(x509);
     EVP_PKEY_free(pkey);
     EVP_PKEY_CTX_free(pctx);

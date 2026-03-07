@@ -149,13 +149,13 @@ tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata, TPM2_PKEY_FORMAT format)
             strcmp(type_oid, OID_loadableKey))
         goto error;
 
-    if (Tss2_MU_TPM2B_PRIVATE_Unmarshal(tpk->privkey->data,
-                                        tpk->privkey->length, NULL,
+    if (Tss2_MU_TPM2B_PRIVATE_Unmarshal(ASN1_STRING_get0_data(tpk->privkey),
+                                        ASN1_STRING_length(tpk->privkey), NULL,
                                         &keydata->priv))
         goto error;
 
-    if (Tss2_MU_TPM2B_PUBLIC_Unmarshal(tpk->pubkey->data,
-                                       tpk->pubkey->length, NULL,
+    if (Tss2_MU_TPM2B_PUBLIC_Unmarshal(ASN1_STRING_get0_data(tpk->pubkey),
+                                       ASN1_STRING_length(tpk->pubkey), NULL,
                                        &keydata->pub))
         goto error;
 
