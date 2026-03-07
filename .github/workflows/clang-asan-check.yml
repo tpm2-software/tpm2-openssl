@@ -34,6 +34,8 @@ jobs:
         wget --no-verbose https://github.com/openssl/openssl/archive/$BRANCH.zip
         unzip -q $BRANCH.zip
         cd openssl-$BRANCH
+        # avoid confusion between various versions installed
+        sed -i 's/^SHLIB_VERSION=.*/SHLIB_VERSION=99/' VERSION.dat
         # disable all unnecessary features, with deprecated functions
         ./Configure linux-x86_64-clang enable-asan no-aria no-async \
                     no-autoload-config no-bf no-blake2 no-cast no-chacha \
@@ -45,11 +47,6 @@ jobs:
                     no-srtp no-ssl3-method no-tests no-ts no-whirlpool
         make build_sw
         sudo make install_sw install_ssldirs
-        echo '#!/usr/bin/env bash' > openssl.sh
-        echo 'LD_LIBRARY_PATH=/usr/local/lib64 /usr/local/bin/openssl_b "$@"' >> openssh.sh
-        chmod u+x openssh.sh
-        sudo mv /usr/local/bin/openssl /usr/local/bin/openssl_b
-        sudo mv openssh.sh /usr/local/bin/openssl
 
       env:
         BRANCH: ${{ matrix.branch }}
@@ -81,6 +78,7 @@ jobs:
         tpm2_getcap properties-fixed | head -n 20
         make check
       env:
+        LD_LIBRARY_PATH: /usr/local/lib64
         TPM2TOOLS_TCTI: ${{ env.TCTI_ADDRESS }}
         TPM2OPENSSL_TCTI: ${{ env.TCTI_ADDRESS }}
 
