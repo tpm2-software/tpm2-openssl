@@ -4,7 +4,7 @@ on:
   pull_request:
   schedule:
     # Execute a weekly build on Monday at 2AM UTC
-    - cron:  '0 2 * * 1'
+    - cron: "0 2 * * 1"
 env:
   IBMSWTPM_VER: rev183-2024-08-02
   # sha1 is not tested by default because Fedora 41+ does not support it
@@ -18,76 +18,76 @@ jobs:
         branch: [openssl-3.0, openssl-3.5, master]
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-    - name: Install dependencies
-      run: sudo apt-get install curl autoconf-archive libtss2-dev libtss2-tcti-tabrmd0 tpm2-abrmd tpm2-tools
+      - name: Install dependencies
+        run: sudo apt-get install curl autoconf-archive libtss2-dev libtss2-tcti-tabrmd0 tpm2-abrmd tpm2-tools
 
-    - name: Build TPM2 simulator
-      run: |
-        curl -Ls https://github.com/kgoldman/ibmswtpm2/archive/refs/tags/$IBMSWTPM_VER.tar.gz | tar xz
-        cd ibmswtpm2-$IBMSWTPM_VER/src
-        make
+      - name: Build TPM2 simulator
+        run: |
+          curl -Ls https://github.com/kgoldman/ibmswtpm2/archive/refs/tags/$IBMSWTPM_VER.tar.gz | tar xz
+          cd ibmswtpm2-$IBMSWTPM_VER/src
+          make
 
-    - name: Build openssl
-      run: |
-        wget --no-verbose https://github.com/openssl/openssl/archive/$BRANCH.zip
-        unzip -q $BRANCH.zip
-        cd openssl-$BRANCH
-        # avoid confusion between various versions installed
-        sed -i 's/^SHLIB_VERSION=.*/SHLIB_VERSION=99/' VERSION.dat
-        # disable all unnecessary features, with deprecated functions
-        ./Configure linux-x86_64-clang enable-asan no-aria no-async \
-                    no-autoload-config no-bf no-blake2 no-cast no-chacha \
-                    no-comp no-ct no-dgram no-ec2m \
-                    no-filenames no-fips no-fips-securitychecks no-gost no-idea \
-                    no-ktls no-makedepend no-md4 no-multiblock \
-                    no-ocb no-poly1305 no-psk no-rc2 no-rc4 no-rfc3779 \
-                    no-rmd160 no-seed no-siphash no-siv no-sm3 no-sm4 \
-                    no-srtp no-ssl3-method no-tests no-ts no-whirlpool
-        make build_sw
-        sudo make install_sw install_ssldirs
+      - name: Build openssl
+        run: |
+          wget --no-verbose https://github.com/openssl/openssl/archive/$BRANCH.zip
+          unzip -q $BRANCH.zip
+          cd openssl-$BRANCH
+          # avoid confusion between various versions installed
+          sed -i 's/^SHLIB_VERSION=.*/SHLIB_VERSION=99/' VERSION.dat
+          # disable all unnecessary features, with deprecated functions
+          ./Configure linux-x86_64-clang enable-asan no-aria no-async \
+                      no-autoload-config no-bf no-blake2 no-cast no-chacha \
+                      no-comp no-ct no-dgram no-ec2m \
+                      no-filenames no-fips no-fips-securitychecks no-gost no-idea \
+                      no-ktls no-makedepend no-md4 no-multiblock \
+                      no-ocb no-poly1305 no-psk no-rc2 no-rc4 no-rfc3779 \
+                      no-rmd160 no-seed no-siphash no-siv no-sm3 no-sm4 \
+                      no-srtp no-ssl3-method no-tests no-ts no-whirlpool
+          make build_sw
+          sudo make install_sw install_ssldirs
 
-      env:
-        BRANCH: ${{ matrix.branch }}
+        env:
+          BRANCH: ${{ matrix.branch }}
 
-    - name: Configure tpm2-openssl
-      run: |
-        ./bootstrap
-        ./configure CC=clang PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig \
-            --enable-op-digest --enable-op-cipher --enable-asan --enable-debug
+      - name: Configure tpm2-openssl
+        run: |
+          ./bootstrap
+          ./configure CC=clang PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig \
+              --enable-op-digest --enable-op-cipher --enable-asan --enable-debug
 
-    - name: Build tpm2-openssl
-      run: |
-        make
-        sudo make install
+      - name: Build tpm2-openssl
+        run: |
+          make
+          sudo make install
 
-    - name: Start TPM2 simulator
-      run: |
-        export DBUS_SESSION_BUS_ADDRESS=`dbus-daemon --session --print-address --fork`
-        echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> $GITHUB_ENV
-        ibmswtpm2-$IBMSWTPM_VER/src/tpm_server &
-        timeout 20 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' localhost 2321
-        tpm2-abrmd --session --tcti mssim:host=localhost,port=2321 &
-        echo "TCTI_ADDRESS=tabrmd:bus_name=com.intel.tss2.Tabrmd,bus_type=session" >> $GITHUB_ENV
-        sleep 1
+      - name: Start TPM2 simulator
+        run: |
+          export DBUS_SESSION_BUS_ADDRESS=`dbus-daemon --session --print-address --fork`
+          echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> $GITHUB_ENV
+          ibmswtpm2-$IBMSWTPM_VER/src/tpm_server &
+          timeout 20 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' localhost 2321
+          tpm2-abrmd --session --tcti mssim:host=localhost,port=2321 &
+          echo "TCTI_ADDRESS=tabrmd:bus_name=com.intel.tss2.Tabrmd,bus_type=session" >> $GITHUB_ENV
+          sleep 1
 
-    - name: Run tests
-      run: |
-        openssl version
-        tpm2_getcap properties-fixed | head -n 20
-        make check
-      env:
-        LD_LIBRARY_PATH: /usr/local/lib64
-        TPM2TOOLS_TCTI: ${{ env.TCTI_ADDRESS }}
-        TPM2OPENSSL_TCTI: ${{ env.TCTI_ADDRESS }}
+      - name: Run tests
+        run: |
+          openssl version
+          tpm2_getcap properties-fixed | head -n 20
+          make check
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib64
+          TPM2TOOLS_TCTI: ${{ env.TCTI_ADDRESS }}
+          TPM2OPENSSL_TCTI: ${{ env.TCTI_ADDRESS }}
 
-    - name: Archive log files
-      if: ${{ success() || failure() }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-report-clang-${{ matrix.branch }}
-        path: |
-          *.log
-          test/*.log
-          test/*/*.log
+      - name: Archive log files
+        if: ${{ success() || failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-report-clang-${{ matrix.branch }}
+          path: |
+            *.log
+            test/*.log
+            test/*/*.log
