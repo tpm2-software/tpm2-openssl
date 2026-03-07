@@ -271,6 +271,7 @@ int
 tpm2_param_get_DIGEST(const OSSL_PARAM *p, TPM2B_DIGEST *digest)
 {
     if (p->data_type != OSSL_PARAM_UTF8_STRING
+            || p->data == NULL
             || p->data_size > sizeof(TPMU_HA))
         return 0;
 
