@@ -3,46 +3,46 @@ on:
   # the number of builds is limited
   push:
     branches:
-    - 'master'
+      - "master"
 
 jobs:
   latest:
     if: github.repository == 'tpm2-software/tpm2-openssl'
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-    - name: Install dependencies
-      run: sudo apt-get install autoconf-archive libtss2-dev
+      - name: Install dependencies
+        run: sudo apt-get install autoconf-archive libtss2-dev
 
-    - name: Download Coverity Build Tool
-      run: |
-        wget -q https://scan.coverity.com/download/cxx/linux64 --post-data "token=$TOKEN&project=tpm2-openssl" -O cov-analysis-linux64.tar.gz
-        mkdir cov-analysis-linux64
-        tar xzf cov-analysis-linux64.tar.gz --strip 1 -C cov-analysis-linux64
-      env:
-        TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
+      - name: Download Coverity Build Tool
+        run: |
+          wget -q https://scan.coverity.com/download/cxx/linux64 --post-data "token=$TOKEN&project=tpm2-openssl" -O cov-analysis-linux64.tar.gz
+          mkdir cov-analysis-linux64
+          tar xzf cov-analysis-linux64.tar.gz --strip 1 -C cov-analysis-linux64
+        env:
+          TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
 
-    - name: Configure tpm2-openssl
-      run: |
-        ./bootstrap
-        ./configure --enable-op-digest --enable-op-cipher
+      - name: Configure tpm2-openssl
+        run: |
+          ./bootstrap
+          ./configure --enable-op-digest --enable-op-cipher
 
-    - name: Build tpm2-openssl with cov-build
-      run: |
-        export PATH=$GITHUB_WORKSPACE/cov-analysis-linux64/bin:$PATH
-        cov-build --dir cov-int make
+      - name: Build tpm2-openssl with cov-build
+        run: |
+          export PATH=$GITHUB_WORKSPACE/cov-analysis-linux64/bin:$PATH
+          cov-build --dir cov-int make
 
-    - name: Submit the result to Coverity Scan
-      run: |
-        tar czvf tpm2-openssl-scan.tgz cov-int
-        curl \
-          --form token=$TOKEN \
-          --form email=$EMAIL \
-          --form file=@tpm2-openssl-scan.tgz \
-          --form version=master \
-          --form description="$GITHUB_SHA" \
-          https://scan.coverity.com/builds?project=tpm2-openssl
-      env:
-        TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
-        EMAIL: ${{ secrets.COVERITY_SUBMISSION_EMAIL }}
+      - name: Submit the result to Coverity Scan
+        run: |
+          tar czvf tpm2-openssl-scan.tgz cov-int
+          curl \
+            --form token=$TOKEN \
+            --form email=$EMAIL \
+            --form file=@tpm2-openssl-scan.tgz \
+            --form version=master \
+            --form description="$GITHUB_SHA" \
+            https://scan.coverity.com/builds?project=tpm2-openssl
+        env:
+          TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
+          EMAIL: ${{ secrets.COVERITY_SUBMISSION_EMAIL }}
