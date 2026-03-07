@@ -13,9 +13,10 @@ env:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
-        branch: [openssl-3.0, openssl-3.1, openssl-3.2, master]
-    runs-on: ubuntu-22.04
+        branch: [openssl-3.0, openssl-3.5, master]
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
 

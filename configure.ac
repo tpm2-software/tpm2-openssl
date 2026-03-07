@@ -26,6 +26,7 @@ AX_CHECK_ENABLE_DEBUG([info])
 
 AC_PROG_CC
 AC_C_BIGENDIAN
+AX_PTHREAD
 LT_INIT([disable-static])
 
 AC_ARG_ENABLE([op-digest],

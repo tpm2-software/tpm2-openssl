@@ -31,6 +31,8 @@ if WITH_OP_CIPHER
 tpm2_la_SOURCES += src/tpm2-provider-cipher.c
 endif
 
+CODE_COVERAGE_LCOV_RMOPTS = --ignore-errors unused
+
 # https://www.gnu.org/software/autoconf-archive/ax_code_coverage.html
 if AUTOCONF_CODE_COVERAGE_2019_01_06
 include $(top_srcdir)/aminclude_static.am
@@ -69,8 +71,8 @@ test_rand_processes_LDFLAGS = $(COMMON_LDFLAGS)
 check_PROGRAMS += test/rand_threads
 test_rand_threads_SOURCES = test/rand_threads.c
 test_rand_threads_CFLAGS = $(COMMON_CFLAGS)
-test_rand_threads_LDADD = $(CRYPTO_LIBS)
-test_rand_threads_LDFLAGS = $(COMMON_LDFLAGS)
+test_rand_threads_LDADD = $(CRYPTO_LIBS) @PTHREAD_CFLAGS@
+test_rand_threads_LDFLAGS = $(COMMON_LDFLAGS) @PTHREAD_LIBS@
 
 check_PROGRAMS += test/ec_genpkey_store_load
 test_ec_genpkey_store_load_SOURCES = test/ec_genpkey_store_load.c
