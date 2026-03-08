@@ -10,6 +10,7 @@
 #include <tss2/tss2_mu.h>
 
 #include "tpm2-provider-pkey.h"
+#include "tpm2-provider-types.h"
 
 typedef struct tpm2_cipher_ctx_st TPM2_CIPHER_CTX;
 
@@ -54,7 +55,7 @@ tpm2_cipher_all_newctx(void *provctx,
     cctx->algorithm = algdef;
     cctx->block_size = block_bits/8;
     cctx->padding = 1;
-    cctx->ivector = OPENSSL_zalloc(sizeof(TPM2B_IV));
+    cctx->ivector = calloc(1, sizeof(TPM2B_IV));
     if (cctx->ivector == NULL) {
         OPENSSL_clear_free(cctx, sizeof(TPM2_CIPHER_CTX));
         return NULL;
@@ -90,7 +91,7 @@ tpm2_cipher_freectx(void *ctx)
         return;
 
     tpm2_esys_flush_context(cctx->esys_lock, cctx->esys_ctx, cctx->object);
-    OPENSSL_clear_free(cctx->ivector, sizeof(TPM2B_IV));
+    cleanse_free(cctx->ivector, sizeof(TPM2B_IV));
 
     OPENSSL_clear_free(cctx, sizeof(TPM2_CIPHER_CTX));
 }
@@ -259,7 +260,7 @@ tpm2_cipher_process_buffer(TPM2_CIPHER_CTX *cctx, int padded,
     r = encrypt_decrypt(cctx, &outbuff, &ivector);
     TPM2_CHECK_RC(cctx->core, r, TPM2_ERR_CANNOT_ENCRYPT, return 0);
 
-    OPENSSL_clear_free(cctx->ivector, sizeof(TPM2B_IV));
+    cleanse_free(cctx->ivector, sizeof(TPM2B_IV));
     cctx->ivector = ivector;
 
     cctx->buffer.size = 0;
@@ -388,7 +389,7 @@ tpm2_cipher_update_stream(void *ctx,
         r = encrypt_decrypt(cctx, &outbuff, &ivector);
         TPM2_CHECK_RC(cctx->core, r, TPM2_ERR_CANNOT_ENCRYPT, return 0);
 
-        OPENSSL_clear_free(cctx->ivector, sizeof(TPM2B_IV));
+        cleanse_free(cctx->ivector, sizeof(TPM2B_IV));
         cctx->ivector = ivector;
 
         if (outbuff->size < consume
