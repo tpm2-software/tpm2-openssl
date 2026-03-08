@@ -61,5 +61,8 @@ tpm2_param_set_BN_from_uint32(OSSL_PARAM *p, UINT32 num);
 void *
 revmemcpy(void *dest, const void *src, size_t len);
 
+void
+cleanse_free(void *p, size_t n);
+
 #endif /* TPM2_PROVIDER_TYPES_H */
 
