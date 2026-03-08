@@ -312,3 +312,13 @@ revmemcpy(void *dest, const void *src, size_t len)
     return dest;
 }
 
+// equivalent of OPENSSL_clear_free for TSS2 buffers
+void
+cleanse_free(void *p, size_t n)
+{
+    if (p) {
+        OPENSSL_cleanse(p, n);
+        free(p);
+    }
+}
+
