@@ -227,3 +227,52 @@ tpm2_create_salt_key(ESYS_CONTEXT *esys_ctx,
     return 1;
 }
 
+int
+tpm2_start_auth_session(ESYS_CONTEXT *esys_ctx, ESYS_TR salt_key,
+                        ESYS_TR *session)
+{
+    TSS2_RC r;
+    TPMT_SYM_DEF symmetric = {
+        .algorithm = TPM2_ALG_AES,
+        .keyBits = { .aes = 128 },
+        .mode = { .aes = TPM2_ALG_CFB },
+    };
+
+    r = Esys_StartAuthSession(esys_ctx,
+                              salt_key,
+                              ESYS_TR_NONE,
+                              ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
+                              NULL,
+                              TPM2_SE_HMAC,
+                              &symmetric,
+                              TPM2_ALG_SHA256,
+                              session);
+    if (r != TSS2_RC_SUCCESS) {
+        *session = ESYS_TR_NONE;
+        return 0;
+    }
+
+    r = Esys_TRSess_SetAttributes(esys_ctx, *session,
+                                  TPMA_SESSION_DECRYPT |
+                                  TPMA_SESSION_ENCRYPT |
+                                  TPMA_SESSION_CONTINUESESSION,
+                                  TPMA_SESSION_DECRYPT |
+                                  TPMA_SESSION_ENCRYPT |
+                                  TPMA_SESSION_CONTINUESESSION);
+    if (r != TSS2_RC_SUCCESS) {
+        Esys_FlushContext(esys_ctx, *session);
+        *session = ESYS_TR_NONE;
+        return 0;
+    }
+
+    return 1;
+}
+
+void
+tpm2_end_auth_session(ESYS_CONTEXT *esys_ctx, ESYS_TR *session)
+{
+    if (*session != ESYS_TR_NONE) {
+        Esys_FlushContext(esys_ctx, *session);
+        *session = ESYS_TR_NONE;
+    }
+}
