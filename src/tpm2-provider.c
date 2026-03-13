@@ -359,6 +359,8 @@ tpm2_teardown(void *provctx)
     TSS2_RC r;
 
     DBG("PROVIDER TEARDOWN\n");
+    if (cprov->salt_key != ESYS_TR_NONE)
+        Esys_FlushContext(cprov->esys_ctx, cprov->salt_key);
     free(cprov->capability.properties);
     free(cprov->capability.algorithms);
     free(cprov->capability.commands);
@@ -525,6 +527,12 @@ OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
                            TPM2_CAP_COMMANDS, 0, TPM2_MAX_CAP_CC,
                            NULL, &cprov->capability.commands);
     TPM2_CHECK_RC(cprov->core, r, TPM2_ERR_CANNOT_GET_CAPABILITY, goto err4);
+
+    if (!tpm2_create_salt_key(cprov->esys_ctx, cprov->capability.algorithms,
+                              &cprov->salt_key)) {
+        TPM2_ERROR_raise(cprov->core, TPM2_ERR_CANNOT_START_SESSION);
+        goto err4;
+    }
 
     *out = tpm2_dispatch_table;
     *provctx = cprov;

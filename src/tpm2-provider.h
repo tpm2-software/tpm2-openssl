@@ -30,6 +30,7 @@ struct tpm2_provider_ctx_st {
     tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
     TPM2_CAPABILITY capability;
+    ESYS_TR salt_key;
 };
 
 typedef enum {
@@ -58,6 +59,7 @@ typedef struct {
     tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
     TPM2_CAPABILITY capability;
+    ESYS_TR salt_key;
     ESYS_TR object;
 } TPM2_PKEY;
 
@@ -88,7 +90,8 @@ enum {
     TPM2_ERR_VERIFICATION_FAILED,
     TPM2_ERR_CANNOT_ENCRYPT,
     TPM2_ERR_CANNOT_DECRYPT,
-    TPM2_ERR_CANNOT_DUPLICATE
+    TPM2_ERR_CANNOT_DUPLICATE,
+    TPM2_ERR_CANNOT_START_SESSION
 };
 
 int
@@ -151,6 +154,16 @@ tpm2_supports_command(const TPMS_CAPABILITY_DATA *caps, TPM2_CC command);
 
 uint16_t
 tpm2_max_nvindex_buffer(const TPMS_CAPABILITY_DATA *caps);
+
+int
+tpm2_create_salt_key(ESYS_CONTEXT *esys_ctx, const TPMS_CAPABILITY_DATA *algorithms,
+                     ESYS_TR *salt_key);
+
+int
+tpm2_start_auth_session(ESYS_CONTEXT *esys_ctx, ESYS_TR salt_key, ESYS_TR *session);
+
+void
+tpm2_end_auth_session(ESYS_CONTEXT *esys_ctx, ESYS_TR *session);
 
 typedef const OSSL_DISPATCH *(tpm2_dispatch_t)(const TPM2_CAPABILITY *);
 
