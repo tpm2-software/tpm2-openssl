@@ -20,6 +20,7 @@ struct tpm2_signature_ctx_st {
             const OSSL_CORE_HANDLE *core;
             tpm2_semaphore_t esys_lock;
             ESYS_CONTEXT *esys_ctx;
+            ESYS_TR salt_key;
         };
     };
     TPM2_CAPABILITY capability;
@@ -329,6 +330,7 @@ tpm2_signature_sign(void *ctx, unsigned char *sig, size_t *siglen, size_t sigsiz
     TPM2_SIGNATURE_CTX *sctx = ctx;
     TPM2B_DIGEST digest;
     TSS2_RC r;
+    ESYS_TR session = ESYS_TR_NONE;
 
     TPMT_TK_HASHCHECK empty_validation = {
         .tag = TPM2_ST_HASHCHECK,
@@ -357,9 +359,15 @@ tpm2_signature_sign(void *ctx, unsigned char *sig, size_t *siglen, size_t sigsiz
 
     if (!tpm2_semaphore_lock(sctx->esys_lock))
         return 0;
+
+    if (!tpm2_start_auth_session(sctx->esys_ctx, sctx->salt_key, &session)) {
+        tpm2_semaphore_unlock(sctx->esys_lock);
+        return 0;
+    }
     r = Esys_Sign(sctx->esys_ctx, sctx->pkey->object,
-                  ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                  session, ESYS_TR_NONE, ESYS_TR_NONE,
                   &digest, &sctx->signScheme, &empty_validation, &sctx->signature);
+    tpm2_end_auth_session(sctx->esys_ctx, &session);
     tpm2_semaphore_unlock(sctx->esys_lock);
     TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_SIGN, return 0);
 
@@ -427,6 +435,7 @@ digest_sign_calculate(TPM2_SIGNATURE_CTX *sctx)
     TSS2_RC r;
     TPM2B_DIGEST *digest = NULL;
     TPMT_TK_HASHCHECK *validation = NULL;
+    ESYS_TR session = ESYS_TR_NONE;
 
     DBG("SIGN DIGEST_SIGN_CALCULATE\n");
     if (!tpm2_hash_sequence_complete((TPM2_HASH_SEQUENCE *)sctx, &digest, &validation))
@@ -437,11 +446,19 @@ digest_sign_calculate(TPM2_SIGNATURE_CTX *sctx)
 
     if (!tpm2_semaphore_lock(sctx->esys_lock))
         return 0;
+
+    if (!tpm2_start_auth_session(sctx->esys_ctx, sctx->salt_key, &session)) {
+        free(digest);
+        free(validation);
+        tpm2_semaphore_unlock(sctx->esys_lock);
+        return 0;
+    }
     r = Esys_Sign(sctx->esys_ctx, sctx->pkey->object,
-                  ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                  session, ESYS_TR_NONE, ESYS_TR_NONE,
                   digest, &sctx->signScheme, validation, &sctx->signature);
     free(digest);
     free(validation);
+    tpm2_end_auth_session(sctx->esys_ctx, &session);
     tpm2_semaphore_unlock(sctx->esys_lock);
     TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_SIGN, return 0);
 
@@ -478,6 +495,7 @@ tpm2_signature_digest_sign(void *ctx, unsigned char *sig, size_t *siglen,
     TPM2_SIGNATURE_CTX *sctx = ctx;
     TPM2B_DIGEST *digest = NULL;
     TPMT_TK_HASHCHECK *validation = NULL;
+    ESYS_TR session = ESYS_TR_NONE;
 
     if (sig == NULL) {
         DBG("SIGN DIGEST_SIGN estimate\n");
@@ -502,11 +520,19 @@ tpm2_signature_digest_sign(void *ctx, unsigned char *sig, size_t *siglen,
 
     if (!tpm2_semaphore_lock(sctx->esys_lock))
         return 0;
+
+    if (!tpm2_start_auth_session(sctx->esys_ctx, sctx->salt_key, &session)) {
+        free(digest);
+        free(validation);
+        tpm2_semaphore_unlock(sctx->esys_lock);
+        return 0;
+    }
     r = Esys_Sign(sctx->esys_ctx, sctx->pkey->object,
-                  ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                  session, ESYS_TR_NONE, ESYS_TR_NONE,
                   digest, &sctx->signScheme, validation, &sctx->signature);
     free(digest);
     free(validation);
+    tpm2_end_auth_session(sctx->esys_ctx, &session);
     tpm2_semaphore_unlock(sctx->esys_lock);
     TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_SIGN, return 0);
 

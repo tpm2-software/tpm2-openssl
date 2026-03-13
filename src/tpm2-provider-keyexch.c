@@ -18,6 +18,7 @@ struct tpm2_keyexch_ctx_st {
     OSSL_LIB_CTX *libctx;
     tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
+    ESYS_TR salt_key;
     TPM2_PKEY *pkey;
     TPM2B_ECC_POINT peer;
     /* KDF settings */
@@ -51,6 +52,7 @@ tpm2_keyexch_newctx(void *provctx)
     kexc->libctx = cprov->libctx;
     kexc->esys_lock = cprov->esys_lock;
     kexc->esys_ctx = cprov->esys_ctx;
+    kexc->salt_key = cprov->salt_key;
     return kexc;
 }
 
@@ -100,6 +102,7 @@ tpm2_keyexch_derive_kdf(TPM2_KEYEXCH_CTX *kexc, unsigned char *secret,
     EVP_KDF_CTX *kctx = NULL;
     OSSL_PARAM params[4], *p = params;
     int res = 0;
+    ESYS_TR session = ESYS_TR_NONE;
 
     if (secret == NULL) {
         *secretlen = kexc->kdf_outlen;
@@ -114,9 +117,15 @@ tpm2_keyexch_derive_kdf(TPM2_KEYEXCH_CTX *kexc, unsigned char *secret,
 
     if (!tpm2_semaphore_lock(kexc->esys_lock))
         return 0;
+
+    if (!tpm2_start_auth_session(kexc->esys_ctx, kexc->salt_key, &session)) {
+        tpm2_semaphore_unlock(kexc->esys_lock);
+        return 0;
+    }
     r = Esys_ECDH_ZGen(kexc->esys_ctx, kexc->pkey->object,
-                       ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                       session, ESYS_TR_NONE, ESYS_TR_NONE,
                        &kexc->peer, &outPoint);
+    tpm2_end_auth_session(kexc->esys_ctx, &session);
     tpm2_semaphore_unlock(kexc->esys_lock);
     TPM2_CHECK_RC(kexc->core, r, TPM2_ERR_CANNOT_GENERATE, return 0);
 
@@ -148,14 +157,21 @@ tpm2_keyexch_derive_plain(TPM2_KEYEXCH_CTX *kexc, unsigned char *secret,
 {
     TPM2B_ECC_POINT *outPoint = NULL;
     TSS2_RC r;
+    ESYS_TR session = ESYS_TR_NONE;
 
     DBG("KEYEXCH DERIVE plain\n");
 
     if (!tpm2_semaphore_lock(kexc->esys_lock))
         return 0;
+
+    if (!tpm2_start_auth_session(kexc->esys_ctx, kexc->salt_key, &session)) {
+        tpm2_semaphore_unlock(kexc->esys_lock);
+        return 0;
+    }
     r = Esys_ECDH_ZGen(kexc->esys_ctx, kexc->pkey->object,
-                       ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                       session, ESYS_TR_NONE, ESYS_TR_NONE,
                        &kexc->peer, &outPoint);
+    tpm2_end_auth_session(kexc->esys_ctx, &session);
     tpm2_semaphore_unlock(kexc->esys_lock);
     TPM2_CHECK_RC(kexc->core, r, TPM2_ERR_CANNOT_GENERATE, return 0);
 
