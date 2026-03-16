@@ -167,3 +167,112 @@ tpm2_max_nvindex_buffer(const TPMS_CAPABILITY_DATA *caps)
 
     return max_nv_size;
 }
+
+int
+tpm2_create_salt_key(ESYS_CONTEXT *esys_ctx,
+                     const TPMS_CAPABILITY_DATA *algorithms,
+                     ESYS_TR *salt_key)
+{
+    TSS2_RC r;
+    TPM2B_PUBLIC inPublic = { 0 };
+    TPM2B_SENSITIVE_CREATE inSensitive = {
+        .size = 0,
+        .sensitive = {
+            .userAuth = { .size = 0 },
+            .data = { .size = 0 },
+        },
+    };
+    TPM2B_DATA outsideInfo = { .size = 0 };
+    TPML_PCR_SELECTION creationPCR = { .count = 0 };
+    ESYS_TR objectHandle = ESYS_TR_NONE;
+
+    inPublic.publicArea.nameAlg = TPM2_ALG_SHA256;
+    inPublic.publicArea.objectAttributes =
+        TPMA_OBJECT_FIXEDTPM | TPMA_OBJECT_FIXEDPARENT |
+        TPMA_OBJECT_SENSITIVEDATAORIGIN | TPMA_OBJECT_DECRYPT |
+        TPMA_OBJECT_NODA | TPMA_OBJECT_USERWITHAUTH;
+
+    if (tpm2_supports_algorithm(algorithms, TPM2_ALG_ECC)) {
+        inPublic.publicArea.type = TPM2_ALG_ECC;
+        inPublic.publicArea.parameters.eccDetail.symmetric.algorithm = TPM2_ALG_NULL;
+        inPublic.publicArea.parameters.eccDetail.scheme.scheme = TPM2_ALG_ECDH;
+        inPublic.publicArea.parameters.eccDetail.scheme.details.ecdh.hashAlg = TPM2_ALG_SHA256;
+        inPublic.publicArea.parameters.eccDetail.curveID = TPM2_ECC_NIST_P256;
+        inPublic.publicArea.parameters.eccDetail.kdf.scheme = TPM2_ALG_NULL;
+        inPublic.publicArea.unique.ecc.x.size = 0;
+        inPublic.publicArea.unique.ecc.y.size = 0;
+    } else {
+        inPublic.publicArea.type = TPM2_ALG_RSA;
+        inPublic.publicArea.parameters.rsaDetail.symmetric.algorithm = TPM2_ALG_NULL;
+        inPublic.publicArea.parameters.rsaDetail.scheme.scheme = TPM2_ALG_OAEP;
+        inPublic.publicArea.parameters.rsaDetail.scheme.details.oaep.hashAlg = TPM2_ALG_SHA256;
+        inPublic.publicArea.parameters.rsaDetail.keyBits = 2048;
+        inPublic.publicArea.parameters.rsaDetail.exponent = 0;
+        inPublic.publicArea.unique.rsa.size = 0;
+    }
+
+    r = Esys_CreatePrimary(esys_ctx,
+                           ESYS_TR_RH_NULL,
+                           ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                           &inSensitive, &inPublic,
+                           &outsideInfo, &creationPCR,
+                           &objectHandle,
+                           NULL, NULL, NULL, NULL);
+    if (r != TSS2_RC_SUCCESS) {
+        *salt_key = ESYS_TR_NONE;
+        return 0;
+    }
+
+    *salt_key = objectHandle;
+    return 1;
+}
+
+int
+tpm2_start_auth_session(ESYS_CONTEXT *esys_ctx, ESYS_TR salt_key,
+                        ESYS_TR *session)
+{
+    TSS2_RC r;
+    TPMT_SYM_DEF symmetric = {
+        .algorithm = TPM2_ALG_AES,
+        .keyBits = { .aes = 128 },
+        .mode = { .aes = TPM2_ALG_CFB },
+    };
+
+    r = Esys_StartAuthSession(esys_ctx,
+                              salt_key,
+                              ESYS_TR_NONE,
+                              ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
+                              NULL,
+                              TPM2_SE_HMAC,
+                              &symmetric,
+                              TPM2_ALG_SHA256,
+                              session);
+    if (r != TSS2_RC_SUCCESS) {
+        *session = ESYS_TR_NONE;
+        return 0;
+    }
+
+    r = Esys_TRSess_SetAttributes(esys_ctx, *session,
+                                  TPMA_SESSION_DECRYPT |
+                                  TPMA_SESSION_ENCRYPT |
+                                  TPMA_SESSION_CONTINUESESSION,
+                                  TPMA_SESSION_DECRYPT |
+                                  TPMA_SESSION_ENCRYPT |
+                                  TPMA_SESSION_CONTINUESESSION);
+    if (r != TSS2_RC_SUCCESS) {
+        Esys_FlushContext(esys_ctx, *session);
+        *session = ESYS_TR_NONE;
+        return 0;
+    }
+
+    return 1;
+}
+
+void
+tpm2_end_auth_session(ESYS_CONTEXT *esys_ctx, ESYS_TR *session)
+{
+    if (*session != ESYS_TR_NONE) {
+        Esys_FlushContext(esys_ctx, *session);
+        *session = ESYS_TR_NONE;
+    }
+}

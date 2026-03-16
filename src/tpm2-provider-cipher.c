@@ -20,6 +20,7 @@ struct tpm2_cipher_ctx_st {
     tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
     TPM2_CAPABILITY capability;
+    ESYS_TR salt_key;
     ESYS_TR object;
     TPMT_SYM_DEF_OBJECT algorithm;
     size_t block_size;
@@ -53,6 +54,7 @@ tpm2_cipher_all_newctx(void *provctx,
     cctx->esys_lock = cprov->esys_lock;
     cctx->esys_ctx = cprov->esys_ctx;
     cctx->capability = cprov->capability;
+    cctx->salt_key = cprov->salt_key;
     cctx->algorithm = algdef;
     cctx->block_size = block_bits/8;
     cctx->padding = 1;
@@ -135,25 +137,33 @@ tpm2_load_external_key(TPM2_CIPHER_CTX *cctx, ESYS_TR parent,
     TPML_PCR_SELECTION creation_pcr = { .count = 0 };
     TPM2B_PUBLIC *keyPublic = NULL;
     TPM2B_PRIVATE *keyPrivate = NULL;
+    ESYS_TR session = ESYS_TR_NONE;
 
     if (!tpm2_semaphore_lock(cctx->esys_lock))
         return 0;
+
+    if (!tpm2_start_auth_session(cctx->esys_ctx, cctx->salt_key, &session))
+        goto error;
     /* older TPM2 chips do not support Esys_CreateLoaded */
     r = Esys_Create(cctx->esys_ctx, parent,
-                    ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                    session, ESYS_TR_NONE, ESYS_TR_NONE,
                     &inSensitive, &inPublic, &outside_info, &creation_pcr,
                     &keyPrivate, &keyPublic, NULL, NULL, NULL);
     if (!r) {
         r = Esys_Load(cctx->esys_ctx, parent,
-                      ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                      session, ESYS_TR_NONE, ESYS_TR_NONE,
                       keyPrivate, keyPublic, &cctx->object);
         free(keyPublic);
         cleanse_free(keyPrivate, sizeof(TPM2B_PRIVATE));
     }
+    tpm2_end_auth_session(cctx->esys_ctx, &session);
     tpm2_semaphore_unlock(cctx->esys_lock);
     TPM2_CHECK_RC(cctx->core, r, TPM2_ERR_CANNOT_CREATE_KEY, return 0);
 
     return 1;
+error:
+    tpm2_semaphore_unlock(cctx->esys_lock);
+    return 0;
 }
 
 static int
@@ -172,7 +182,7 @@ tpm2_cipher_init(TPM2_CIPHER_CTX *cctx,
 
         if (!tpm2_build_primary(cctx->core, cctx->esys_lock, cctx->esys_ctx,
                                 cctx->capability.algorithms,
-                                ESYS_TR_RH_NULL, NULL, &parent))
+                                ESYS_TR_RH_NULL, NULL, cctx->salt_key, &parent))
             return 0;
 
         res = tpm2_load_external_key(cctx, parent, key, keylen);
@@ -224,19 +234,26 @@ encrypt_decrypt(TPM2_CIPHER_CTX *cctx,
                 TPM2B_MAX_BUFFER **outbuff, TPM2B_IV **ivector)
 {
     TSS2_RC r;
-
+    ESYS_TR session = ESYS_TR_NONE;
+    
     if (!tpm2_semaphore_lock(cctx->esys_lock))
         return 0;
+
+    if (!tpm2_start_auth_session(cctx->esys_ctx, cctx->salt_key, &session)) {
+        tpm2_semaphore_unlock(cctx->esys_lock);
+        return 0;
+    }
     r = Esys_EncryptDecrypt2(cctx->esys_ctx, cctx->object,
-                             ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                             session, ESYS_TR_NONE, ESYS_TR_NONE,
                              &cctx->buffer, cctx->decrypt, TPM2_ALG_NULL,
                              cctx->ivector, outbuff, ivector);
     if ((r & 0xFFFF) == TPM2_RC_COMMAND_CODE) {
         r = Esys_EncryptDecrypt(cctx->esys_ctx, cctx->object,
-                                ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                                session, ESYS_TR_NONE, ESYS_TR_NONE,
                                 cctx->decrypt, TPM2_ALG_NULL, cctx->ivector,
                                 &cctx->buffer, outbuff, ivector);
     }
+    tpm2_end_auth_session(cctx->esys_ctx, &session);
     tpm2_semaphore_unlock(cctx->esys_lock);
 
     return r;

@@ -23,6 +23,7 @@ struct tpm2_tss2_decoder_ctx_st {
     tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
     TPM2_CAPABILITY capability;
+    ESYS_TR salt_key;
     TPM2B_DIGEST parentAuth;
 };
 
@@ -46,6 +47,7 @@ tpm2_tss2_decoder_newctx(void *provctx)
     dctx->esys_lock = cprov->esys_lock;
     dctx->esys_ctx = cprov->esys_ctx;
     dctx->capability = cprov->capability;
+    dctx->salt_key = cprov->salt_key;
     return dctx;
 }
 
@@ -79,15 +81,22 @@ decode_privkey(TPM2_TSS2_DECODER_CTX *dctx, TPM2_PKEY *pkey,
             DBG("TSS2 DECODER LOAD parent: primary 0x%x\n", TPM2_RH_OWNER);
             if (!tpm2_build_primary(pkey->core, pkey->esys_lock, pkey->esys_ctx,
                                     pkey->capability.algorithms,
-                                    ESYS_TR_RH_OWNER, &dctx->parentAuth, &parent))
+                                    ESYS_TR_RH_OWNER, &dctx->parentAuth, pkey->salt_key, &parent))
                 goto error1;
         }
 
         if (!tpm2_semaphore_lock(pkey->esys_lock))
             goto error1;
+
+        ESYS_TR session = ESYS_TR_NONE;
+        if (!tpm2_start_auth_session(pkey->esys_ctx, pkey->salt_key, &session)) {
+            tpm2_semaphore_unlock(pkey->esys_lock);
+            goto error1;
+        }
         r = Esys_Load(pkey->esys_ctx, parent,
-                      ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                      session, ESYS_TR_NONE, ESYS_TR_NONE,
                       &pkey->data.priv, &pkey->data.pub, &pkey->object);
+        tpm2_end_auth_session(pkey->esys_ctx, &session);
 
         if (pkey->data.parent && pkey->data.parent != TPM2_RH_OWNER)
             Esys_TR_Close(pkey->esys_ctx, &parent);
@@ -171,6 +180,7 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
     pkey->esys_lock = dctx->esys_lock;
     pkey->esys_ctx = dctx->esys_ctx;
     pkey->capability = dctx->capability;
+    pkey->salt_key = dctx->salt_key;
     pkey->object = ESYS_TR_NONE;
 
     if (selection == 0 || (selection & OSSL_KEYMGMT_SELECT_ALL) != 0)
