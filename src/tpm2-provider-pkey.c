@@ -53,6 +53,7 @@ int
 tpm2_keydata_write(const TPM2_KEYDATA *keydata, BIO *bout, TPM2_PKEY_FORMAT format)
 {
     TSSPRIVKEY *tpk = NULL;
+    BIGNUM *bn_parent = NULL;
 
     uint8_t privbuf[sizeof(keydata->priv)];
     uint8_t pubbuf[sizeof(keydata->pub)];
@@ -74,13 +75,18 @@ tpm2_keydata_write(const TPM2_KEYDATA *keydata, BIO *bout, TPM2_PKEY_FORMAT form
     if (!tpk->type)
         goto error;
 
-    // note the ASN1_INTEGER_set is not reliable for uin32_t on 32-bit machines
     tpk->emptyAuth = ! !keydata->emptyAuth;
+    // note the ASN1_INTEGER_set is not reliable for uin32_t on 32-bit machines
+    // instead we're using big nums by setting a word (which is unsigned)
+    bn_parent = BN_new();
+    if (!bn_parent)
+        goto error;
     if (keydata->parent != 0)
-        ASN1_INTEGER_set_uint64(tpk->parent, keydata->parent);
+        BN_set_word(bn_parent, keydata->parent);
     else
-        ASN1_INTEGER_set_uint64(tpk->parent, TPM2_RH_OWNER);
-
+        BN_set_word(bn_parent, TPM2_RH_OWNER);
+    if (!BN_to_ASN1_INTEGER(bn_parent, tpk->parent))
+        goto error;
     ASN1_STRING_set(tpk->privkey, &privbuf[0], privbuf_len);
     ASN1_STRING_set(tpk->pubkey, &pubbuf[0], pubbuf_len);
 
@@ -95,9 +101,12 @@ tpm2_keydata_write(const TPM2_KEYDATA *keydata, BIO *bout, TPM2_PKEY_FORMAT form
         goto error;
     }
 
+    BN_free(bn_parent);
     TSSPRIVKEY_free(tpk);
     return 1;
 error:
+    if (bn_parent)
+        BN_free(bn_parent);
     TSSPRIVKEY_free(tpk);
     return 0;
 }
@@ -114,7 +123,9 @@ error:
 int
 tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata, TPM2_PKEY_FORMAT format)
 {
-    uint64_t parent;
+    BIGNUM *bn_parent = NULL;
+    BN_ULONG parent;
+    BN_ULONG all_bits_set = (BN_ULONG)~(BN_ULONG)0;
     TSSPRIVKEY *tpk = NULL;
     char type_oid[64];
 
@@ -134,16 +145,39 @@ tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata, TPM2_PKEY_FORMAT format)
     keydata->privatetype = KEY_TYPE_BLOB;
     keydata->emptyAuth = (tpk->emptyAuth != V_ASN1_UNDEF && tpk->emptyAuth);
 
-    // the ASN1_INTEGER_get on a 32-bit machine will fail for numbers of UINT32_MAX
-    if (!ASN1_INTEGER_get_uint64(&parent, tpk->parent))
+    // COMPATIBILITY:
+    // The parent handle of TPM2_TSS keys created with provider version < 1.2 or engine version <1.2.0-rc0 have been written using ASN1_INTEGER_set
+    // ASN1_INTEGER_set takes a (signed) long (which on 32-bit systems is 32-bit and on 64-bit systems is 64bit)
+    // As parent handles are in the range of 0x81000000 - 0x81FFFFFF the MSB on a 32-bit system is always set, and therefore is treated as negative.
+    // This won't be the case on 64 bit systems or in case the handle had been written using BN_set_word().
+    //
+    // The parent handle of TPM2_TSS keys create with provider verision 1.2 - 1.3 have been written using ASN1_INTEGER_set_uint64.
+    // These values can safely be read using BN_get_word, as the values written always were of type TPM2_HANDLE (uint32_t).
+    // 
+    // | provider version | engine version  | write method                         | read method                                        |
+    // | tpm2-openssl     | tpm2-tss-engine | according to provider/engine version | according to latest provider/engine implementation |
+    // | -----------------+-----------------+--------------------------------------+----------------------------------------------------|
+    // | <1.2.0           |  <1.2.0-rc0     | ASN1_INTEGER_get                     | ASN1_integer_set                                   |
+    // | 1.2.0 - 1.3.0    |                 | ASN1_INTEGER_set_uint64              | BN_get_word                                        |
+    // | >1.3.0           |  >=1.2.0-rc0    | BN_set_word                          | BN_get_word                                        |
+    bn_parent = ASN1_INTEGER_to_BN(tpk->parent, NULL);
+    if (!bn_parent)
         goto error;
 
-    if (parent == 0)
-        keydata->parent = TPM2_RH_OWNER;
-    else if (parent <= UINT32_MAX)
+    if (BN_is_negative(bn_parent)) {
+        keydata->parent = ASN1_INTEGER_get(tpk->parent);
+     } else {
+        parent = BN_get_word(bn_parent);
+        // BN_get_words set's all bits in case of an error.
+        // BN_ULONG is 32-bits on 32-bit systems and 64-bits on 64-bit systems.
+        // Looking at the size of data types only UINT32_MAX (all_bits_set on a 32-bit system) would be a valid value to store in keydata->parent (which is of type TPM2_HANDLE).
+        // As parent handles are always in the range of 0x81000000 - 0x81FFFFFF it's okay to treat UINT32_MAX as error.
+        if (parent == all_bits_set)
+            goto error;
         keydata->parent = parent;
-    else
-        goto error;
+    }
+    if (keydata->parent == 0)
+        keydata->parent = TPM2_RH_OWNER;
 
     if (!OBJ_obj2txt(type_oid, sizeof(type_oid), tpk->type, 1) ||
             strcmp(type_oid, OID_loadableKey))
@@ -159,9 +193,13 @@ tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata, TPM2_PKEY_FORMAT format)
                                        &keydata->pub))
         goto error;
 
+    BN_free(bn_parent);
     TSSPRIVKEY_free(tpk);
     return 1;
  error:
+    if (bn_parent) {
+        BN_free(bn_parent);
+    }
     TSSPRIVKEY_free(tpk);
     return 0;
 }
