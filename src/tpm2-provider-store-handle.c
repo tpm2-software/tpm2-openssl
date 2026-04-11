@@ -188,12 +188,11 @@ tpm2_handle_load_pkey(TPM2_HANDLE_CTX *sctx, ESYS_TR object,
     TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto final);
 
     pkey->data.pub = *out_public;
+    Esys_Free(out_public);
     pkey->data.privatetype = KEY_TYPE_HANDLE;
     pkey->data.handle = sctx->handle;
     if (!sctx->has_pass)
         pkey->data.emptyAuth = 1;
-
-    free(out_public);
 
     OSSL_PARAM params[4];
     int object_type = OSSL_OBJECT_PKEY;

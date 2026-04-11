@@ -29,6 +29,8 @@ AC_C_BIGENDIAN
 AX_PTHREAD
 LT_INIT([disable-static])
 
+AC_CHECK_HEADERS([sys/endian.h])
+
 AC_ARG_ENABLE([op-digest],
     AS_HELP_STRING([--enable-op-digest], [Enable digest operations]))
 AM_CONDITIONAL(WITH_OP_DIGEST, test "x$enable_op_digest" == "xyes")

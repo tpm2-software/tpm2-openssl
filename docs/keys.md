@@ -165,7 +165,8 @@ an empty password or anything else.
 The tpm2 provider implements three
 [OSSL_OP_STORE](https://www.openssl.org/docs/manmaster/man7/provider-storemgmt.html)
 loaders:
- * **file** (default), to load the PEM file (`TSS2 PRIVATE KEY`);
+ * **file** (default), to load the PEM file (`TSS2 PRIVATE KEY`) or the
+   [context object](https://github.com/tpm2-software/tpm2-tools/blob/master/man/common/ctxobj.md);
  * **handle**, to load persistent keys, or data (public keys or certificates)
    from NV indices;
  * **object**, to load serialized object representing a persistent handle.
@@ -198,6 +199,16 @@ an interactive password prompt appears.
 For example, to use the password `abc`:
 ```
 openssl rsa -provider tpm2 -provider base -modulus -noout -in testkey.priv -passin pass:abc
+```
+
+### Using Context Object
+
+Transient keys can be loaded using the context file. For example, the keys in NULL
+hierarchy cannot be made persistent.
+
+```
+tpm2_createprimary -C n -G rsa -c key.ctx
+openssl rsa -provider tpm2 -provider base -modulus -noout -in key.ctx -passin pass:
 ```
 
 ### Using Key Handle

@@ -228,14 +228,21 @@ static const OSSL_ALGORITHM tpm2_encoders[] = {
     { NULL, NULL, NULL }
 };
 
-extern const OSSL_DISPATCH tpm2_der_decoder_functions[];
-extern const OSSL_DISPATCH tpm2_tss_to_rsa_decoder_functions[];
-extern const OSSL_DISPATCH tpm2_tss_to_ec_decoder_functions[];
+extern const OSSL_DISPATCH tpm2_pem_to_tss2_decoder_functions[];
+extern const OSSL_DISPATCH tpm2_tss2_to_rsa_decoder_functions[];
+extern const OSSL_DISPATCH tpm2_tss2_to_ec_decoder_functions[];
+extern const OSSL_DISPATCH tpm2_raw_to_ctx_decoder_functions[];
+extern const OSSL_DISPATCH tpm2_ctx_to_rsa_decoder_functions[];
+extern const OSSL_DISPATCH tpm2_ctx_to_ec_decoder_functions[];
 
 static const OSSL_ALGORITHM tpm2_decoders[] = {
-    { "DER", "provider=tpm2,input=pem", tpm2_der_decoder_functions },
-    { "RSA", "provider=tpm2,input=der,structure=TSS2", tpm2_tss_to_rsa_decoder_functions },
-    { "EC", "provider=tpm2,input=der,structure=TSS2", tpm2_tss_to_ec_decoder_functions },
+    { "DER", "provider=tpm2,input=pem", tpm2_pem_to_tss2_decoder_functions },
+    { "RSA", "provider=tpm2,input=der,structure=TSS2", tpm2_tss2_to_rsa_decoder_functions },
+    { "EC", "provider=tpm2,input=der,structure=TSS2", tpm2_tss2_to_ec_decoder_functions },
+    // not really DER
+    { "DER", "provider=tpm2,input=der,structure=TPMS_CONTEXT", tpm2_raw_to_ctx_decoder_functions },
+    { "RSA", "provider=tpm2,input=der,structure=TPMS_CONTEXT", tpm2_ctx_to_rsa_decoder_functions },
+    { "EC", "provider=tpm2,input=der,structure=TPMS_CONTEXT", tpm2_ctx_to_ec_decoder_functions },
     { NULL, NULL, NULL }
 };
 

@@ -154,7 +154,7 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
     BIO *bin;
     const char *keytype = NULL;
     OSSL_PARAM params[4];
-    int fpos, object_type;
+    int object_type;
     int res = 0;
 
     DBG("TSS2 DECODER DECODE 0x%x\n", selection);
@@ -163,9 +163,6 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
 
     if ((bin = BIO_new_from_core_bio(dctx->libctx, cin)) == NULL)
         goto error1;
-
-    if ((fpos = BIO_tell(bin)) == -1)
-        goto error2;
 
     pkey->core = dctx->core;
     pkey->esys_lock = dctx->esys_lock;
@@ -176,7 +173,7 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
     if (selection == 0 || (selection & OSSL_KEYMGMT_SELECT_ALL) != 0)
         keytype = decode_privkey(dctx, pkey, bin, pw_cb, pw_cbarg);
 
-    if (pkey->data.pub.publicArea.type == expected_type) {
+    if (keytype && pkey->data.pub.publicArea.type == expected_type) {
         object_type = OSSL_OBJECT_PKEY;
         params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
 
@@ -196,7 +193,7 @@ tpm2_tss2_decoder_decode(void *ctx, OSSL_CORE_BIO *cin, int selection,
         /* We return "empty handed". This is not an error. */
         res = 1;
     }
-error2:
+
     BIO_free(bin);
 error1:
     if (pkey->object != ESYS_TR_NONE) {
@@ -249,7 +246,7 @@ tpm2_tss2_decoder_export_object(void *ctx, const void *objref, size_t objref_sz,
     return 0;
 }
 
-const OSSL_DISPATCH tpm2_tss_to_rsa_decoder_functions[] = {
+const OSSL_DISPATCH tpm2_tss2_to_rsa_decoder_functions[] = {
     { OSSL_FUNC_DECODER_NEWCTX, (void (*)(void))tpm2_tss2_decoder_newctx },
     { OSSL_FUNC_DECODER_FREECTX, (void (*)(void))tpm2_tss2_decoder_freectx },
     { OSSL_FUNC_DECODER_DECODE, (void (*)(void))tpm2_tss2_decoder_decode_rsa },
@@ -257,7 +254,7 @@ const OSSL_DISPATCH tpm2_tss_to_rsa_decoder_functions[] = {
     { 0, NULL }
 };
 
-const OSSL_DISPATCH tpm2_tss_to_ec_decoder_functions[] = {
+const OSSL_DISPATCH tpm2_tss2_to_ec_decoder_functions[] = {
     { OSSL_FUNC_DECODER_NEWCTX, (void (*)(void))tpm2_tss2_decoder_newctx },
     { OSSL_FUNC_DECODER_FREECTX, (void (*)(void))tpm2_tss2_decoder_freectx },
     { OSSL_FUNC_DECODER_DECODE, (void (*)(void))tpm2_tss2_decoder_decode_ec },

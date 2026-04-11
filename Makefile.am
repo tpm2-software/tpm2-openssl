@@ -17,8 +17,12 @@ tpm2_la_SOURCES = \
     src/tpm2-provider-pkey.c \
     src/tpm2-provider-pkey.h \
     src/tpm2-provider-store-handle.c \
-    src/tpm2-provider-decoder-der.c \
+    src/tpm2-provider-ctx.c \
+    src/tpm2-provider-ctx.h \
+    src/tpm2-provider-decoder-pem.c \
     src/tpm2-provider-decoder-tss2.c \
+    src/tpm2-provider-decoder-raw.c \
+    src/tpm2-provider-decoder-ctx.c \
     src/tpm2-provider-encoder.c \
     src/tpm2-provider-keymgmt-rsa.c \
     src/tpm2-provider-keymgmt-ec.c \
@@ -103,6 +107,7 @@ TESTS_SHELL = test/list.sh \
               test/rsa_createak_auth.sh \
               test/rsa_createak_sign_object.sh \
               test/rsa_createak_sign_handle.sh \
+              test/rsa_import_null_sign.sh \
               test/rsa_create_decrypt_pkcs1.sh \
               test/rsa_create_decrypt_oaep.sh \
               test/rsa_genpkey_x509_cert.sh \
@@ -120,6 +125,7 @@ TESTS_SHELL = test/list.sh \
               test/ecdsa_genpkey_sign_auth.sh \
               test/ecdsa_genpkey_sign_rawin.sh \
               test/ecdsa_createak_sign_handle.sh \
+              test/ecdsa_import_null_sign.sh \
               test/ecdh_genpkey_keyexch.sh \
               test/ecdh_create_keyexch_index.sh \
               test/ec_createak_x509_cert.sh \
