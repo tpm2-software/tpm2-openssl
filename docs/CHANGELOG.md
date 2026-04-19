@@ -1,7 +1,22 @@
 # Change Log
-All notable changes to this project will be documented in this file.
+All notable changes to this project are documented in this file.
 
-The format is based on [Keep a Changelog](http://keepachangelog.com/)
+The format is based on [Keep a Changelog](http://keepachangelog.com/).
+
+## [1.3.1] - 2026-04-27
+### Fixed
+- Fixed compatibility with OpenSSL 4.0.
+- Fixed the ECDSA signature algorithm to omit the parameters field (thanks to
+  @smhmeier).
+- Fixed cipher padding validation according to PKCS#5/PKCS#7, so zero padding
+  is now rejected (thanks to @hyperfinitism).
+- Fixed buffer indexing for block ciphers without padding (thanks to
+  @hyperfinitism).
+- Fixed cleansing of sensitive data upon buffer deallocation and fixed buffer
+  allocator consistency (thanks to @hyperfinitism).
+- Fixed missing NULL checks and harmless type cast errors in RSA and ECDSA
+  algorithms (thanks to @hyperfinitism).
+- Fixed semaphore destruction (thanks to @Deadolus).
 
 ## [1.3.0] - 2025-01-25
 ### Added
@@ -9,13 +24,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 - Added 'xof' and 'algid-absent' parameters to digests.
 - Added Parent to textual information printed by 'openssl pkey -text'.
 ### Fixed
-- Fixed multi-threaded operation, preventing the 'Esys called in bad sequence'
+- Fixed multi-threaded operation, preventing 'Esys called in bad sequence'
   errors (thanks to @Danigaralfo, @famez, and @AndreasFuchsTPM).
 - Fixed retrieval of OSSL_PKEY_PARAM_MAX_SIZE for RSA keys. The exact value
   is returned instead of a fixed TPM2_MAX_RSA_KEY_BYTES.
 - Fixed handling of absent emptyAuth value in the TSS2 PRIVATE KEY file.
 - Set authorization value of newly generated keys. This allows users of the
-  C API to direcly use just generated EVP_PKEY.
+  C API to directly use just generated EVP_PKEY.
 
 ## [1.2.0] - 2023-10-14
 ### Added
