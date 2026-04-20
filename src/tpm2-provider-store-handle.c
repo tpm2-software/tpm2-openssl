@@ -18,6 +18,7 @@ struct tpm2_handle_ctx_st {
     tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
     TPM2_CAPABILITY capability;
+    ESYS_TR salt_key;
     int has_pass;
     TPM2_HANDLE handle;
     BIO *bio;
@@ -47,6 +48,7 @@ tpm2_handle_open(void *provctx, const char *uri)
     ctx->esys_lock = cprov->esys_lock;
     ctx->esys_ctx = cprov->esys_ctx;
     ctx->capability = cprov->capability;
+    ctx->salt_key = cprov->salt_key;
 
     if ((baseuri = OPENSSL_strdup(uri)) == NULL)
         goto error1;
@@ -99,6 +101,7 @@ tpm2_handle_attach(void *provctx, OSSL_CORE_BIO *cin)
     ctx->esys_lock = cprov->esys_lock;
     ctx->esys_ctx = cprov->esys_ctx;
     ctx->capability = cprov->capability;
+    ctx->salt_key = cprov->salt_key;
 
     if ((ctx->bio = BIO_new_from_core_bio(cprov->libctx, cin)) == NULL)
         goto error;
@@ -177,6 +180,7 @@ tpm2_handle_load_pkey(TPM2_HANDLE_CTX *sctx, ESYS_TR object,
     pkey->esys_lock = sctx->esys_lock;
     pkey->esys_ctx = sctx->esys_ctx;
     pkey->capability = sctx->capability;
+    pkey->salt_key = sctx->salt_key;
     pkey->object = object;
 
     if (!tpm2_semaphore_lock(sctx->esys_lock))
@@ -249,12 +253,18 @@ tpm2_handle_load_index(TPM2_HANDLE_CTX *sctx, ESYS_TR object,
     while (read_len > 0) {
         uint16_t bytes_to_read = read_len < read_max ? read_len : read_max;
         TPM2B_MAX_NV_BUFFER *buff = NULL;
+        ESYS_TR session = ESYS_TR_NONE;
 
         if (!tpm2_semaphore_lock(sctx->esys_lock))
             goto final;
+        if (!tpm2_start_auth_session(sctx->esys_ctx, sctx->salt_key, &session)) {
+            tpm2_semaphore_unlock(sctx->esys_lock);
+            goto final;
+        }
         r = Esys_NV_Read(sctx->esys_ctx, object, object,
-                         ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                         session, ESYS_TR_NONE, ESYS_TR_NONE,
                          bytes_to_read, data_len, &buff);
+        tpm2_end_auth_session(sctx->esys_ctx, &session);
         tpm2_semaphore_unlock(sctx->esys_lock);
         TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto final);
 

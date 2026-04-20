@@ -16,6 +16,7 @@ tpm2_hash_sequence_init(TPM2_HASH_SEQUENCE *seq,
     seq->core = cprov->core;
     seq->esys_lock = cprov->esys_lock;
     seq->esys_ctx = cprov->esys_ctx;
+    seq->salt_key = cprov->salt_key;
     seq->algorithm = algin;
     seq->handle = ESYS_TR_NONE;
 }
@@ -36,6 +37,7 @@ tpm2_hash_sequence_dup(TPM2_HASH_SEQUENCE *seq, const TPM2_HASH_SEQUENCE *src)
     seq->core = src->core;
     seq->esys_lock = src->esys_lock;
     seq->esys_ctx = src->esys_ctx;
+    seq->salt_key = src->salt_key;
     seq->algorithm = src->algorithm;
 
     if (src->handle != ESYS_TR_NONE) {
@@ -84,6 +86,7 @@ tpm2_hash_sequence_update(TPM2_HASH_SEQUENCE *seq,
                           const unsigned char *data, size_t datalen)
 {
     TSS2_RC r;
+    ESYS_TR session = ESYS_TR_NONE;
 
     if (data == NULL)
         return 1;
@@ -104,8 +107,14 @@ tpm2_hash_sequence_update(TPM2_HASH_SEQUENCE *seq,
 
         if (!tpm2_semaphore_lock(seq->esys_lock))
             return 0;
+
+        if (!tpm2_start_auth_session(seq->esys_ctx, seq->salt_key, &session)) {
+            tpm2_semaphore_unlock(seq->esys_lock);
+            return 0;
+        }
         r = Esys_SequenceUpdate(seq->esys_ctx, seq->handle,
-                                ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE, &seq->buffer);
+                                session, ESYS_TR_NONE, ESYS_TR_NONE, &seq->buffer);
+        tpm2_end_auth_session(seq->esys_ctx, &session);
         tpm2_semaphore_unlock(seq->esys_lock);
         seq->buffer.size = 0;
         TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
@@ -119,22 +128,31 @@ tpm2_hash_sequence_complete(TPM2_HASH_SEQUENCE *seq,
                             TPM2B_DIGEST **digest, TPMT_TK_HASHCHECK **validation)
 {
     TSS2_RC r;
-
-    if (seq->buffer.size > 0) {
-        if (!tpm2_semaphore_lock(seq->esys_lock))
-            return 0;
-        r = Esys_SequenceUpdate(seq->esys_ctx, seq->handle,
-                                ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE, &seq->buffer);
-        tpm2_semaphore_unlock(seq->esys_lock);
-        seq->buffer.size = 0;
-        TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
-    }
-
+    ESYS_TR session = ESYS_TR_NONE;
+    
     if (!tpm2_semaphore_lock(seq->esys_lock))
         return 0;
+
+    if (!tpm2_start_auth_session(seq->esys_ctx, seq->salt_key, &session)) {
+        tpm2_semaphore_unlock(seq->esys_lock);
+        return 0;
+    }
+
+    if (seq->buffer.size > 0) {
+        r = Esys_SequenceUpdate(seq->esys_ctx, seq->handle,
+                                session, ESYS_TR_NONE, ESYS_TR_NONE, &seq->buffer);
+        seq->buffer.size = 0;
+        if (r != TPM2_RC_SUCCESS) {
+            tpm2_end_auth_session(seq->esys_ctx, &session);
+            tpm2_semaphore_unlock(seq->esys_lock);
+            TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
+        }
+    }
+
     r = Esys_SequenceComplete(seq->esys_ctx, seq->handle,
-                              ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                              session, ESYS_TR_NONE, ESYS_TR_NONE,
                               NULL, ESYS_TR_RH_OWNER, digest, validation);
+    tpm2_end_auth_session(seq->esys_ctx, &session);
     tpm2_semaphore_unlock(seq->esys_lock);
     TPM2_CHECK_RC(seq->core, r, TPM2_ERR_CANNOT_HASH, return 0);
 

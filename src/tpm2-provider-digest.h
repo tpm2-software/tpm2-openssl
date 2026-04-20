@@ -12,6 +12,7 @@ struct tpm2_hash_sequence_st {
     const OSSL_CORE_HANDLE *core;
     tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
+    ESYS_TR salt_key;
     TPM2_ALG_ID algorithm;
     ESYS_TR handle;
     TPM2B_MAX_BUFFER buffer;

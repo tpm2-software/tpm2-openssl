@@ -302,9 +302,10 @@ error1:
 int
 tpm2_build_primary(const OSSL_CORE_HANDLE *core, tpm2_semaphore_t esys_lock, ESYS_CONTEXT *esys_ctx,
                    const TPMS_CAPABILITY_DATA *algorithms, ESYS_TR hierarchy,
-                   const TPM2B_DIGEST *auth, ESYS_TR *object)
+                   const TPM2B_DIGEST *auth, ESYS_TR salt_key, ESYS_TR *object)
 {
     const TPM2B_PUBLIC *primaryTemplate = NULL;
+    ESYS_TR session = ESYS_TR_NONE;
     TSS2_RC r;
 
     if (!tpm2_semaphore_lock(esys_lock))
@@ -322,11 +323,17 @@ tpm2_build_primary(const OSSL_CORE_HANDLE *core, tpm2_semaphore_t esys_lock, ESY
         goto error;
     }
 
+    if (!tpm2_start_auth_session(esys_ctx, salt_key, &session)) {
+        TPM2_ERROR_raise(core, TPM2_ERR_CANNOT_START_SESSION);
+        goto error;
+    }
+
     r = Esys_CreatePrimary(esys_ctx, hierarchy,
-                           ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                           session, ESYS_TR_NONE, ESYS_TR_NONE,
                            &primarySensitive, primaryTemplate, &allOutsideInfo,
                            &allCreationPCR,
                            object, NULL, NULL, NULL, NULL);
+    tpm2_end_auth_session(esys_ctx, &session);
     if (r == 0x000009a2) {
         TPM2_ERROR_raise(core, TPM2_ERR_AUTHORIZATION_FAILURE);
         goto error;
@@ -336,6 +343,7 @@ tpm2_build_primary(const OSSL_CORE_HANDLE *core, tpm2_semaphore_t esys_lock, ESY
     tpm2_semaphore_unlock(esys_lock);
     return 1;
 error:
+    tpm2_end_auth_session(esys_ctx, &session);
     tpm2_semaphore_unlock(esys_lock);
     return 0;
 }

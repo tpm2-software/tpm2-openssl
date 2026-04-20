@@ -24,6 +24,7 @@ struct tpm2_rsa_asymcipher_ctx_st {
     tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
     TPM2_CAPABILITY capability;
+    ESYS_TR salt_key;
     TPMT_RSA_DECRYPT decrypt;
     /* TLS padding */
     unsigned int client_version;
@@ -52,6 +53,7 @@ static void
     actx->esys_lock = cprov->esys_lock;
     actx->esys_ctx = cprov->esys_ctx;
     actx->capability = cprov->capability;
+    actx->salt_key = cprov->salt_key;
     actx->decrypt.scheme = TPM2_ALG_RSAES;
     return actx;
 }
@@ -74,7 +76,8 @@ decrypt_message(TPM2_RSA_ASYMCIPHER_CTX *actx,
     TSS2_RC r;
     TPM2B_PUBLIC_KEY_RSA cipher;
     TPM2B_DATA label = { .size = 0 };
-
+    ESYS_TR session = ESYS_TR_NONE;
+    
     if (inlen > sizeof(cipher.buffer))
         return 0;
 
@@ -83,9 +86,15 @@ decrypt_message(TPM2_RSA_ASYMCIPHER_CTX *actx,
 
     if (!tpm2_semaphore_lock(actx->esys_lock))
         return 0;
+
+    if (!tpm2_start_auth_session(actx->esys_ctx, actx->salt_key, &session)) {
+        tpm2_semaphore_unlock(actx->esys_lock);
+        return 0;
+    }
     r = Esys_RSA_Decrypt(actx->esys_ctx, actx->pkey->object,
-                         ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                         session, ESYS_TR_NONE, ESYS_TR_NONE,
                          &cipher, &actx->decrypt, &label, &actx->message);
+    tpm2_end_auth_session(actx->esys_ctx, &session);
     tpm2_semaphore_unlock(actx->esys_lock);
     TPM2_CHECK_RC(actx->core, r, TPM2_ERR_CANNOT_DECRYPT, return 0);
 

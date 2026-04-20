@@ -45,6 +45,7 @@ struct tpm2_ecgen_ctx_st {
     tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
     TPM2_CAPABILITY capability;
+    ESYS_TR salt_key;
     TPM2_HANDLE parentHandle;
     TPM2B_DIGEST parentAuth;
     TPM2B_PUBLIC inPublic;
@@ -86,6 +87,7 @@ tpm2_ec_keymgmt_new(void *provctx)
     pkey->esys_lock = cprov->esys_lock;
     pkey->esys_ctx = cprov->esys_ctx;
     pkey->capability = cprov->capability;
+    pkey->salt_key = cprov->salt_key;
     pkey->object = ESYS_TR_NONE;
 
     pkey->data.pub = keyTemplate;
@@ -110,6 +112,7 @@ tpm2_ec_keymgmt_gen_init(void *provctx, int selection, const OSSL_PARAM params[]
     gen->esys_lock = cprov->esys_lock;
     gen->esys_ctx = cprov->esys_ctx;
     gen->capability = cprov->capability;
+    gen->salt_key = cprov->salt_key;
 
     gen->inPublic = keyTemplate;
     /* same default attributes as in tpm2_create */
@@ -205,6 +208,7 @@ tpm2_ec_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
 {
     TPM2_ECGEN_CTX *gen = ctx;
     ESYS_TR parent = ESYS_TR_NONE;
+    ESYS_TR session = ESYS_TR_NONE;
     TPM2B_PUBLIC *keyPublic = NULL;
     TPM2B_PRIVATE *keyPrivate = NULL;
     TPM2_PKEY *pkey = NULL;
@@ -222,6 +226,7 @@ tpm2_ec_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
     pkey->esys_lock = gen->esys_lock;
     pkey->esys_ctx = gen->esys_ctx;
     pkey->capability = gen->capability;
+    pkey->salt_key = gen->salt_key;
 
     if (gen->inSensitive.sensitive.userAuth.size == 0)
         pkey->data.emptyAuth = 1;
@@ -237,7 +242,7 @@ tpm2_ec_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
         DBG("EC GEN parent: primary 0x%x\n", TPM2_RH_OWNER);
         if (!tpm2_build_primary(pkey->core, pkey->esys_lock, pkey->esys_ctx,
                                 pkey->capability.algorithms,
-                                ESYS_TR_RH_OWNER, &gen->parentAuth, &parent))
+                                ESYS_TR_RH_OWNER, &gen->parentAuth, gen->salt_key, &parent))
             goto error1;
     }
 
@@ -246,9 +251,12 @@ tpm2_ec_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
 
     if (!tpm2_semaphore_lock(gen->esys_lock))
         return 0;
+
+    if (!tpm2_start_auth_session(gen->esys_ctx, gen->salt_key, &session))
+        goto error1;
     /* older TPM2 chips do not support Esys_CreateLoaded */
     r = Esys_Create(gen->esys_ctx, parent,
-                    ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                    session, ESYS_TR_NONE, ESYS_TR_NONE,
                     &gen->inSensitive, &gen->inPublic, &outside_info, &creation_pcr,
                     &keyPrivate, &keyPublic, NULL, NULL, NULL);
     TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto error1);
@@ -258,10 +266,11 @@ tpm2_ec_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
     pkey->data.priv = *keyPrivate;
 
     r = Esys_Load(gen->esys_ctx, parent,
-                  ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                  session, ESYS_TR_NONE, ESYS_TR_NONE,
                   keyPrivate, keyPublic, &pkey->object);
     free(keyPublic);
     cleanse_free(keyPrivate, sizeof(TPM2B_PRIVATE));
+    tpm2_end_auth_session(gen->esys_ctx, &session);
     TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto error1);
 
     if (gen->parentHandle && gen->parentHandle != TPM2_RH_OWNER)
@@ -278,6 +287,7 @@ tpm2_ec_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
 error2:
     Esys_FlushContext(gen->esys_ctx, pkey->object);
 error1:
+    tpm2_end_auth_session(gen->esys_ctx, &session);
     tpm2_semaphore_unlock(gen->esys_lock);
     OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
     return NULL;
