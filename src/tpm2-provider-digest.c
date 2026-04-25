@@ -221,7 +221,7 @@ tpm2_digest_freectx(void *ctx)
         return;
 
     tpm2_hash_sequence_flush((TPM2_HASH_SEQUENCE *)dctx);
-    free(dctx->digest);
+    Esys_Free(dctx->digest);
     OPENSSL_clear_free(dctx, sizeof(TPM2_DIGEST_CTX));
 }
 
@@ -302,13 +302,15 @@ tpm2_digest_digest_int(void *provctx, TPM2_ALG_ID algin, const unsigned char *in
     *outl = digest->size;
     if (out != NULL) {
         if (*outl > outsz)
-            return 0;
+            goto error;
         memcpy(out, digest->buffer, *outl);
     }
-
+    Esys_Free(digest);
+    OPENSSL_clear_free(hctx, sizeof(TPM2_HASH_SEQUENCE));
     return 1;
 error:
-    free(digest);
+    tpm2_hash_sequence_flush(hctx);
+    Esys_Free(digest);
     OPENSSL_clear_free(hctx, sizeof(TPM2_HASH_SEQUENCE));
     return 0;
 }
