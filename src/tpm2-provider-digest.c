@@ -23,8 +23,10 @@ tpm2_hash_sequence_init(TPM2_HASH_SEQUENCE *seq,
 void
 tpm2_hash_sequence_flush(TPM2_HASH_SEQUENCE *seq)
 {
-    if (seq->handle != ESYS_TR_NONE)
+    if (seq->handle != ESYS_TR_NONE) {
         tpm2_esys_flush_context(seq->esys_lock, seq->esys_ctx, seq->handle);
+        seq->handle = ESYS_TR_NONE;
+    }
 }
 
 int
@@ -249,6 +251,11 @@ tpm2_digest_init(void *ctx, const OSSL_PARAM params[])
     TPM2_DIGEST_CTX *dctx = ctx;
 
     DBG("DIGEST INIT\n");
+
+    tpm2_hash_sequence_flush((TPM2_HASH_SEQUENCE *)dctx);
+    Esys_Free(dctx->digest);
+    dctx->digest = NULL;
+
     return tpm2_hash_sequence_start((TPM2_HASH_SEQUENCE *)dctx);
 }
 
