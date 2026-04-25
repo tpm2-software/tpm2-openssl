@@ -306,10 +306,7 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
     cleanse_free(keyPrivate, sizeof(TPM2B_PRIVATE));
     TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto error3);
 
-    if (gen->parentHandle && gen->parentHandle != TPM2_RH_OWNER)
-        Esys_TR_Close(gen->esys_ctx, &parent);
-    else
-        Esys_FlushContext(gen->esys_ctx, parent);
+    tpm2_release_parent(gen->esys_ctx, gen->parentHandle, parent);
 
     if (gen->inSensitive.sensitive.userAuth.size > 0) {
         r = Esys_TR_SetAuth(gen->esys_ctx, pkey->object, &gen->inSensitive.sensitive.userAuth);
@@ -319,17 +316,10 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
     return pkey;
 error4:
     Esys_FlushContext(gen->esys_ctx, pkey->object);
-    pkey->object = ESYS_TR_NONE;
 error3:
     tpm2_semaphore_unlock(gen->esys_lock);
 error2:
-    if (parent != ESYS_TR_NONE) {
-        if (gen->parentHandle && gen->parentHandle != TPM2_RH_OWNER)
-            Esys_TR_Close(gen->esys_ctx, &parent);
-        else
-            Esys_FlushContext(gen->esys_ctx, parent);
-        parent = ESYS_TR_NONE;
-    }
+    tpm2_release_parent(gen->esys_ctx, gen->parentHandle, parent);
 error1:
     OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
     return NULL;
