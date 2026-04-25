@@ -287,13 +287,13 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
     TPML_PCR_SELECTION creation_pcr = { .count = 0 };
 
     if (!tpm2_semaphore_lock(gen->esys_lock))
-        goto error1;
+        goto error2;
     /* older TPM2 chips do not support Esys_CreateLoaded */
     r = Esys_Create(gen->esys_ctx, parent,
                     ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                     &gen->inSensitive, &gen->inPublic, &outside_info, &creation_pcr,
                     &keyPrivate, &keyPublic, NULL, NULL, NULL);
-    TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto error2);
+    TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto error3);
 
     pkey->data.pub = *keyPublic;
     pkey->data.privatetype = KEY_TYPE_BLOB;
@@ -304,7 +304,7 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
                   keyPrivate, keyPublic, &pkey->object);
     free(keyPublic);
     cleanse_free(keyPrivate, sizeof(TPM2B_PRIVATE));
-    TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto error2);
+    TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto error3);
 
     if (gen->parentHandle && gen->parentHandle != TPM2_RH_OWNER)
         Esys_TR_Close(gen->esys_ctx, &parent);
@@ -313,14 +313,23 @@ tpm2_rsa_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
 
     if (gen->inSensitive.sensitive.userAuth.size > 0) {
         r = Esys_TR_SetAuth(gen->esys_ctx, pkey->object, &gen->inSensitive.sensitive.userAuth);
-        TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error3);
+        TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error4);
     }
     tpm2_semaphore_unlock(gen->esys_lock);
     return pkey;
-error3:
+error4:
     Esys_FlushContext(gen->esys_ctx, pkey->object);
-error2:
+    pkey->object = ESYS_TR_NONE;
+error3:
     tpm2_semaphore_unlock(gen->esys_lock);
+error2:
+    if (parent != ESYS_TR_NONE) {
+        if (gen->parentHandle && gen->parentHandle != TPM2_RH_OWNER)
+            Esys_TR_Close(gen->esys_ctx, &parent);
+        else
+            Esys_FlushContext(gen->esys_ctx, parent);
+        parent = ESYS_TR_NONE;
+    }
 error1:
     OPENSSL_clear_free(pkey, sizeof(TPM2_PKEY));
     return NULL;
