@@ -340,6 +340,17 @@ error:
     return 0;
 }
 
+void
+tpm2_release_parent(ESYS_CONTEXT *esys_ctx, TPM2_HANDLE handle, ESYS_TR object)
+{
+    if (object != ESYS_TR_NONE) {
+        if (handle && handle != TPM2_RH_OWNER)
+            Esys_TR_Close(esys_ctx, &object);
+        else
+            Esys_FlushContext(esys_ctx, object);
+    }
+}
+
 const char *
 tpm2_openssl_type(TPM2_KEYDATA *keydata)
 {

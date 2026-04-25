@@ -89,11 +89,7 @@ decode_privkey(TPM2_TSS2_DECODER_CTX *dctx, TPM2_PKEY *pkey,
                       ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
                       &pkey->data.priv, &pkey->data.pub, &pkey->object);
 
-        if (pkey->data.parent && pkey->data.parent != TPM2_RH_OWNER)
-            Esys_TR_Close(pkey->esys_ctx, &parent);
-        else
-            Esys_FlushContext(pkey->esys_ctx, parent);
-
+        tpm2_release_parent(pkey->esys_ctx, pkey->data.parent, parent);
         tpm2_semaphore_unlock(pkey->esys_lock);
         TPM2_CHECK_RC(pkey->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error1);
     } else if (pkey->data.privatetype == KEY_TYPE_HANDLE) {
