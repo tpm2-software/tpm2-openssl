@@ -339,9 +339,9 @@ tpm2_handle_load(void *ctx,
         /* read object metadata */
         r = Esys_TR_Deserialize(sctx->esys_ctx, buffer, buffer_size, &object);
         if (!r) {
-            OPENSSL_free(buffer);
             r = Esys_TR_GetTpmHandle(sctx->esys_ctx, object, &sctx->handle);
         }
+        OPENSSL_free(buffer);
     } else {
         if (!tpm2_semaphore_lock(sctx->esys_lock))
             return 0;
