@@ -3,9 +3,11 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
-## [1.3.1] - 2026-04-27
+## [1.3.1] - 2026-05-04
 ### Fixed
 - Fixed compatibility with OpenSSL 4.0.
+- Fixed parent handle issues with signed representation in the TSS2 PRIVATE KEY
+  files (thanks to @thomkopp).
 - Fixed the ECDSA signature algorithm to omit the parameters field (thanks to
   @smhmeier).
 - Fixed cipher padding validation according to PKCS#5/PKCS#7, so zero padding
@@ -14,6 +16,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
   @hyperfinitism).
 - Fixed cleansing of sensitive data upon buffer deallocation and fixed buffer
   allocator consistency (thanks to @hyperfinitism).
+- Fixed memory and handle leaks (thanks to @hyperfinitism).
 - Fixed missing NULL checks and harmless type cast errors in RSA and ECDSA
   algorithms (thanks to @hyperfinitism).
 - Fixed semaphore destruction (thanks to @Deadolus).
