@@ -154,10 +154,8 @@ tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata, TPM2_PKEY_FORMAT format)
 
     if (parent == 0)
         keydata->parent = TPM2_RH_OWNER;
-    else if (parent <= UINT32_MAX)
-        keydata->parent = parent;
     else
-        goto error;
+        keydata->parent = parent;
 
     if (!OBJ_obj2txt(type_oid, sizeof(type_oid), tpk->type, 1) ||
             strcmp(type_oid, OID_loadableKey))
