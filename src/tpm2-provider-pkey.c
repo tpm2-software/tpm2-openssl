@@ -76,7 +76,7 @@ tpm2_keydata_write(const TPM2_KEYDATA *keydata, BIO *bout, TPM2_PKEY_FORMAT form
     if (!tpk->type)
         goto error;
 
-    tpk->emptyAuth = ! !keydata->emptyAuth;
+    tpk->emptyAuth = keydata->emptyAuth ? 0xFF : 0;
 
     // note the ASN1_INTEGER_set is not reliable for uin32_t on 32-bit machines
     if (!(bn_parent = BN_new()))
