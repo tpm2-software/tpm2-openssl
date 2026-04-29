@@ -97,6 +97,7 @@ TESTS = $(TESTS_SHELL) $(check_PROGRAMS)
 TESTS_SHELL = test/list.sh \
               test/rand.sh \
               test/rsa_genrsa_check.sh \
+              test/rsa_genrsa_check_handle.sh \
               test/rsa_genpkey_sign.sh \
               test/rsa_genpkey_sign_rawin.sh \
               test/rsa_genpkey_auth_parent.sh \
@@ -117,6 +118,7 @@ TESTS_SHELL = test/list.sh \
               test/rsapss_createak_tls_server.sh \
               test/rsa_pki/rsa_pki.sh \
               test/ec_genpkey_check.sh \
+              test/ec_genpkey_check_handle.sh \
               test/ec_genpkey_parameters.sh \
               test/ec_genpkey_x509_cms.sh \
               test/ecdsa_genpkey_sign_auth.sh \

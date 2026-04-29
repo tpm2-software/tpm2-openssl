@@ -6,6 +6,7 @@
 #include <openssl/rand.h>
 
 #include <tss2/tss2_mu.h>
+#include <tss2/tss2_tpm2_types.h>
 
 #include "tpm2-provider-pkey.h"
 
@@ -64,9 +65,15 @@ tpm2_keydata_write(const TPM2_KEYDATA *keydata, BIO *bout, TPM2_PKEY_FORMAT form
     if (!tpk)
         return 0;
 
-    if (Tss2_MU_TPM2B_PRIVATE_Marshal(&keydata->priv, &privbuf[0],
-                                      sizeof(privbuf), &privbuf_len))
-        goto error;
+    if (keydata->privatetype == KEY_TYPE_HANDLE) {
+        if (Tss2_MU_TPM2_HANDLE_Marshal(keydata->handle, &privbuf[0],
+                                        sizeof(TPM2_HANDLE), &privbuf_len))
+            goto error;
+    } else {
+        if (Tss2_MU_TPM2B_PRIVATE_Marshal(&keydata->priv, &privbuf[0],
+                                          sizeof(privbuf), &privbuf_len))
+            goto error;
+    }
 
     if (Tss2_MU_TPM2B_PUBLIC_Marshal(&keydata->pub, &pubbuf[0],
                                      sizeof(pubbuf), &pubbuf_len))
@@ -140,7 +147,11 @@ tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata, TPM2_PKEY_FORMAT format)
     if (tpk == NULL)
         return 0;
 
-    keydata->privatetype = KEY_TYPE_BLOB;
+    if (ASN1_STRING_length(tpk->privkey) == sizeof(keydata->handle) && ASN1_STRING_get0_data(tpk->privkey)[0] == TPM2_HT_PERSISTENT)
+        keydata->privatetype = KEY_TYPE_HANDLE;
+    else
+        keydata->privatetype = KEY_TYPE_BLOB;
+
     keydata->emptyAuth = (tpk->emptyAuth != V_ASN1_UNDEF && tpk->emptyAuth);
 
     // the ASN1_INTEGER_get on a 32-bit machine will fail for numbers of UINT32_MAX
@@ -161,10 +172,17 @@ tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata, TPM2_PKEY_FORMAT format)
             strcmp(type_oid, OID_loadableKey))
         goto error;
 
-    if (Tss2_MU_TPM2B_PRIVATE_Unmarshal(ASN1_STRING_get0_data(tpk->privkey),
-                                        ASN1_STRING_length(tpk->privkey), NULL,
-                                        &keydata->priv))
-        goto error;
+    if (keydata->privatetype == KEY_TYPE_HANDLE) {
+        if (Tss2_MU_TPM2_HANDLE_Unmarshal(ASN1_STRING_get0_data(tpk->privkey),
+                                          ASN1_STRING_length(tpk->privkey), NULL,
+                                          &keydata->handle))
+            goto error;
+    } else {
+        if (Tss2_MU_TPM2B_PRIVATE_Unmarshal(ASN1_STRING_get0_data(tpk->privkey),
+                                            ASN1_STRING_length(tpk->privkey), NULL,
+                                            &keydata->priv))
+            goto error;
+    }
 
     if (Tss2_MU_TPM2B_PUBLIC_Unmarshal(ASN1_STRING_get0_data(tpk->pubkey),
                                        ASN1_STRING_length(tpk->pubkey), NULL,
