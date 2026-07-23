@@ -9,6 +9,7 @@
 #include <openssl/kdf.h>
 
 #include "tpm2-provider.h"
+#include "tpm2-provider-session.h"
 #include "tpm2-provider-types.h"
 
 typedef struct tpm2_keyexch_ctx_st TPM2_KEYEXCH_CTX;
@@ -18,6 +19,7 @@ struct tpm2_keyexch_ctx_st {
     OSSL_LIB_CTX *libctx;
     tpm2_semaphore_t esys_lock;
     ESYS_CONTEXT *esys_ctx;
+    TPM2_CAPABILITY capability;
     TPM2_PKEY *pkey;
     TPM2B_ECC_POINT peer;
     /* KDF settings */
@@ -27,6 +29,7 @@ struct tpm2_keyexch_ctx_st {
     size_t kdf_outlen;
     void *kdf_ukmptr;
     size_t kdf_ukmlen;
+    TPM2_SESSION session;
 };
 
 static OSSL_FUNC_keyexch_newctx_fn tpm2_keyexch_newctx;
@@ -51,6 +54,8 @@ tpm2_keyexch_newctx(void *provctx)
     kexc->libctx = cprov->libctx;
     kexc->esys_lock = cprov->esys_lock;
     kexc->esys_ctx = cprov->esys_ctx;
+    kexc->capability = cprov->capability;
+    tpm2_session_init(&kexc->session);
     return kexc;
 }
 
@@ -63,6 +68,8 @@ tpm2_keyexch_freectx(void *ctx)
     if (kexc == NULL)
         return;
 
+    tpm2_session_end(kexc->esys_lock, kexc->esys_ctx, &kexc->session);
+    tpm2_session_free(&kexc->session);
     OPENSSL_free(kexc->kdf_propq);
     OPENSSL_clear_free(kexc->kdf_ukmptr, kexc->kdf_ukmlen);
     OPENSSL_clear_free(kexc, sizeof(TPM2_KEYEXCH_CTX));
@@ -76,7 +83,10 @@ tpm2_keyexch_init(void *ctx, void *provkey, const OSSL_PARAM params[])
     DBG("KEYEXCH INIT\n");
     kexc->pkey = provkey;
 
-    return tpm2_keyexch_set_ctx_params(kexc, params);
+    if (!tpm2_keyexch_set_ctx_params(kexc, params))
+        return 0;
+    return tpm2_session_start(kexc->core, kexc->esys_lock, kexc->esys_ctx,
+                              &kexc->capability, &kexc->session);
 }
 
 static int
@@ -115,7 +125,7 @@ tpm2_keyexch_derive_kdf(TPM2_KEYEXCH_CTX *kexc, unsigned char *secret,
     if (!tpm2_semaphore_lock(kexc->esys_lock))
         return 0;
     r = Esys_ECDH_ZGen(kexc->esys_ctx, kexc->pkey->object,
-                       ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                       tpm2_session_handle(&kexc->session), ESYS_TR_NONE, ESYS_TR_NONE,
                        &kexc->peer, &outPoint);
     tpm2_semaphore_unlock(kexc->esys_lock);
     TPM2_CHECK_RC(kexc->core, r, TPM2_ERR_CANNOT_GENERATE, return 0);
@@ -154,7 +164,7 @@ tpm2_keyexch_derive_plain(TPM2_KEYEXCH_CTX *kexc, unsigned char *secret,
     if (!tpm2_semaphore_lock(kexc->esys_lock))
         return 0;
     r = Esys_ECDH_ZGen(kexc->esys_ctx, kexc->pkey->object,
-                       ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                       tpm2_session_handle(&kexc->session), ESYS_TR_NONE, ESYS_TR_NONE,
                        &kexc->peer, &outPoint);
     tpm2_semaphore_unlock(kexc->esys_lock);
     TPM2_CHECK_RC(kexc->core, r, TPM2_ERR_CANNOT_GENERATE, return 0);
@@ -231,6 +241,9 @@ tpm2_keyexch_set_ctx_params(void *ctx, const OSSL_PARAM params[])
             return 0;
     }
 
+    if (!tpm2_session_set_params(kexc->core, params, &kexc->session))
+        return 0;
+
     return 1;
 }
 
@@ -244,6 +257,8 @@ tpm2_keyexch_settable_ctx_params(void *ctx, void *provctx)
         OSSL_PARAM_utf8_string(OSSL_EXCHANGE_PARAM_KDF_DIGEST_PROPS, NULL, 0),
         OSSL_PARAM_size_t(OSSL_EXCHANGE_PARAM_KDF_OUTLEN, NULL),
         OSSL_PARAM_octet_string(OSSL_EXCHANGE_PARAM_KDF_UKM, NULL, 0),
+        OSSL_PARAM_utf8_string(TPM2_PKEY_PARAM_SESSION_TPMKEY, NULL, 0),
+        OSSL_PARAM_utf8_string(TPM2_PKEY_PARAM_SESSION_BIND, NULL, 0),
         OSSL_PARAM_END
     };
 
