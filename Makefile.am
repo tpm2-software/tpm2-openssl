@@ -26,7 +26,9 @@ tpm2_la_SOURCES = \
     src/tpm2-provider-asymcipher-rsa.c \
     src/tpm2-provider-digest.c \
     src/tpm2-provider-digest.h \
-    src/tpm2-provider-signature.c
+    src/tpm2-provider-signature.c \
+    src/tpm2-provider-session.c \
+    src/tpm2-provider-session.h
 if WITH_OP_CIPHER
 tpm2_la_SOURCES += src/tpm2-provider-cipher.c
 endif
