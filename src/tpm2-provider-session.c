@@ -231,6 +231,21 @@ tpm2_session_start(const OSSL_CORE_HANDLE *core,
 
     /* Load tpmkey (salt-encryption key) if a URI was provided. */
     if (session->tpmkey_uri) {
+        /*
+         * Reject handle: URIs for the salt-encryption key.  The whole point
+         * of a salted session is to protect the bus, but handle: fetches the
+         * public key over that same bus via TPM2_ReadPublic.  A bus-level
+         * MITM can substitute its own public key, decrypt the salt, and
+         * re-encrypt it to the real TPM — gaining full knowledge of the
+         * session key.  Require object: or PEM file URIs which carry the
+         * public key from a trusted local source.
+         */
+        if (!strncmp(session->tpmkey_uri, "handle:", 7)) {
+            TPM2_ERROR_raise_text(core, TPM2_ERR_INPUT_CORRUPTED,
+                "handle: URI unsafe for session tpmkey (MITM risk); "
+                "use object: or a PEM file instead");
+            goto error;
+        }
         if (!tpm2_session_load_key(core, esys_lock, esys_ctx, capability,
                                    session->tpmkey_uri,
                                    &session->tpmkey, &session->tpmkey_flush))
