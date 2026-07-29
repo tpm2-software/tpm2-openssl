@@ -6,7 +6,7 @@ echo -n "abcde12345abcde12345" > testdata
 
 # create EK as tpmkey for session encryption
 tpm2_createek -G rsa -c ek.ctx
-EK_HANDLE=$(tpm2_evictcontrol -c ek.ctx | cut -d ' ' -f 2 | head -n 1)
+EK_HANDLE=$(tpm2_evictcontrol -c ek.ctx -o ek.obj | cut -d ' ' -f 2 | head -n 1)
 
 # create an RSA primary with auth `parentpw` and make it persistent (used as parent + bind key)
 tpm2_createprimary -G rsa -g sha256 -p parentpw -c parent.ctx
@@ -21,7 +21,7 @@ openssl genpkey -provider tpm2 -propquery '?provider=tpm2' -algorithm RSA \
     -pkeyopt bits:2048 \
     -pkeyopt "parent:${PARENT_HANDLE}" \
     -pkeyopt parent-auth:parentpw \
-    -pkeyopt "tpm2.session-tpmkey:handle:${EK_HANDLE}" \
+    -pkeyopt "tpm2.session-tpmkey:object:ek.obj" \
     -pkeyopt "tpm2.session-bind:handle:${PARENT_HANDLE}" \
     -out testkey.priv
 
@@ -40,4 +40,4 @@ openssl pkeyutl -verify -pubin -inkey testkey.pub -rawin \
 
 tpm2_evictcontrol -c ${PARENT_HANDLE}
 tpm2_evictcontrol -c ${EK_HANDLE}
-rm ek.ctx parent.ctx testdata testdata.sig testkey.priv testkey.pub
+rm ek.ctx ek.obj parent.ctx testdata testdata.sig testkey.priv testkey.pub
