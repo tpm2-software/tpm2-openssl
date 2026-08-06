@@ -67,10 +67,7 @@ rsa_asymcipher_decrypt_init(void *ctx, void *provkey, const OSSL_PARAM params[])
     DBG("DECRYPT INIT\n");
     actx->pkey = provkey;
 
-    if (!rsa_asymcipher_set_ctx_params(actx, params))
-        return 0;
-    return tpm2_session_start(actx->core, actx->esys_lock, actx->esys_ctx,
-                              &actx->capability, &actx->session);
+    return rsa_asymcipher_set_ctx_params(actx, params);
 }
 
 static int
@@ -105,6 +102,14 @@ rsa_asymcipher_decrypt(void *ctx, unsigned char *out, size_t *outlen,
     TPM2_RSA_ASYMCIPHER_CTX *actx = ctx;
 
     DBG("DECRYPT\n");
+
+    // for multiple calls to decrypt, we need to start the session only once
+    if (actx->session.handle == ESYS_TR_NONE) {
+        if (!tpm2_session_start(actx->core, actx->esys_lock, actx->esys_ctx,
+                                &actx->capability, &actx->session))
+            return 0;
+    }
+
     if (!actx->message && !decrypt_message(actx, in, inlen))
         return 0;
 

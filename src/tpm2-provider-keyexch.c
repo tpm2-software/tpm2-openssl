@@ -83,10 +83,7 @@ tpm2_keyexch_init(void *ctx, void *provkey, const OSSL_PARAM params[])
     DBG("KEYEXCH INIT\n");
     kexc->pkey = provkey;
 
-    if (!tpm2_keyexch_set_ctx_params(kexc, params))
-        return 0;
-    return tpm2_session_start(kexc->core, kexc->esys_lock, kexc->esys_ctx,
-                              &kexc->capability, &kexc->session);
+    return tpm2_keyexch_set_ctx_params(kexc, params);
 }
 
 static int
@@ -188,6 +185,13 @@ tpm2_keyexch_derive(void *ctx, unsigned char *secret, size_t *secretlen,
                     size_t outlen)
 {
     TPM2_KEYEXCH_CTX *kexc = ctx;
+
+    // for multiple calls to derive, we need to start the session only once
+    if (kexc->session.handle == ESYS_TR_NONE) {
+        if (!tpm2_session_start(kexc->core, kexc->esys_lock, kexc->esys_ctx,
+                              &kexc->capability, &kexc->session))
+            return 0;
+    }
 
     if (kexc->kdf_name[0])
         return tpm2_keyexch_derive_kdf(kexc, secret, secretlen, outlen);
