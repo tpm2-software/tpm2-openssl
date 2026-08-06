@@ -17,8 +17,9 @@ openssl pkey -provider tpm2 -provider base -in testkey.priv -pubout -out testkey
 # sign with HMAC session; tpmkey specified as serialized object: URI
 openssl pkeyutl \
     -provider tpm2 \
-    -propquery "provider=tpm2,tpm2.session-tpmkey=object:ek.obj" \
-    -provider base \
+    -provider default \
+    -propquery "?provider=tpm2" \
+    -pkeyopt tpm2.session-tpmkey:object:ek.obj \
     -sign -inkey testkey.priv -rawin -in testdata -digest sha256 -out testdata.sig
 
 # verify the signature

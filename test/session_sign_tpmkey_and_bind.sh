@@ -20,7 +20,10 @@ openssl pkey -provider tpm2 -propquery '?provider=tpm2' \
 TPM2OPENSSL_SESSION_BIND_AUTH=secret \
 openssl pkeyutl \
     -provider tpm2 \
-    -propquery "provider=tpm2,tpm2.session-tpmkey=object:ek_rsa.obj,tpm2.session-bind=handle:${AK_HANDLE}" \
+    -provider default \
+    -propquery "?provider=tpm2" \
+    -pkeyopt tpm2.session-tpmkey:object:ek_rsa.obj \
+    -pkeyopt tpm2.session-bind:handle:${AK_HANDLE} \
     -inkey "handle:${AK_HANDLE}?pass" -passin pass:secret \
     -sign -rawin -in testdata -out testdata.sig
 

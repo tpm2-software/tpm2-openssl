@@ -17,12 +17,16 @@ PARENT_HANDLE=$(tpm2_evictcontrol -c parent.ctx | cut -d ' ' -f 2 | head -n 1)
 #   tpm2.session-bind   — session bound to parent (authenticate Esys_Create)
 #   TPM2OPENSSL_SESSION_BIND_AUTH — bind key (parent) auth value
 TPM2OPENSSL_SESSION_BIND_AUTH=parentpw \
-openssl genpkey -provider tpm2 -propquery '?provider=tpm2' -algorithm RSA \
+openssl genpkey \
+    -provider tpm2 \
+    -provider default \
+    -propquery "?provider=tpm2" \
+    -algorithm RSA \
+    -pkeyopt tpm2.session-tpmkey:object:ek.obj \
+    -pkeyopt tpm2.session-bind:handle:${PARENT_HANDLE} \
     -pkeyopt bits:2048 \
-    -pkeyopt "parent:${PARENT_HANDLE}" \
+    -pkeyopt parent:${PARENT_HANDLE} \
     -pkeyopt parent-auth:parentpw \
-    -pkeyopt "tpm2.session-tpmkey:object:ek.obj" \
-    -pkeyopt "tpm2.session-bind:handle:${PARENT_HANDLE}" \
     -out testkey.priv
 
 # export public key (parent-auth required to re-load the key)

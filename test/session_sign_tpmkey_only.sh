@@ -15,8 +15,9 @@ openssl genpkey -provider tpm2 -algorithm RSA -pkeyopt bits:1024 -out testkey.pr
 # fetched over the bus, allowing an attacker to substitute their own key)
 openssl pkeyutl \
     -provider tpm2 \
-    -propquery "provider=tpm2,tpm2.session-tpmkey=handle:${EK_HANDLE}" \
-    -provider base \
+    -provider default \
+    -propquery "?provider=tpm2" \
+    -pkeyopt tpm2.session-tpmkey:handle:${EK_HANDLE} \
     -sign -inkey testkey.priv -rawin -in testdata -digest sha256 -out testdata.sig \
     && { echo "ERROR: handle: tpmkey should have been rejected"; exit 1; } \
     || echo "OK: handle: tpmkey correctly rejected"

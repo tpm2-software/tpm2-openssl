@@ -14,7 +14,9 @@ HANDLE=$(tpm2_evictcontrol -c ak_rsa.ctx | cut -d ' ' -f 2 | head -n 1)
 # attempt to sign with wrong bind auth — must fail
 if TPM2OPENSSL_SESSION_BIND_AUTH=wrong openssl pkeyutl \
         -provider tpm2 \
-        -propquery "provider=tpm2,tpm2.session-bind=handle:${HANDLE}" \
+        -provider default \
+        -propquery "?provider=tpm2" \
+        -pkeyopt tpm2.session-bind:handle:${HANDLE}
         -inkey "handle:${HANDLE}?pass" -passin pass:correct \
         -sign -rawin -in testdata -out testdata.sig 2>/dev/null; then
     echo "ERROR: sign succeeded with wrong bind auth, expected failure" >&2

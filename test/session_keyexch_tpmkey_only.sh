@@ -20,7 +20,9 @@ openssl pkey -in testkey2.priv -pubout -out testkey2.pub
 
 # alice: derive shared secret with HMAC session encrypted by EK (tpmkey only)
 openssl pkeyutl \
-    -provider tpm2 -provider base \
+    -provider tpm2 \
+    -provider default \
+    -propquery "?provider=tpm2" \
     -derive -inkey testkey1.priv -peerkey testkey2.pub \
     -pkeyopt "tpm2.session-tpmkey:object:ek.obj" \
     -out secret1.key

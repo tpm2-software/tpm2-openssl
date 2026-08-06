@@ -18,7 +18,9 @@ openssl pkey -provider tpm2 -propquery '?provider=tpm2' \
 # sign with HMAC session bound to key (empty auth, no TPM2OPENSSL_SESSION_BIND_AUTH)
 openssl pkeyutl \
     -provider tpm2 \
-    -propquery "provider=tpm2,tpm2.session-bind=handle:${HANDLE}" \
+    -provider default \
+    -propquery "?provider=tpm2" \
+    -pkeyopt tpm2.session-bind:handle:${HANDLE} \
     -inkey handle:${HANDLE} \
     -sign -rawin -in testdata -out testdata.sig
 

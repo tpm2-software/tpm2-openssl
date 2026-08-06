@@ -26,10 +26,12 @@ openssl pkeyutl -encrypt -pubin -inkey deckey.pub.pem \
 # decrypt with HMAC session: tpmkey=EK (salted) + bind=decrypt key (bound)
 TPM2OPENSSL_SESSION_BIND_AUTH=secret \
 openssl pkeyutl \
-    -provider tpm2 -provider base \
+    -provider tpm2 \
+    -provider default \
+    -propquery "?provider=tpm2" \
     -inkey "handle:${DEC_HANDLE}?pass" -passin pass:secret \
-    -pkeyopt "tpm2.session-tpmkey:object:ek_rsa.obj" \
-    -pkeyopt "tpm2.session-bind:handle:${DEC_HANDLE}" \
+    -pkeyopt tpm2.session-tpmkey:object:ek_rsa.obj \
+    -pkeyopt tpm2.session-bind:handle:${DEC_HANDLE} \
     -decrypt -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 \
     -in testdata.crypt -out testdata2
 
