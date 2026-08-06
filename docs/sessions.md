@@ -59,41 +59,12 @@ for parent keys.
 
 ## Configuring a Session
 
-Session parameters can be supplied in three ways depending on which OpenSSL
-command and operation context is used.
+Session parameters are passed as algorithm options via `-pkeyopt` for all operations.
 
-### 1. Property query string (`-propquery`)
-
-Supported by: **signing** (RSA, ECDSA)
-
-Session parameters can be embedded in the property query string passed to
-`-propquery`. The tpm2 provider parses `tpm2.session-tpmkey` and
-`tpm2.session-bind` from the query string when creating a new signature
-context.
-
-```
-openssl pkeyutl -provider tpm2 -provider base \
-    -propquery "provider=tpm2,tpm2.session-tpmkey=object:tpmkey.obj" \
-    -sign -inkey testkey.priv -rawin -in testdata -digest sha256 -out testdata.sig
-```
-
-Multiple session parameters are comma-separated inside the same `-propquery`
-value:
-```
-openssl pkeyutl -provider tpm2 \
-    -propquery "provider=tpm2,tpm2.session-tpmkey=object:tpmkey.obj,tpm2.session-bind=handle:0x81000001" \
-    -inkey "handle:0x81000001?pass" -passin pass:mysecret \
-    -sign -rawin -in testdata -out testdata.sig
-```
-
-### 2. Key/algorithm options (`-pkeyopt`)
+### Key/algorithm options (`-pkeyopt`)
 
 Supported by: **signing**, **decryption**, **key exchange (ECDH)**, **key
 generation**
-
-Session parameters can be passed as algorithm options. This is the only
-method available for operations whose context does not accept a property query
-(decrypt, derive, key generation).
 
 The `-pkeyopt` syntax uses a colon as the key-value separator:
 ```
@@ -110,10 +81,9 @@ openssl genpkey -provider tpm2 -algorithm RSA -pkeyopt bits:2048 \
     -out testkey.priv
 ```
 
-### 3. Environment variables
+### Environment variables
 
-The bind key's `authValue` is always read from the environment, regardless of
-how the session URIs were supplied:
+The bind key's `authValue` is always read from the environment:
 
 | Variable                        | Description                                                                 |
 | ------------------------------- | --------------------------------------------------------------------------- |
@@ -122,14 +92,14 @@ how the session URIs were supplied:
 
 ## Operations with Session Support
 
-| Operation          | Context    | propq | pkeyopt |
-| ------------------ | ---------- | ----- | ------- |
-| RSA sign           | signature  | yes   | yes     |
-| ECDSA sign         | signature  | yes   | yes     |
-| RSA decrypt        | asymcipher | no    | yes     |
-| ECDH key exchange  | keyexch    | no    | yes     |
-| RSA key generation | keymgmt    | no    | yes     |
-| EC key generation  | keymgmt    | no    | yes     |
+| Operation          | Context    | pkeyopt |
+| ------------------ | ---------- | ------- |
+| RSA sign           | signature  | yes     |
+| ECDSA sign         | signature  | yes     |
+| RSA decrypt        | asymcipher | yes     |
+| ECDH key exchange  | keyexch    | yes     |
+| RSA key generation | keymgmt    | yes     |
+| EC key generation  | keymgmt    | yes     |
 
 Verification uses the public key only and does not require any authorization;
 it always uses `ESYS_TR_NONE` for all session slots and is unaffected by
@@ -197,9 +167,11 @@ unset TPM2OPENSSL_SESSION_BIND_AUTH
 openssl pkeyutl -provider tpm2 -provider base \
     -sign -inkey testkey.priv -rawin -in testdata -digest sha256 -out testdata.sig
 ```
-
+****
 
 ## Examples
+
+Full examples can be found in the tests.
 
 ### Salted session (tpmkey only)
 
@@ -209,7 +181,7 @@ unbound, so no bind auth is required.
 ```bash
 # Create EK and persist it
 tpm2_createek -G rsa -c ek.ctx
-EK_HANDLE=$(tpm2_evictcontrol -c ek.ctx | cut -d ' ' -f 2 | head -n 1)
+EK_HANDLE=$(tpm2_evictcontrol -c ek.ctx -o ek.obj | cut -d ' ' -f 2 | head -n 1)
 
 # Generate a signing key
 openssl genpkey -provider tpm2 -algorithm RSA -pkeyopt bits:2048 -out testkey.priv
@@ -217,10 +189,10 @@ openssl pkey -provider tpm2 -provider base -in testkey.priv -pubout -out testkey
 
 # Sign with a salted HMAC session
 openssl pkeyutl \
-    -provider tpm2 \
-    -propquery "provider=tpm2,tpm2.session-tpmkey=handle:${EK_HANDLE}" \
-    -provider base \
-    -sign -inkey testkey.priv -rawin -in testdata -digest sha256 -out testdata.sig
+    -provider tpm2 -provider default \
+    -sign -inkey testkey.priv -rawin -in testdata -digest sha256 \
+    -pkeyopt "tpm2.session-tpmkey:object:ek.obj" \
+    -out testdata.sig
 
 # Verify
 openssl pkeyutl -verify -pubin -inkey testkey.pub \
@@ -238,7 +210,7 @@ variable.
 ```bash
 # Create EK and an AK with auth value "mysecret"
 tpm2_createek -G rsa -c ek.ctx
-EK_HANDLE=$(tpm2_evictcontrol -c ek.ctx | cut -d ' ' -f 2 | head -n 1)
+EK_HANDLE=$(tpm2_evictcontrol -c ek.ctx -o ek.obj | cut -d ' ' -f 2 | head -n 1)
 
 tpm2_createak -C ek.ctx -G rsa -g sha256 -s rsassa -p mysecret -c ak.ctx
 AK_HANDLE=$(tpm2_evictcontrol -c ak.ctx | cut -d ' ' -f 2 | head -n 1)
@@ -249,9 +221,10 @@ openssl pkey -provider tpm2 -propquery '?provider=tpm2' \
 # Sign with a salted and bound HMAC session
 TPM2OPENSSL_SESSION_BIND_AUTH=mysecret \
 openssl pkeyutl \
-    -provider tpm2 \
-    -propquery "provider=tpm2,tpm2.session-tpmkey=handle:${EK_HANDLE},tpm2.session-bind=handle:${AK_HANDLE}" \
+    -provider tpm2 -provider default \
     -inkey "handle:${AK_HANDLE}?pass" -passin pass:mysecret \
+    -pkeyopt "tpm2.session-tpmkey:object:ek.obj" \
+    -pkeyopt "tpm2.session-bind:handle:${AK_HANDLE}" \
     -sign -rawin -in testdata -out testdata.sig
 
 openssl pkeyutl -verify -pubin -inkey testkey.pub \
@@ -271,10 +244,10 @@ tpm2_createek -G rsa -c ek.ctx
 EK_HANDLE=$(tpm2_evictcontrol -c ek.ctx -o ek.obj | cut -d ' ' -f 2 | head -n 1)
 
 openssl pkeyutl \
-    -provider tpm2 \
-    -propquery "provider=tpm2,tpm2.session-tpmkey=object:ek.obj" \
-    -provider base \
-    -sign -inkey testkey.priv -rawin -in testdata -digest sha256 -out testdata.sig
+    -provider tpm2 -provider default \
+    -sign -inkey testkey.priv -rawin -in testdata -digest sha256 \
+    -pkeyopt "tpm2.session-tpmkey:object:ek.obj" \
+    -out testdata.sig
 
 tpm2_evictcontrol -c ${EK_HANDLE}
 ```
@@ -290,53 +263,47 @@ the TPM at session start and flushed when the context is freed.
 openssl genpkey -provider tpm2 -algorithm RSA -pkeyopt bits:2048 -out session_key.pem
 
 openssl pkeyutl \
-    -provider tpm2 \
-    -propquery "provider=tpm2,tpm2.session-tpmkey=session_key.pem" \
-    -provider base \
-    -sign -inkey testkey.priv -rawin -in testdata -digest sha256 -out testdata.sig
+    -provider tpm2 -provider default \
+    -sign -inkey testkey.priv -rawin -in testdata -digest sha256 \
+    -pkeyopt "tpm2.session-tpmkey:session_key.pem" \
+    -out testdata.sig
 ```
 
-### RSA decrypt with session (`-pkeyopt`)
-
-The asymcipher context (used for decrypt) does not support a property query, so
-session parameters must be passed via `-pkeyopt`.
+### RSA decrypt with session
 
 ```bash
 TPM2OPENSSL_SESSION_BIND_AUTH=mysecret \
 openssl pkeyutl \
-    -provider tpm2 -provider base \
+    -provider tpm2 -provider default \
     -inkey "handle:${DEC_HANDLE}?pass" -passin pass:mysecret \
-    -pkeyopt "tpm2.session-tpmkey:handle:${EK_HANDLE}" \
+    -pkeyopt "tpm2.session-tpmkey:object:ek.obj" \
     -pkeyopt "tpm2.session-bind:handle:${DEC_HANDLE}" \
     -decrypt -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 \
     -in testdata.crypt -out testdata
 ```
 
-### ECDH key derivation with session (`-pkeyopt`)
-
-The keyexch context also uses `-pkeyopt` for session parameters.
+### ECDH key derivation with session
 
 ```bash
 openssl pkeyutl \
-    -provider tpm2 -provider base \
+    -provider tpm2 -provider default \
     -derive -inkey testkey.priv -peerkey peer.pub \
-    -pkeyopt "tpm2.session-tpmkey:handle:${EK_HANDLE}" \
+    -pkeyopt "tpm2.session-tpmkey:object:ek.obj" \
     -out secret.key
 ```
 
 ### Key generation with session
 
-Session parameters for key generation are passed via `-pkeyopt`. This is useful
-when generating a key under a parent that requires authorization: by binding the
+This is useful when generating a key under a parent that requires authorization: by binding the
 session to the parent, the parent's `authValue` is protected in transit.
 
 ```bash
 TPM2OPENSSL_SESSION_BIND_AUTH=parentpw \
-openssl genpkey -provider tpm2 -propquery '?provider=tpm2' -algorithm RSA \
+openssl genpkey -provider tpm2 -provider default -propquery '?provider=tpm2' -algorithm RSA \
     -pkeyopt bits:2048 \
     -pkeyopt "parent:${PARENT_HANDLE}" \
     -pkeyopt parent-auth:parentpw \
-    -pkeyopt "tpm2.session-tpmkey:handle:${EK_HANDLE}" \
+    -pkeyopt "tpm2.session-tpmkey:object:ek.obj" \
     -pkeyopt "tpm2.session-bind:handle:${PARENT_HANDLE}" \
     -out testkey.priv
 ```
