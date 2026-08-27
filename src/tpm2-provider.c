@@ -50,6 +50,10 @@ tpm2_get_params(void *provctx, OSSL_PARAM params[])
 }
 
 #define TPM2_PROPS(op) ("provider=tpm2,tpm2." #op)
+#define TPM2_FIPS_PROPS(op) ("provider=tpm2,tpm2." #op ",fips=yes")
+#ifndef TPMA_MODES_FIPS_140_3
+#define TPMA_MODES_FIPS_140_3 ((TPMA_MODES) 0x00000002)
+#endif
 
 typedef struct {
     const char *algs;
@@ -247,6 +251,29 @@ static const OSSL_ALGORITHM tpm2_stores[] = {
     { NULL, NULL, NULL }
 };
 
+static const OSSL_ALGORITHM tpm2_fips_stores[] = {
+    { "handle", TPM2_FIPS_PROPS(store), tpm2_handle_store_functions },
+    { "object", TPM2_FIPS_PROPS(store), tpm2_handle_store_functions },
+    { NULL, NULL, NULL }
+};
+
+static int
+tpm2_is_fips_mode(const TPMS_CAPABILITY_DATA *caps)
+{
+    UINT32 i;
+
+    for (i = 0; i < caps->data.tpmProperties.count; i++) {
+        const TPMS_TAGGED_PROPERTY *property =
+            &caps->data.tpmProperties.tpmProperty[i];
+
+        if (property->property == TPM2_PT_MODES)
+            return property->value & (TPMA_MODES_FIPS_140_2 |
+                                      TPMA_MODES_FIPS_140_3);
+    }
+
+    return 0;
+}
+
 #define NELEMS(x)  (sizeof(x) / sizeof((x)[0]))
 
 static const OSSL_ALGORITHM *
@@ -282,6 +309,8 @@ tpm2_query_operation(void *provctx, int operation_id, int *no_cache)
     case OSSL_OP_DECODER:
         return tpm2_decoders;
     case OSSL_OP_STORE:
+        if (tpm2_is_fips_mode(cprov->capability.properties))
+            return tpm2_fips_stores;
         return tpm2_stores;
     }
     return NULL;
@@ -541,4 +570,3 @@ err1:
     OPENSSL_clear_free(cprov, sizeof(TPM2_PROVIDER_CTX));
     return 0;
 }
-
