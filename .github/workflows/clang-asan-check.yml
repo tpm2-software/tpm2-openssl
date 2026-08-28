@@ -21,7 +21,9 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install dependencies
-        run: sudo apt-get install curl autoconf-archive libtss2-dev libtss2-tcti-tabrmd0 tpm2-abrmd tpm2-tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes curl autoconf-archive libtss2-dev libtss2-tcti-tabrmd0 tpm2-abrmd tpm2-tools
 
       - name: Build TPM2 simulator
         run: |
