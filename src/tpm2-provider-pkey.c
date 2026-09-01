@@ -2,12 +2,22 @@
 
 #include <string.h>
 
+#include <openssl/err.h>
+#include <openssl/opensslv.h>
 #include <openssl/pem.h>
 #include <openssl/rand.h>
 
 #include <tss2/tss2_mu.h>
 
 #include "tpm2-provider-pkey.h"
+
+#if OPENSSL_VERSION_NUMBER >= 0x40100000
+#define TPM2_ASN1_STRING_get_length(x)		ASN1_STRING_get_length(x)
+#define TPM2_ASN1_STRING_set1_data(s, d, l)	ASN1_STRING_set1_data(s, d, l)
+#else
+#define TPM2_ASN1_STRING_get_length(x)		ASN1_STRING_length(x)
+#define TPM2_ASN1_STRING_set1_data(s, d, l)	ASN1_STRING_set(s, d, l)
+#endif
 
 typedef struct {
     ASN1_OBJECT *type;
@@ -88,8 +98,8 @@ tpm2_keydata_write(const TPM2_KEYDATA *keydata, BIO *bout, TPM2_PKEY_FORMAT form
         BN_set_word(bn_parent, TPM2_RH_OWNER);
 
     BN_to_ASN1_INTEGER(bn_parent, tpk->parent);
-    ASN1_STRING_set(tpk->privkey, &privbuf[0], privbuf_len);
-    ASN1_STRING_set(tpk->pubkey, &pubbuf[0], pubbuf_len);
+    TPM2_ASN1_STRING_set1_data(tpk->privkey, &privbuf[0], privbuf_len);
+    TPM2_ASN1_STRING_set1_data(tpk->pubkey, &pubbuf[0], pubbuf_len);
 
     switch (format) {
     case KEY_FORMAT_PEM:
@@ -162,13 +172,13 @@ tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata, TPM2_PKEY_FORMAT format)
         goto error;
 
     if (Tss2_MU_TPM2B_PRIVATE_Unmarshal(ASN1_STRING_get0_data(tpk->privkey),
-                                        ASN1_STRING_length(tpk->privkey), NULL,
-                                        &keydata->priv))
+                                        TPM2_ASN1_STRING_get_length(tpk->privkey),
+                                        NULL, &keydata->priv))
         goto error;
 
     if (Tss2_MU_TPM2B_PUBLIC_Unmarshal(ASN1_STRING_get0_data(tpk->pubkey),
-                                       ASN1_STRING_length(tpk->pubkey), NULL,
-                                       &keydata->pub))
+                                       TPM2_ASN1_STRING_get_length(tpk->pubkey),
+                                       NULL, &keydata->pub))
         goto error;
 
     res = 1;
