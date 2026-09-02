@@ -15,6 +15,8 @@ typedef struct {
     ASN1_INTEGER *parent;
     ASN1_OCTET_STRING *pubkey;
     ASN1_OCTET_STRING *privkey;
+    ASN1_INTEGER *privkeyType;
+    ASN1_INTEGER *privkeyHandle;
 } TSSPRIVKEY;
 
 ASN1_SEQUENCE(TSSPRIVKEY) = {
@@ -22,7 +24,9 @@ ASN1_SEQUENCE(TSSPRIVKEY) = {
     ASN1_EXP_OPT(TSSPRIVKEY, emptyAuth, ASN1_BOOLEAN, 0),
     ASN1_SIMPLE(TSSPRIVKEY, parent, ASN1_INTEGER),
     ASN1_SIMPLE(TSSPRIVKEY, pubkey, ASN1_OCTET_STRING),
-    ASN1_SIMPLE(TSSPRIVKEY, privkey, ASN1_OCTET_STRING)
+    ASN1_SIMPLE(TSSPRIVKEY, privkey, ASN1_OCTET_STRING),
+    ASN1_EXP_OPT(TSSPRIVKEY, privkeyType, ASN1_INTEGER, 1),
+    ASN1_EXP_OPT(TSSPRIVKEY, privkeyHandle, ASN1_INTEGER, 2),
 } ASN1_SEQUENCE_END(TSSPRIVKEY)
 
 #define OID_loadableKey "2.23.133.10.1.3"
@@ -64,9 +68,32 @@ tpm2_keydata_write(const TPM2_KEYDATA *keydata, BIO *bout, TPM2_PKEY_FORMAT form
     if (!tpk)
         return 0;
 
-    if (Tss2_MU_TPM2B_PRIVATE_Marshal(&keydata->priv, &privbuf[0],
-                                      sizeof(privbuf), &privbuf_len))
+    if (tpk->privkeyType == NULL) {
+        tpk->privkeyType = ASN1_INTEGER_new();
+        if (tpk->privkeyType == NULL)
+            goto error;
+    };
+    if (!ASN1_INTEGER_set_uint64(tpk->privkeyType, keydata->privatetype))
         goto error;
+
+    switch (keydata->privatetype) {
+    case KEY_TYPE_HANDLE:
+        if (tpk->privkeyHandle == NULL) {
+            tpk->privkeyHandle = ASN1_INTEGER_new();
+            if (tpk->privkeyHandle == NULL)
+                goto error;
+        }
+        if (!ASN1_INTEGER_set_uint64(tpk->privkeyHandle, keydata->handle))
+            goto error;
+        break;
+    case KEY_TYPE_BLOB:
+        if (Tss2_MU_TPM2B_PRIVATE_Marshal(&keydata->priv, &privbuf[0],
+                                          sizeof(privbuf), &privbuf_len))
+            goto error;
+        break;
+    default:
+        goto error;
+    }
 
     if (Tss2_MU_TPM2B_PUBLIC_Marshal(&keydata->pub, &pubbuf[0],
                                      sizeof(pubbuf), &pubbuf_len))
@@ -140,7 +167,6 @@ tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata, TPM2_PKEY_FORMAT format)
     if (tpk == NULL)
         return 0;
 
-    keydata->privatetype = KEY_TYPE_BLOB;
     keydata->emptyAuth = (tpk->emptyAuth != V_ASN1_UNDEF && tpk->emptyAuth);
 
     // the ASN1_INTEGER_get on a 32-bit machine will fail for numbers of UINT32_MAX
@@ -161,10 +187,30 @@ tpm2_keydata_read(BIO *bin, TPM2_KEYDATA *keydata, TPM2_PKEY_FORMAT format)
             strcmp(type_oid, OID_loadableKey))
         goto error;
 
-    if (Tss2_MU_TPM2B_PRIVATE_Unmarshal(ASN1_STRING_get0_data(tpk->privkey),
-                                        ASN1_STRING_length(tpk->privkey), NULL,
-                                        &keydata->priv))
+    uint64_t privkeyType;
+    if (tpk->privkeyType != NULL) {
+        if(!ASN1_INTEGER_get_uint64(&privkeyType, tpk->privkeyType))
+            goto error;
+    } else {
+        privkeyType = KEY_TYPE_BLOB;
+    }
+    keydata->privatetype = privkeyType;
+
+    switch (keydata->privatetype) {
+    case KEY_TYPE_HANDLE:
+        if (tpk->privkeyType != NULL
+            && !ASN1_INTEGER_get_uint64((uint64_t *)&keydata->handle, tpk->privkeyHandle))
+                goto error;
+        break;
+    case KEY_TYPE_BLOB:
+        if (Tss2_MU_TPM2B_PRIVATE_Unmarshal(ASN1_STRING_get0_data(tpk->privkey),
+                                            ASN1_STRING_length(tpk->privkey), NULL,
+                                            &keydata->priv))
+            goto error;
+        break;
+    default:
         goto error;
+    }
 
     if (Tss2_MU_TPM2B_PUBLIC_Unmarshal(ASN1_STRING_get0_data(tpk->pubkey),
                                        ASN1_STRING_length(tpk->pubkey), NULL,

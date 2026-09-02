@@ -207,10 +207,16 @@ static const OSSL_ALGORITHM tpm2_encoders[] = {
     /* private key */
     { "RSA", "provider=tpm2,output=der,structure=PrivateKeyInfo", tpm2_tss_encoder_PrivateKeyInfo_der_functions },
     { "RSA", "provider=tpm2,output=pem,structure=PrivateKeyInfo", tpm2_tss_encoder_PrivateKeyInfo_pem_functions },
+    { "RSA", "provider=tpm2,output=der,structure=type-specific", tpm2_tss_encoder_PrivateKeyInfo_der_functions },
+    { "RSA", "provider=tpm2,output=pem,structure=type-specific", tpm2_tss_encoder_PrivateKeyInfo_pem_functions },
     { "RSA-PSS", "provider=tpm2,output=der,structure=PrivateKeyInfo", tpm2_tss_encoder_PrivateKeyInfo_der_functions },
     { "RSA-PSS", "provider=tpm2,output=pem,structure=PrivateKeyInfo", tpm2_tss_encoder_PrivateKeyInfo_pem_functions },
+    { "RSA-PSS", "provider=tpm2,output=der,structure=type-specific", tpm2_tss_encoder_PrivateKeyInfo_der_functions },
+    { "RSA-PSS", "provider=tpm2,output=pem,structure=type-specific", tpm2_tss_encoder_PrivateKeyInfo_pem_functions },
     { "EC", "provider=tpm2,output=der,structure=PrivateKeyInfo", tpm2_tss_encoder_PrivateKeyInfo_der_functions },
     { "EC", "provider=tpm2,output=pem,structure=PrivateKeyInfo", tpm2_tss_encoder_PrivateKeyInfo_pem_functions },
+    { "EC", "provider=tpm2,output=der,structure=type-specific", tpm2_tss_encoder_PrivateKeyInfo_der_functions },
+    { "EC", "provider=tpm2,output=pem,structure=type-specific", tpm2_tss_encoder_PrivateKeyInfo_pem_functions },
     /* public key */
     { "RSA", "provider=tpm2,output=der,structure=pkcs1", tpm2_rsa_encoder_pkcs1_der_functions },
     { "RSA", "provider=tpm2,output=pem,structure=pkcs1", tpm2_rsa_encoder_pkcs1_pem_functions },
