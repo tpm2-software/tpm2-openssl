@@ -26,7 +26,9 @@ tpm2_la_SOURCES = \
     src/tpm2-provider-asymcipher-rsa.c \
     src/tpm2-provider-digest.c \
     src/tpm2-provider-digest.h \
-    src/tpm2-provider-signature.c
+    src/tpm2-provider-signature.c \
+    src/tpm2-provider-session.c \
+    src/tpm2-provider-session.h
 if WITH_OP_CIPHER
 tpm2_la_SOURCES += src/tpm2-provider-cipher.c
 endif
@@ -131,7 +133,17 @@ TESTS_SHELL = test/list.sh \
               test/ec_genpkey_tls_server.sh \
               test/ec_pki/ec_pki.sh \
               test/store_x509_index.sh \
-              test/store_errors.sh
+              test/store_errors.sh \
+              test/session_sign_tpmkey_only.sh \
+              test/session_sign_bind_only.sh \
+              test/session_sign_tpmkey_and_bind.sh \
+              test/session_sign_bind_no_auth.sh \
+              test/session_sign_bind_wrong_auth.sh \
+              test/session_decrypt_tpmkey_and_bind.sh \
+              test/session_keyexch_tpmkey_only.sh \
+              test/session_sign_object_uri.sh \
+              test/session_sign_tss2_pem.sh \
+              test/session_genpkey_tpmkey_and_bind.sh
 if WITH_OP_DIGEST
 TESTS_SHELL += test/digest.sh
 endif

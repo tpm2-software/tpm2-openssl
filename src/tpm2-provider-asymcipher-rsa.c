@@ -9,6 +9,7 @@
 #include <openssl/rsa.h>
 
 #include "tpm2-provider-pkey.h"
+#include "tpm2-provider-session.h"
 #include "tpm2-provider-types.h"
 
 #ifdef _MSC_VER
@@ -30,6 +31,7 @@ struct tpm2_rsa_asymcipher_ctx_st {
     unsigned int alt_version;
     TPM2_PKEY *pkey;
     TPM2B_PUBLIC_KEY_RSA *message;
+    TPM2_SESSION session;
 };
 
 static OSSL_FUNC_asym_cipher_newctx_fn rsa_asymcipher_newctx;
@@ -53,6 +55,7 @@ static void
     actx->esys_ctx = cprov->esys_ctx;
     actx->capability = cprov->capability;
     actx->decrypt.scheme = TPM2_ALG_RSAES;
+    tpm2_session_init(&actx->session);
     return actx;
 }
 
@@ -84,7 +87,7 @@ decrypt_message(TPM2_RSA_ASYMCIPHER_CTX *actx,
     if (!tpm2_semaphore_lock(actx->esys_lock))
         return 0;
     r = Esys_RSA_Decrypt(actx->esys_ctx, actx->pkey->object,
-                         ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                         tpm2_session_handle(&actx->session), ESYS_TR_NONE, ESYS_TR_NONE,
                          &cipher, &actx->decrypt, &label, &actx->message);
     tpm2_semaphore_unlock(actx->esys_lock);
     TPM2_CHECK_RC(actx->core, r, TPM2_ERR_CANNOT_DECRYPT, return 0);
@@ -99,6 +102,14 @@ rsa_asymcipher_decrypt(void *ctx, unsigned char *out, size_t *outlen,
     TPM2_RSA_ASYMCIPHER_CTX *actx = ctx;
 
     DBG("DECRYPT\n");
+
+    // for multiple calls to decrypt, we need to start the session only once
+    if (actx->session.handle == ESYS_TR_NONE) {
+        if (!tpm2_session_start(actx->core, actx->esys_lock, actx->esys_ctx,
+                                &actx->capability, &actx->session))
+            return 0;
+    }
+
     if (!actx->message && !decrypt_message(actx, in, inlen))
         return 0;
 
@@ -120,6 +131,8 @@ rsa_asymcipher_freectx(void *ctx)
     if (actx == NULL)
         return;
 
+    tpm2_session_end(actx->esys_lock, actx->esys_ctx, &actx->session);
+    tpm2_session_free(&actx->session);
     cleanse_free(actx->message, sizeof(TPM2B_PUBLIC_KEY_RSA));
     OPENSSL_clear_free(actx, sizeof(TPM2_RSA_ASYMCIPHER_CTX));
 }
@@ -198,6 +211,9 @@ rsa_asymcipher_set_ctx_params(void *ctx, const OSSL_PARAM params[])
         actx->alt_version = alt_version;
     }
 
+    if (!tpm2_session_set_params(actx->core, params, &actx->session))
+        return 0;
+
     return 1;
 }
 
@@ -209,6 +225,8 @@ rsa_asymcipher_settable_ctx_params(void *ctx, void *provctx)
         OSSL_PARAM_utf8_string(OSSL_ASYM_CIPHER_PARAM_OAEP_DIGEST, NULL, 0),
         OSSL_PARAM_uint(OSSL_ASYM_CIPHER_PARAM_TLS_CLIENT_VERSION, NULL),
         OSSL_PARAM_uint(OSSL_ASYM_CIPHER_PARAM_TLS_NEGOTIATED_VERSION, NULL),
+        OSSL_PARAM_utf8_string(TPM2_PKEY_PARAM_SESSION_TPMKEY, NULL, 0),
+        OSSL_PARAM_utf8_string(TPM2_PKEY_PARAM_SESSION_BIND, NULL, 0),
         OSSL_PARAM_END
     };
     return known_settable_ctx_params;

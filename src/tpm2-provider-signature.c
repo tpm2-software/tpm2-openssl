@@ -8,6 +8,7 @@
 
 #include "tpm2-provider-digest.h"
 #include "tpm2-provider-pkey.h"
+#include "tpm2-provider-session.h"
 #include "tpm2-provider-types.h"
 #include "tpm2-provider-x509.h"
 
@@ -26,6 +27,7 @@ struct tpm2_signature_ctx_st {
     TPM2_PKEY *pkey;
     TPMT_SIG_SCHEME signScheme;
     TPMT_SIGNATURE *signature;
+    TPM2_SESSION session;
 };
 
 static OSSL_FUNC_signature_newctx_fn tpm2_signature_newctx;
@@ -60,6 +62,12 @@ tpm2_signature_newctx(void *provctx, const char *propq)
     sctx->capability = cprov->capability;
     sctx->signScheme.scheme = TPM2_ALG_NULL;
     sctx->signScheme.details.any.hashAlg = TPM2_ALG_NULL;
+    tpm2_session_init(&sctx->session);
+    if (!tpm2_session_parse_propq(propq, &sctx->session)) {
+        tpm2_session_free(&sctx->session);
+        OPENSSL_clear_free(sctx, sizeof(TPM2_SIGNATURE_CTX));
+        return NULL;
+    }
     return sctx;
 }
 
@@ -73,6 +81,8 @@ tpm2_signature_freectx(void *ctx)
 
     tpm2_hash_sequence_flush((TPM2_HASH_SEQUENCE *)sctx);
     free(sctx->signature);
+    tpm2_session_end(sctx->esys_lock, sctx->esys_ctx, &sctx->session);
+    tpm2_session_free(&sctx->session);
     OPENSSL_clear_free(sctx, sizeof(TPM2_SIGNATURE_CTX));
 }
 
@@ -84,6 +94,7 @@ tpm2_signature_dupctx(void *ctx)
 
     if (sctx == NULL)
         return NULL;
+    tpm2_session_init(&sctx->session);
     if (!tpm2_hash_sequence_dup((TPM2_HASH_SEQUENCE *)sctx, (TPM2_HASH_SEQUENCE *)src))
         goto error;
     sctx->capability = src->capability;
@@ -96,8 +107,24 @@ tpm2_signature_dupctx(void *ctx)
         memcpy(sctx->signature, src->signature, sizeof(TPMT_SIGNATURE));
     }
 
+    if (src->session.tpmkey_uri) {
+        if ((sctx->session.tpmkey_uri = OPENSSL_strdup(src->session.tpmkey_uri)) == NULL)
+            goto error;
+    }
+    if (src->session.bind_uri) {
+        if ((sctx->session.bind_uri = OPENSSL_strdup(src->session.bind_uri)) == NULL)
+            goto error;
+    }
+    if (src->session.handle != ESYS_TR_NONE) {
+        if (!tpm2_session_start(sctx->core, sctx->esys_lock, sctx->esys_ctx,
+                                &sctx->capability, &sctx->session))
+            goto error;
+    }
+
     return sctx;
 error:
+    tpm2_session_end(sctx->esys_lock, sctx->esys_ctx, &sctx->session);
+    tpm2_session_free(&sctx->session);
     OPENSSL_clear_free(sctx, sizeof(TPM2_SIGNATURE_CTX));
     return NULL;
 }
@@ -195,8 +222,9 @@ tpm2_rsa_signature_sign_init(void *ctx, void *provkey, const OSSL_PARAM params[]
     DBG("SIGN SIGN_INIT rsa\n");
     sctx->pkey = provkey;
 
-    return (tpm2_rsa_signature_set_ctx_params(sctx, params)
-        && rsa_signature_scheme_init(sctx, NULL));
+    if (!tpm2_rsa_signature_set_ctx_params(sctx, params))
+        return 0;
+    return rsa_signature_scheme_init(sctx, NULL);
 }
 
 static int
@@ -207,8 +235,9 @@ tpm2_ecdsa_signature_sign_init(void *ctx, void *provkey, const OSSL_PARAM params
     DBG("SIGN SIGN_INIT ecdsa\n");
     sctx->pkey = provkey;
 
-    return (tpm2_ecdsa_signature_set_ctx_params(sctx, params)
-        && ecdsa_signature_scheme_init(sctx, NULL));
+    if (!tpm2_ecdsa_signature_set_ctx_params(sctx, params))
+        return 0;
+    return ecdsa_signature_scheme_init(sctx, NULL);
 }
 
 static int
@@ -355,10 +384,17 @@ tpm2_signature_sign(void *ctx, unsigned char *sig, size_t *siglen, size_t sigsiz
     digest.size = tbslen;
     memcpy(digest.buffer, tbs, tbslen);
 
+    // we only need to start the session once
+    if (sctx->session.handle == ESYS_TR_NONE) {
+        if (!tpm2_session_start(sctx->core, sctx->esys_lock, sctx->esys_ctx,
+                                &sctx->capability, &sctx->session))
+            return 0;
+    }
+
     if (!tpm2_semaphore_lock(sctx->esys_lock))
         return 0;
     r = Esys_Sign(sctx->esys_ctx, sctx->pkey->object,
-                  ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                  tpm2_session_handle(&sctx->session), ESYS_TR_NONE, ESYS_TR_NONE,
                   &digest, &sctx->signScheme, &empty_validation, &sctx->signature);
     tpm2_semaphore_unlock(sctx->esys_lock);
     TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_SIGN, return 0);
@@ -378,8 +414,9 @@ tpm2_rsa_signature_digest_init(void *ctx, const char *mdname, void *provkey,
     DBG("SIGN DIGEST_INIT rsa MD=%s\n", mdname);
     sctx->pkey = provkey;
 
-    return (tpm2_rsa_signature_set_ctx_params(sctx, params)
-        && rsa_signature_scheme_init(sctx, mdname));
+    if (!tpm2_rsa_signature_set_ctx_params(sctx, params))
+        return 0;
+    return rsa_signature_scheme_init(sctx, mdname);
 }
 
 static int
@@ -391,8 +428,9 @@ tpm2_ecdsa_signature_digest_init(void *ctx, const char *mdname, void *provkey,
     DBG("SIGN DIGEST_INIT ecdsa MD=%s\n", mdname);
     sctx->pkey = provkey;
 
-    return (tpm2_ecdsa_signature_set_ctx_params(sctx, params)
-        && ecdsa_signature_scheme_init(sctx, mdname));
+    if (!tpm2_ecdsa_signature_set_ctx_params(sctx, params))
+        return 0;
+    return ecdsa_signature_scheme_init(sctx, mdname);
 }
 
 static int
@@ -404,6 +442,13 @@ digest_start(TPM2_SIGNATURE_CTX *sctx)
         sctx->signature = NULL;
     } else
         DBG("SIGN DIGEST_START\n");
+
+    // we only need to start the session once
+    if (sctx->session.handle == ESYS_TR_NONE) {
+        if (!tpm2_session_start(sctx->core, sctx->esys_lock, sctx->esys_ctx,
+                                &sctx->capability, &sctx->session))
+            return 0;
+    }
 
     return tpm2_hash_sequence_start((TPM2_HASH_SEQUENCE *)sctx);
 }
@@ -438,7 +483,7 @@ digest_sign_calculate(TPM2_SIGNATURE_CTX *sctx)
     if (!tpm2_semaphore_lock(sctx->esys_lock))
         return 0;
     r = Esys_Sign(sctx->esys_ctx, sctx->pkey->object,
-                  ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                  tpm2_session_handle(&sctx->session), ESYS_TR_NONE, ESYS_TR_NONE,
                   digest, &sctx->signScheme, validation, &sctx->signature);
     free(digest);
     free(validation);
@@ -500,10 +545,19 @@ tpm2_signature_digest_sign(void *ctx, unsigned char *sig, size_t *siglen,
     if (validation->digest.size == 0)
         DBG("SIGN DIGEST_SIGN zero size ticket\n");
 
+    if (sctx->session.handle == ESYS_TR_NONE) {
+        if (!tpm2_session_start(sctx->core, sctx->esys_lock, sctx->esys_ctx,
+                                &sctx->capability, &sctx->session)) {
+            free(digest);
+            free(validation);
+            return 0;
+        }
+    }
+
     if (!tpm2_semaphore_lock(sctx->esys_lock))
         return 0;
     r = Esys_Sign(sctx->esys_ctx, sctx->pkey->object,
-                  ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                  tpm2_session_handle(&sctx->session), ESYS_TR_NONE, ESYS_TR_NONE,
                   digest, &sctx->signScheme, validation, &sctx->signature);
     free(digest);
     free(validation);
@@ -633,6 +687,9 @@ tpm2_rsa_signature_set_ctx_params(void *ctx, const OSSL_PARAM params[])
         return 0;
     }
 
+    if (!tpm2_session_set_params(sctx->core, params, &sctx->session))
+        return 0;
+
     return 1;
 }
 
@@ -644,6 +701,8 @@ tpm2_rsa_signature_settable_ctx_params(void *ctx, void *provctx)
         OSSL_PARAM_utf8_string(OSSL_SIGNATURE_PARAM_PAD_MODE, NULL, 0),
         OSSL_PARAM_utf8_string(OSSL_SIGNATURE_PARAM_DIGEST, NULL, 0),
         OSSL_PARAM_utf8_string(OSSL_SIGNATURE_PARAM_PSS_SALTLEN, NULL, 0),
+        OSSL_PARAM_utf8_string(TPM2_PKEY_PARAM_SESSION_TPMKEY, NULL, 0),
+        OSSL_PARAM_utf8_string(TPM2_PKEY_PARAM_SESSION_BIND, NULL, 0),
         OSSL_PARAM_END
     };
 
@@ -670,6 +729,9 @@ tpm2_ecdsa_signature_set_ctx_params(void *ctx, const OSSL_PARAM params[])
         }
     }
 
+    if (!tpm2_session_set_params(sctx->core, params, &sctx->session))
+        return 0;
+
     return 1;
 }
 
@@ -678,6 +740,8 @@ tpm2_ecdsa_signature_settable_ctx_params(void *ctx, void *provctx)
 {
     static OSSL_PARAM settable[] = {
         OSSL_PARAM_utf8_string(OSSL_SIGNATURE_PARAM_DIGEST, NULL, 0),
+        OSSL_PARAM_utf8_string(TPM2_PKEY_PARAM_SESSION_TPMKEY, NULL, 0),
+        OSSL_PARAM_utf8_string(TPM2_PKEY_PARAM_SESSION_BIND, NULL, 0),
         OSSL_PARAM_END
     };
 

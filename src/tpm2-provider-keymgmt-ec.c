@@ -8,6 +8,7 @@
 #include <tss2/tss2_mu.h>
 
 #include "tpm2-provider-pkey.h"
+#include "tpm2-provider-session.h"
 #include "tpm2-provider-types.h"
 
 static const TPM2B_PUBLIC keyTemplate = {
@@ -49,6 +50,7 @@ struct tpm2_ecgen_ctx_st {
     TPM2B_DIGEST parentAuth;
     TPM2B_PUBLIC inPublic;
     TPM2B_SENSITIVE_CREATE inSensitive;
+    TPM2_SESSION session;
 };
 
 static OSSL_FUNC_keymgmt_new_fn tpm2_ec_keymgmt_new;
@@ -121,6 +123,7 @@ tpm2_ec_keymgmt_gen_init(void *provctx, int selection, const OSSL_PARAM params[]
              TPMA_OBJECT_FIXEDPARENT |
              TPMA_OBJECT_SENSITIVEDATAORIGIN);
 
+    tpm2_session_init(&gen->session);
     if (tpm2_ec_keymgmt_gen_set_params(gen, params))
         return gen;
     OPENSSL_clear_free(gen, sizeof(TPM2_ECGEN_CTX));
@@ -181,6 +184,9 @@ tpm2_ec_keymgmt_gen_set_params(void *ctx, const OSSL_PARAM params[])
         }
     }
 
+    if (!tpm2_session_set_params(gen->core, params, &gen->session))
+        return 0;
+
     return 1;
 }
 
@@ -194,6 +200,8 @@ tpm2_ec_keymgmt_gen_settable_params(void *ctx, void *provctx)
         OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_DIGEST, NULL, 0),
         /* mandatory parameters used by openssl */
         OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME, NULL, 0),
+        OSSL_PARAM_utf8_string(TPM2_PKEY_PARAM_SESSION_TPMKEY, NULL, 0),
+        OSSL_PARAM_utf8_string(TPM2_PKEY_PARAM_SESSION_BIND, NULL, 0),
         OSSL_PARAM_END
     };
 
@@ -212,6 +220,11 @@ tpm2_ec_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
 
     DBG("EC GEN%s\n",
         gen->inSensitive.sensitive.userAuth.size > 0 ? " with user-auth" : "");
+
+    if (!tpm2_session_start(gen->core, gen->esys_lock, gen->esys_ctx,
+                            &gen->capability, &gen->session))
+        return NULL;
+
     pkey = OPENSSL_zalloc(sizeof(TPM2_PKEY));
     if (pkey == NULL) {
         TPM2_ERROR_raise(gen->core, TPM2_ERR_MEMORY_FAILURE);
@@ -248,7 +261,7 @@ tpm2_ec_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
         goto error2;
     /* older TPM2 chips do not support Esys_CreateLoaded */
     r = Esys_Create(gen->esys_ctx, parent,
-                    ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                    tpm2_session_handle(&gen->session), ESYS_TR_NONE, ESYS_TR_NONE,
                     &gen->inSensitive, &gen->inPublic, &outside_info, &creation_pcr,
                     &keyPrivate, &keyPublic, NULL, NULL, NULL);
     TPM2_CHECK_RC(gen->core, r, TPM2_ERR_CANNOT_CREATE_KEY, goto error3);
@@ -258,7 +271,7 @@ tpm2_ec_keymgmt_gen(void *ctx, OSSL_CALLBACK *cb, void *cbarg)
     pkey->data.priv = *keyPrivate;
 
     r = Esys_Load(gen->esys_ctx, parent,
-                  ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
+                  tpm2_session_handle(&gen->session), ESYS_TR_NONE, ESYS_TR_NONE,
                   keyPrivate, keyPublic, &pkey->object);
     free(keyPublic);
     cleanse_free(keyPrivate, sizeof(TPM2B_PRIVATE));
@@ -292,6 +305,8 @@ tpm2_ec_keymgmt_gen_cleanup(void *ctx)
     if (gen == NULL)
         return;
 
+    tpm2_session_end(gen->esys_lock, gen->esys_ctx, &gen->session);
+    tpm2_session_free(&gen->session);
     OPENSSL_clear_free(gen, sizeof(TPM2_ECGEN_CTX));
 }
 

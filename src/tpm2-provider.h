@@ -12,9 +12,11 @@
 
 #define TPM2_MAX_OSSL_NAME 50 /* OSSL_MAX_NAME_SIZE */
 
-#define TPM2_PKEY_PARAM_PARENT      "parent"
-#define TPM2_PKEY_PARAM_PARENT_AUTH "parent-auth"
-#define TPM2_PKEY_PARAM_USER_AUTH   "user-auth"
+#define TPM2_PKEY_PARAM_PARENT           "parent"
+#define TPM2_PKEY_PARAM_PARENT_AUTH      "parent-auth"
+#define TPM2_PKEY_PARAM_USER_AUTH        "user-auth"
+#define TPM2_PKEY_PARAM_SESSION_TPMKEY   "tpm2.session-tpmkey"
+#define TPM2_PKEY_PARAM_SESSION_BIND     "tpm2.session-bind"
 
 typedef struct tpm2_provider_ctx_st TPM2_PROVIDER_CTX;
 
