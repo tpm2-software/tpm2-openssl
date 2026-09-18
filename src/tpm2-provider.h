@@ -15,6 +15,7 @@
 #define TPM2_PKEY_PARAM_PARENT      "parent"
 #define TPM2_PKEY_PARAM_PARENT_AUTH "parent-auth"
 #define TPM2_PKEY_PARAM_USER_AUTH   "user-auth"
+#define TPM2_PKEY_PARAM_POLICY_PCR  "policy-pcr"
 
 typedef struct tpm2_provider_ctx_st TPM2_PROVIDER_CTX;
 
