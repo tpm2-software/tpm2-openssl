@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 
+#include <stdlib.h>
 #include <string.h>
 
 #include <openssl/core_dispatch.h>
@@ -26,6 +27,8 @@ struct tpm2_signature_ctx_st {
     TPM2_PKEY *pkey;
     TPMT_SIG_SCHEME signScheme;
     TPMT_SIGNATURE *signature;
+    TPML_PCR_SELECTION policy_pcr;
+    int policy_pcr_set;
 };
 
 static OSSL_FUNC_signature_newctx_fn tpm2_signature_newctx;
@@ -89,6 +92,8 @@ tpm2_signature_dupctx(void *ctx)
     sctx->capability = src->capability;
     sctx->pkey = src->pkey;
     sctx->signScheme = src->signScheme;
+    sctx->policy_pcr = src->policy_pcr;
+    sctx->policy_pcr_set = src->policy_pcr_set;
     if (src->signature) {
         sctx->signature = OPENSSL_malloc(sizeof(TPMT_SIGNATURE));
         if (!sctx->signature)
@@ -323,12 +328,114 @@ set_signature_buffer(TPMT_SIGNATURE *signature,
 }
 
 static int
+parse_policy_pcr(TPML_PCR_SELECTION *selection, const char *value)
+{
+    const char *p;
+    unsigned long pcr;
+    char *end;
+
+    if (strncmp(value, "sha256:", 7) != 0)
+        return 0;
+    p = value + 7;
+
+    memset(selection, 0, sizeof(*selection));
+    selection->count = 1;
+    selection->pcrSelections[0].hash = TPM2_ALG_SHA256;
+    selection->pcrSelections[0].sizeofSelect = 3;
+
+    while (1) {
+        if (*p < '0' || *p > '9')
+            return 0;
+        pcr = strtoul(p, &end, 10);
+        if (pcr > 23 || (*end != ',' && *end != '\0'))
+            return 0;
+        if (selection->pcrSelections[0].pcrSelect[pcr / 8] & (1 << (pcr % 8)))
+            return 0;
+        selection->pcrSelections[0].pcrSelect[pcr / 8] |= (1 << (pcr % 8));
+        if (*end == '\0')
+            break;
+        p = end + 1;
+    }
+
+    return 1;
+}
+
+static int
+set_policy_pcr_param(TPM2_SIGNATURE_CTX *sctx, const OSSL_PARAM params[])
+{
+    const OSSL_PARAM *p = OSSL_PARAM_locate_const(params, TPM2_PKEY_PARAM_POLICY_PCR);
+    char *value = NULL;
+    int ok;
+
+    if (p == NULL)
+        return 1;
+
+    sctx->policy_pcr_set = 0;
+    ok = OSSL_PARAM_get_utf8_string(p, &value, 0) &&
+         parse_policy_pcr(&sctx->policy_pcr, value);
+    OPENSSL_free(value);
+    if (!ok) {
+        TPM2_ERROR_raise(sctx->core, TPM2_ERR_INPUT_CORRUPTED);
+        return 0;
+    }
+    sctx->policy_pcr_set = 1;
+
+    return 1;
+}
+
+static int
+tpm2_signature_sign_tpm(TPM2_SIGNATURE_CTX *sctx,
+                        const TPM2B_DIGEST *digest,
+                        const TPMT_TK_HASHCHECK *validation)
+{
+    static const TPMT_SYM_DEF symmetric = { .algorithm = TPM2_ALG_NULL };
+    static const TPM2B_DIGEST empty_pcr_digest = { .size = 0 };
+    ESYS_TR session = ESYS_TR_PASSWORD;
+    TSS2_RC r, fr;
+
+    if (!tpm2_semaphore_lock(sctx->esys_lock))
+        return 0;
+
+    if (sctx->policy_pcr_set) {
+        session = ESYS_TR_NONE;
+        r = Esys_StartAuthSession(sctx->esys_ctx, ESYS_TR_NONE, ESYS_TR_NONE,
+                                  ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
+                                  NULL, TPM2_SE_POLICY, &symmetric,
+                                  sctx->pkey->data.pub.publicArea.nameAlg, &session);
+        if (r)
+            goto out;
+        r = Esys_TRSess_SetAttributes(sctx->esys_ctx, session,
+                                      TPMA_SESSION_CONTINUESESSION,
+                                      TPMA_SESSION_CONTINUESESSION);
+        if (r)
+            goto out;
+        r = Esys_PolicyPCR(sctx->esys_ctx, session,
+                           ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
+                           &empty_pcr_digest, &sctx->policy_pcr);
+        if (r)
+            goto out;
+    }
+
+    r = Esys_Sign(sctx->esys_ctx, sctx->pkey->object,
+                  session, ESYS_TR_NONE, ESYS_TR_NONE,
+                  digest, &sctx->signScheme, validation, &sctx->signature);
+out:
+    if (session != ESYS_TR_PASSWORD && session != ESYS_TR_NONE) {
+        fr = Esys_FlushContext(sctx->esys_ctx, session);
+        if (!r)
+            r = fr;
+    }
+    tpm2_semaphore_unlock(sctx->esys_lock);
+    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_SIGN, return 0);
+    return 1;
+}
+
+static int
 tpm2_signature_sign(void *ctx, unsigned char *sig, size_t *siglen, size_t sigsize,
                     const unsigned char *tbs, size_t tbslen)
 {
     TPM2_SIGNATURE_CTX *sctx = ctx;
     TPM2B_DIGEST digest;
-    TSS2_RC r;
 
     TPMT_TK_HASHCHECK empty_validation = {
         .tag = TPM2_ST_HASHCHECK,
@@ -355,13 +462,8 @@ tpm2_signature_sign(void *ctx, unsigned char *sig, size_t *siglen, size_t sigsiz
     digest.size = tbslen;
     memcpy(digest.buffer, tbs, tbslen);
 
-    if (!tpm2_semaphore_lock(sctx->esys_lock))
+    if (!tpm2_signature_sign_tpm(sctx, &digest, &empty_validation))
         return 0;
-    r = Esys_Sign(sctx->esys_ctx, sctx->pkey->object,
-                  ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
-                  &digest, &sctx->signScheme, &empty_validation, &sctx->signature);
-    tpm2_semaphore_unlock(sctx->esys_lock);
-    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_SIGN, return 0);
 
     if (!get_signature_buffer(sctx->signature, sig, siglen, sigsize))
         return 0;
@@ -424,7 +526,6 @@ tpm2_signature_digest_update(void *ctx,
 static int
 digest_sign_calculate(TPM2_SIGNATURE_CTX *sctx)
 {
-    TSS2_RC r;
     TPM2B_DIGEST *digest = NULL;
     TPMT_TK_HASHCHECK *validation = NULL;
 
@@ -435,15 +536,13 @@ digest_sign_calculate(TPM2_SIGNATURE_CTX *sctx)
     if (validation->digest.size == 0)
         DBG("SIGN DIGEST_SIGN_CALCULATE zero size ticket\n");
 
-    if (!tpm2_semaphore_lock(sctx->esys_lock))
+    if (!tpm2_signature_sign_tpm(sctx, digest, validation)) {
+        free(digest);
+        free(validation);
         return 0;
-    r = Esys_Sign(sctx->esys_ctx, sctx->pkey->object,
-                  ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
-                  digest, &sctx->signScheme, validation, &sctx->signature);
+    }
     free(digest);
     free(validation);
-    tpm2_semaphore_unlock(sctx->esys_lock);
-    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_SIGN, return 0);
 
     return 1;
 }
@@ -474,7 +573,6 @@ static int
 tpm2_signature_digest_sign(void *ctx, unsigned char *sig, size_t *siglen,
                            size_t sigsize, const unsigned char *data, size_t datalen)
 {
-    TSS2_RC r;
     TPM2_SIGNATURE_CTX *sctx = ctx;
     TPM2B_DIGEST *digest = NULL;
     TPMT_TK_HASHCHECK *validation = NULL;
@@ -500,15 +598,13 @@ tpm2_signature_digest_sign(void *ctx, unsigned char *sig, size_t *siglen,
     if (validation->digest.size == 0)
         DBG("SIGN DIGEST_SIGN zero size ticket\n");
 
-    if (!tpm2_semaphore_lock(sctx->esys_lock))
+    if (!tpm2_signature_sign_tpm(sctx, digest, validation)) {
+        free(digest);
+        free(validation);
         return 0;
-    r = Esys_Sign(sctx->esys_ctx, sctx->pkey->object,
-                  ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE,
-                  digest, &sctx->signScheme, validation, &sctx->signature);
+    }
     free(digest);
     free(validation);
-    tpm2_semaphore_unlock(sctx->esys_lock);
-    TPM2_CHECK_RC(sctx->core, r, TPM2_ERR_CANNOT_SIGN, return 0);
 
     if (!get_signature_buffer(sctx->signature, sig, siglen, sigsize))
         return 0;
@@ -633,7 +729,7 @@ tpm2_rsa_signature_set_ctx_params(void *ctx, const OSSL_PARAM params[])
         return 0;
     }
 
-    return 1;
+    return set_policy_pcr_param(sctx, params);
 }
 
 static const OSSL_PARAM *
@@ -644,6 +740,7 @@ tpm2_rsa_signature_settable_ctx_params(void *ctx, void *provctx)
         OSSL_PARAM_utf8_string(OSSL_SIGNATURE_PARAM_PAD_MODE, NULL, 0),
         OSSL_PARAM_utf8_string(OSSL_SIGNATURE_PARAM_DIGEST, NULL, 0),
         OSSL_PARAM_utf8_string(OSSL_SIGNATURE_PARAM_PSS_SALTLEN, NULL, 0),
+        OSSL_PARAM_utf8_string(TPM2_PKEY_PARAM_POLICY_PCR, NULL, 0),
         OSSL_PARAM_END
     };
 
@@ -670,7 +767,7 @@ tpm2_ecdsa_signature_set_ctx_params(void *ctx, const OSSL_PARAM params[])
         }
     }
 
-    return 1;
+    return set_policy_pcr_param(sctx, params);
 }
 
 static const OSSL_PARAM *
@@ -678,6 +775,7 @@ tpm2_ecdsa_signature_settable_ctx_params(void *ctx, void *provctx)
 {
     static OSSL_PARAM settable[] = {
         OSSL_PARAM_utf8_string(OSSL_SIGNATURE_PARAM_DIGEST, NULL, 0),
+        OSSL_PARAM_utf8_string(TPM2_PKEY_PARAM_POLICY_PCR, NULL, 0),
         OSSL_PARAM_END
     };
 
