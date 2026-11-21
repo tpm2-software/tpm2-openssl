@@ -12,6 +12,8 @@
 #include <openssl/core_object.h>
 #include <openssl/params.h>
 
+#include <tss2/tss2_mu.h>
+
 #include "tpm2-provider-pkey.h"
 #include "tpm2-provider-types.h"
 
@@ -57,6 +59,46 @@ tpm2_tss2_decoder_freectx(void *ctx)
     OPENSSL_clear_free(dctx, sizeof(TPM2_TSS2_DECODER_CTX));
 }
 
+static int
+tpm2_tss2_decoder_validate_handle_public(TPM2_PKEY *pkey)
+{
+    TPM2B_PUBLIC *public = NULL;
+    uint8_t expected[sizeof(pkey->data.pub)];
+    uint8_t actual[sizeof(pkey->data.pub)];
+    size_t expected_size = 0, actual_size = 0;
+    TSS2_RC r;
+
+    if (!tpm2_semaphore_lock(pkey->esys_lock)) {
+        TPM2_ERROR_raise(pkey->core, TPM2_ERR_CANNOT_LOAD_KEY);
+        return 0;
+    }
+    r = Esys_ReadPublic(pkey->esys_ctx, pkey->object,
+                        ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
+                        &public, NULL, NULL);
+    tpm2_semaphore_unlock(pkey->esys_lock);
+    TPM2_CHECK_RC(pkey->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error);
+
+    if (Tss2_MU_TPM2B_PUBLIC_Marshal(&pkey->data.pub, expected,
+                                     sizeof(expected), &expected_size) ||
+            Tss2_MU_TPM2B_PUBLIC_Marshal(public, actual,
+                                         sizeof(actual), &actual_size)) {
+        TPM2_ERROR_raise(pkey->core, TPM2_ERR_INPUT_CORRUPTED);
+        goto error;
+    }
+
+    if (expected_size != actual_size ||
+            memcmp(expected, actual, expected_size) != 0) {
+        TPM2_ERROR_raise(pkey->core, TPM2_ERR_INPUT_CORRUPTED);
+        goto error;
+    }
+
+    Esys_Free(public);
+    return 1;
+error:
+    Esys_Free(public);
+    return 0;
+}
+
 static const char *
 decode_privkey(TPM2_TSS2_DECODER_CTX *dctx, TPM2_PKEY *pkey,
                BIO *bin, OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
@@ -100,6 +142,8 @@ decode_privkey(TPM2_TSS2_DECODER_CTX *dctx, TPM2_PKEY *pkey,
                                   &pkey->object);
         tpm2_semaphore_unlock(pkey->esys_lock);
         TPM2_CHECK_RC(pkey->core, r, TPM2_ERR_CANNOT_LOAD_KEY, goto error1);
+        if (!tpm2_tss2_decoder_validate_handle_public(pkey))
+            goto error2;
     } else {
         TPM2_ERROR_raise(pkey->core, TPM2_ERR_INPUT_CORRUPTED);
         goto error1;
