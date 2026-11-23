@@ -70,6 +70,8 @@ static OSSL_FUNC_keymgmt_import_fn tpm2_rsa_keymgmt_import;
 static OSSL_FUNC_keymgmt_import_types_fn tpm2_rsa_keymgmt_eximport_types;
 OSSL_FUNC_keymgmt_export_fn tpm2_rsa_keymgmt_export;
 
+static UINT32 pkey_get_rsa_exp(const TPM2_PKEY *);
+
 static void *
 tpm2_rsa_keymgmt_new(void *provctx)
 {
@@ -427,8 +429,7 @@ tpm2_rsa_keymgmt_get_params(void *keydata, OSSL_PARAM params[])
                             pkey->data.pub.publicArea.unique.rsa))
         return 0;
     p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_RSA_E);
-    if (p != NULL && !tpm2_param_set_BN_from_uint32(p,
-                            pkey->data.pub.publicArea.parameters.rsaDetail.exponent))
+    if (p != NULL && !tpm2_param_set_BN_from_uint32(p, pkey_get_rsa_exp(pkey)))
         return 0;
 
     return 1;
