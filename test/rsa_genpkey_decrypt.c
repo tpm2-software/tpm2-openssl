@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 
 #include <string.h>
+#include <openssl/bn.h>
+#include <openssl/core_names.h>
 #include <openssl/provider.h>
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
@@ -12,6 +14,7 @@ int main()
     EVP_PKEY *privkey = NULL, *pubkey = NULL;
     OSSL_PARAM *params = NULL;
     EVP_PKEY_CTX *impctx = NULL, *encctx = NULL, *decctx = NULL;
+    BIGNUM *exp = NULL;
 
     size_t enclen, declen;
     unsigned char *encout = NULL, *decout = NULL;
@@ -28,6 +31,15 @@ int main()
     /* generate a RSA-2048 key using the TPM2 */
     if (!(privkey = EVP_PKEY_Q_keygen(NULL, "provider=tpm2", "RSA", (size_t)2048)))
         goto error;
+
+    if (!EVP_PKEY_get_bn_param(privkey, OSSL_PKEY_PARAM_RSA_E, &exp))
+        goto error;
+
+    /* ensure that the provider converts the default exponent shorthand */
+    if (exp == NULL || BN_is_zero(exp)) {
+        fprintf(stderr, "public RSA exponent shoud not be zero");
+        goto error;
+    }
 
     /* export the public key */
     if (EVP_PKEY_todata(privkey, EVP_PKEY_PUBLIC_KEY, &params) != 1)
@@ -83,6 +95,8 @@ int main()
 
 error:
     ERR_print_errors_fp(stderr);
+
+    BN_free(exp);
 
     OPENSSL_free(decout);
     OPENSSL_free(encout);
