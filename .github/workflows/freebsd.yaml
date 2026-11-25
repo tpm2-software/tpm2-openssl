@@ -1,0 +1,134 @@
+# SPDX-FileCopyrightText: 2026 Juergen Repp
+# SPDX-License-Identifier: BSD-2-Clause
+
+name: FreeBSD CI
+
+on:
+  [push, pull_request]
+
+jobs:
+  freebsd-test:
+    if: github.event_name != 'push' || github.repository == 'tpm2-software/tpm2-openssl'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Test in FreeBSD
+        uses: vmactions/freebsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            set -eux
+            export ASSUME_ALWAYS_YES=yes
+            export CFLAGS="-I/usr/local/include -I/usr/local/openssl/include"
+            export LD_LIBRARY_PATH=/usr/local/lib
+            export PATH="$PATH:/usr/local/sbin:/usr/sbin"
+            export MAKE=gmake
+            export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+            rm -rf /var/db/pkg/repo-* /var/db/pkg/FreeBSD.meta /var/cache/pkg/*
+            # install packages script
+            pkg bootstrap -f
+            pkg update -f
+            pkg install -y \
+              autoconf \
+              autoconf-archive \
+              automake \
+              bash \
+              dbus \
+              git \
+              gmake \
+              libtool \
+              openssl \
+              pkgconf \
+              sudo \
+              swtpm \
+              tpm2-abrmd \
+              tpm2-tools
+            pkg update -f
+            sync
+            service dbus enable
+            service dbus start
+            cd "$GITHUB_WORKSPACE"
+            # Build the TSS with the swtpm TCTI enabled.
+            git clone --branch master \
+              https://github.com/tpm2-software/tpm2-tss
+            cd tpm2-tss
+            ./bootstrap
+            ./configure --enable-tcti-swtpm=yes
+            gmake -j
+            gmake install
+
+          run: |
+            set -eux
+            simulator_pid=
+            abrmd_pid=
+            simulator_state_dir=
+            cleanup() {
+              if [ -n "$simulator_pid" ]; then
+                kill "$simulator_pid" 2>/dev/null || true
+                wait "$simulator_pid" 2>/dev/null || true
+                simulator_pid=
+              fi
+              if [ -n "$abrmd_pid" ]; then
+                kill "$abrmd_pid" 2>/dev/null || true
+                wait "$abrmd_pid" 2>/dev/null || true
+                abrmd_pid=
+              fi
+              if [ -n "$simulator_state_dir" ]; then
+                rm -rf "$simulator_state_dir"
+                simulator_state_dir=
+              fi
+            }
+            trap cleanup 0
+            export CFLAGS="-I/usr/local/include -I/usr/local/openssl/include"
+            export LD_LIBRARY_PATH=/usr/local/lib
+            export PATH="$PATH:/usr/local/sbin:/usr/sbin"
+            export MAKE=gmake
+            export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+            export TPM2OPENSSL_TCTI="tabrmd:bus_name=com.intel.tss2.Tabrmd"
+            export TPM2TOOLS_TCTI="$TPM2OPENSSL_TCTI"
+            export TPM2_TEST_HASHES="sha1 sha256 sha384 sha512"
+            cd "$GITHUB_WORKSPACE"
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
+            # build script
+            ./bootstrap
+            ./configure --enable-op-digest --enable-op-cipher
+            gmake -j
+            # start swtpm with an isolated state directory
+            simulator_state_dir=$(mktemp -d /tmp/tpm2-openssl-swtpm.XXXXXX)
+            swtpm socket --tpm2 \
+              --server port=2321 \
+              --ctrl type=tcp,port=2322 \
+              --flags not-need-init \
+              --tpmstate dir="$simulator_state_dir" &
+            simulator_pid=$!
+            # wait for the simulator before starting abrmd
+            attempt=0
+            until sockstat -4 -l -n -p 2321 | grep -q 2321; do
+              attempt=$((attempt + 1))
+              if [ "$attempt" -ge 30 ]; then
+                echo "swtpm did not listen on port 2321 within 30 seconds" >&2
+                exit 1
+              fi
+              sleep 1
+            done
+            # run abrmd background script
+            sudo -u _tss tpm2-abrmd --tcti swtpm:host=localhost,port=2321 &
+            abrmd_pid=$!
+            # wait for abrmd to register its D-Bus TCTI before running clients
+            attempt=0
+            until tpm2_getcap properties-fixed >/dev/null 2>&1; do
+              attempt=$((attempt + 1))
+              if [ "$attempt" -ge 30 ]; then
+                echo "tpm2-abrmd did not become ready within 30 seconds" >&2
+                exit 1
+              fi
+              sleep 1
+            done
+            # check script
+            openssl version
+            tpm2_getcap properties-fixed | head -n 20
+            gmake check || { cat test-suite.log; exit 1; }
+            cleanup
