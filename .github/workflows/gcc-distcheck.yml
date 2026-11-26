@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install dependencies
           sudo apt-get update
@@ -52,7 +52,7 @@ jobs:
           TPM2OPENSSL_TCTI: ${{ env.TCTI_ADDRESS }}
 
       - name: Submit code coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
