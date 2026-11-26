@@ -8,8 +8,9 @@ env:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install dependencies
           sudo apt-get update
@@ -19,7 +20,7 @@ jobs:
         run: |
           curl -Ls https://github.com/kgoldman/ibmswtpm2/archive/refs/tags/$IBMSWTPM_VER.tar.gz | tar xz
           cd ibmswtpm2-$IBMSWTPM_VER/src
-          make
+          make -j"$(nproc)"
 
       - name: Configure tpm2-openssl
         run: |
@@ -28,7 +29,7 @@ jobs:
 
       - name: Build tpm2-openssl
         run: |
-          make
+          make -j"$(nproc)"
           sudo make install
 
       - name: Start TPM2 simulator
@@ -51,7 +52,7 @@ jobs:
           TPM2OPENSSL_TCTI: ${{ env.TCTI_ADDRESS }}
 
       - name: Submit code coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true

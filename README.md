@@ -1,5 +1,5 @@
 [![Build Status](https://github.com/tpm2-software/tpm2-openssl/workflows/gcc-distcheck/badge.svg)](https://github.com/tpm2-software/tpm2-openssl/actions)
-[![FreeBSD Build Status](https://api.cirrus-ci.com/github/tpm2-software/tpm2-openssl.svg?branch=master)](https://cirrus-ci.com/github/tpm2-software/tpm2-openssl)
+[![FreeBSD Build Status](https://github.com/tpm2-software/tpm2-openssl/actions/workflows/freebsd.yaml/badge.svg)](https://github.com/tpm2-software/tpm2-openssl/actions/workflows/freebsd.yaml)
 [![codecov](https://codecov.io/gh/tpm2-software/tpm2-openssl/branch/master/graph/badge.svg)](https://codecov.io/gh/tpm2-software/tpm2-openssl)
 [![Coverity Scan](https://scan.coverity.com/projects/22739/badge.svg)](https://scan.coverity.com/projects/tpm2-openssl)
 [![CodeQL](https://github.com/tpm2-software/tpm2-openssl/workflows/CodeQL/badge.svg)](https://github.com/tpm2-software/tpm2-openssl/actions/workflows/codeql.yml)

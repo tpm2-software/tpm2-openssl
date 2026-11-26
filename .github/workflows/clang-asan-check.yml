@@ -17,8 +17,9 @@ jobs:
       matrix:
         branch: [openssl-3.0, openssl-3.5, master]
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install dependencies
         run: |
@@ -29,7 +30,7 @@ jobs:
         run: |
           curl -Ls https://github.com/kgoldman/ibmswtpm2/archive/refs/tags/$IBMSWTPM_VER.tar.gz | tar xz
           cd ibmswtpm2-$IBMSWTPM_VER/src
-          make
+          make -j"$(nproc)"
 
       - name: Build openssl
         run: |
@@ -47,7 +48,7 @@ jobs:
                       no-ocb no-poly1305 no-psk no-rc2 no-rc4 no-rfc3779 \
                       no-rmd160 no-seed no-siphash no-siv no-sm3 no-sm4 \
                       no-srtp no-ssl3-method no-tests no-ts no-whirlpool
-          make build_sw
+          make -j"$(nproc)" build_sw
           sudo make install_sw install_ssldirs
 
         env:
@@ -61,7 +62,7 @@ jobs:
 
       - name: Build tpm2-openssl
         run: |
-          make
+          make -j"$(nproc)"
           sudo make install
 
       - name: Start TPM2 simulator
