@@ -9,6 +9,7 @@ jobs:
   latest:
     if: github.repository == 'tpm2-software/tpm2-openssl'
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
 
